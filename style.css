@@ -232,7 +232,7 @@ button { font-family: inherit; }
   height: 384px;
 }
 
-.call-text, .judge-text, .bonus-text, .abs-text, .pause-text, .react-text {
+.call-text, .judge-text, .bonus-text, .abs-text, .pause-text, .react-text, .style-text {
   position: absolute;
   left: 0; right: 0;
   text-align: center;
@@ -277,6 +277,17 @@ button { font-family: inherit; }
   color: var(--g-call, var(--g-gold));
   text-shadow: var(--g-call-shadow, 3px 3px 0 var(--g-navy), 6px 6px 0 var(--g-ink));
   animation: blink 1s steps(2, start) infinite;
+}
+/* the name of the umpire's call style, just above the call inset (bottom-right, 52px canvas = 104px) */
+.style-text {
+  top: auto;
+  bottom: 114px;
+  left: auto;
+  right: 6px;
+  width: 112px;
+  font-size: 12px;
+  color: var(--g-overlay-accent, var(--g-gold));
+  text-shadow: var(--g-overlay-shadow, 2px 2px var(--g-ink));
 }
 .react-text {
   top: 27%;

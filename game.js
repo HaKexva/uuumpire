@@ -144,8 +144,16 @@
       // batter: [kit][size][hand][frame]
       batter: KITS.map((kit) => Object.fromEntries(Object.keys(BATTER_H).map((size) =>
         [size, frames(['batter_' + size, 'batterCheck_' + size, 'batterSwing_' + size, 'batterFollow_' + size], kit)]))),
-      umpStrike: makeSprite(SPR.umpStrike),
-      umpBall: makeSprite(SPR.umpBall),
+      // umpire call inset: ump[strike|ball][style] = frames (sprites.js ump_<call>_<style>_<n>)
+      ump: (() => {
+        const out = { strike: {}, ball: {} };
+        for (const key of Object.keys(SPR)) {
+          const m = /^ump_(strike|ball)_([a-z]+)_(\d+)$/.exec(key);
+          if (!m) continue;
+          (out[m[1]][m[2]] = out[m[1]][m[2]] || [])[+m[3]] = makeSprite(SPR[key]);
+        }
+        return out;
+      })(),
     };
     BG = makeBackground();
     CROWD = [makeCrowd(0), makeCrowd(1)];
@@ -642,7 +650,7 @@
 
   const el = {
     score: $('hud-score'), streak: $('hud-streak'), level: $('hud-level'), miss: $('hud-miss'),
-    call: $('call-text'), judge: $('judge-text'), bonus: $('bonus-text'), abs: $('abs-text'), react: $('react-text'),
+    call: $('call-text'), judge: $('judge-text'), bonus: $('bonus-text'), abs: $('abs-text'), react: $('react-text'), style: $('style-text'),
     pause: $('pause-text'), btnPause: $('btn-pause'), btnReplay: $('btn-replay'), crowd: $('hud-crowd'), langLabel: $('lang-label'),
     info: $('pitch-info'), count: $('pitch-count'), timer: $('timer-fill'),
     btnStrike: $('btn-strike'), btnBall: $('btn-ball'), stage: $('stage'),
@@ -863,6 +871,7 @@
     const correct = call !== null && call === (p.strike ? 'strike' : 'ball');
     G.result = { correct, timeout: call === null };
     G.phase = 'reveal'; G.t = 0; G.replayCaught = false;
+    G.umpStyle = pickUmpStyle(p.strike);
     el.timer.style.width = '0%';
     if (call !== null) { G.lastReaction = reaction; G.reactSum += reaction; G.reactN++; } else G.lastReaction = null;
 
@@ -923,6 +932,7 @@
     const judge = G.result.timeout ? t('judge.late') : correct ? t('judge.ok') : t('judge.ng');
     setTimeout(() => only(() => showText(el.judge, judge, correct ? 'ok' : 'ng')), 180);
     if (G.lastReaction !== null) setTimeout(() => only(() => showText(el.react, t('reaction', G.lastReaction.toFixed(2)), '')), 240);
+    if (G.umpStyle) setTimeout(() => only(() => showText(el.style, t('ump.' + G.umpStyle), '')), 500);
     const msgs = tags.concat(correct ? bonusMsgs : []);
     if (msgs.length) setTimeout(() => only(() => showText(el.bonus, msgs.join('  '), '')), 300);
     // ABS readout on a wrong call, or on any edge pitch (never on a swing: location did not matter)
@@ -972,7 +982,7 @@
     node.className = node.className.split(' ')[0] + ' ' + (cls || '') + ' show game-pop';
   }
   function hideText() {
-    for (const n of [el.call, el.judge, el.bonus, el.abs, el.react]) n.className = n.className.split(' ')[0];
+    for (const n of [el.call, el.judge, el.bonus, el.abs, el.react, el.style]) n.className = n.className.split(' ')[0];
   }
 
   // ABS-style readout: how far the ball was from the zone, in inches (zone is 28px = 17in wide)
@@ -1037,13 +1047,29 @@
     }
   }
 
-  // Umpire call inset (bottom-right) during the reveal
+  // Umpire call inset (bottom-right) during the reveal: an animated call in the style picked for this
+  // pitch. Each style is a frame sequence (indices into its sprite frames); the last frame holds.
+  const UMP_SEQ = {
+    strike: { hammer: [0, 0, 1], bow: [0, 0, 1, 1, 2], chainsaw: [0, 0, 1], punch: [0, 1], disco: [0, 1, 0, 1, 0, 1], windmill: [0, 1, 2, 3, 0, 1, 2, 3, 4] },
+    ball: { stone: [0, 0, 0, 0, 0, 0, 1, 0], shrug: [0, 1, 0, 1], nope: [0, 1, 2, 1, 2], shake: [0, 1, 2, 3], duster: [0, 1, 0, 1, 0], bark: [0, 1, 1, 0] },
+  };
+  function pickUmpStyle(strike) {
+    const call = strike ? 'strike' : 'ball';
+    const styles = Object.keys(UMP_SEQ[call]).filter((k) => IMG.ump[call][k]);
+    return styles.length ? pick(styles) : null;
+  }
   function drawUmpire(strike) {
-    const bx = W - 46, by = H - 46, bw = 42, bh = 42;
+    const bx = W - 56, by = H - 56, bw = 52, bh = 52;
     ctx.fillStyle = PAL.K; ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
     ctx.fillStyle = PAL.W; ctx.fillRect(bx, by, bw, bh);
     ctx.fillStyle = PAL.n; ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
-    ctx.drawImage(strike ? IMG.umpStrike : IMG.umpBall, bx + 3, by + 5);
+    const call = strike ? 'strike' : 'ball';
+    const style = G.umpStyle && IMG.ump[call][G.umpStyle] ? G.umpStyle : Object.keys(IMG.ump[call])[0];
+    const frames = IMG.ump[call][style];
+    if (!frames) return;
+    const seq = UMP_SEQ[call][style] || [0];
+    const i = Math.min(seq.length - 1, Math.floor(Math.max(0, G.t - 0.15) / 0.11));
+    ctx.drawImage(frames[seq[i]] || frames[0], bx + 2, by + 2);
   }
 
   function drawZoneGuide(strong) {

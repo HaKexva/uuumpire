@@ -433,7 +433,61 @@ function umpHand() {
   return s.rows();
 }
 
+// ------------------------------------------------------------
+// Umpire call inset (48x48, bust, facing us). One drawing function, posed by a table: the umpire's
+// right arm is on the viewer's left. Strike styles after real MLB "K3 mechanics" (hammer, bow-and-arrow,
+// chainsaw, punch-out, disco) plus the Taiwanese windmill; ball styles are the quiet ones.
+// ------------------------------------------------------------
+function umpBust(pose) {
+  const s = grid(48, 48);
+  const dx = pose.bx || 0, dy = pose.by || 0;
+  const hx = 24 + dx + (pose.hx || 0), hy = 12 + dy + (pose.hy || 0);
+  s.poly([[12 + dx, 22 + dy], [36 + dx, 22 + dy], [38 + dx, 40 + dy], [10 + dx, 40 + dy]], 'N'); // shirt
+  s.rect(10 + dx, 40 + dy, 38 + dx, 47, 'd');                                                  // pants
+  s.rect(16 + dx, 24 + dy, 32 + dx, 36 + dy, 'K');                                             // chest protector
+  s.rect(18 + dx, 26 + dy, 20 + dx, 34 + dy, 'm');
+  const arm = (sh, el, hd, open) => {
+    s.line(sh[0], sh[1], el[0], el[1], 'N', 5);
+    s.line(el[0], el[1], hd[0], hd[1], 'N', 5);
+    s.ellipse(hd[0], hd[1], open ? 3.3 : 2.8, open ? 2.5 : 2.8, 's');
+  };
+  if (pose.r) arm([13 + dx, 25 + dy], pose.r[0], pose.r[1], pose.r[2]);
+  if (pose.l) arm([35 + dx, 25 + dy], pose.l[0], pose.l[1], pose.l[2]);
+  if (pose.brush) { const [bxx, byy] = pose.brush; s.rect(bxx - 3, byy, bxx + 3, byy + 2, 'c'); s.rect(bxx - 1, byy - 2, bxx + 1, byy - 1, 'k'); }
+  s.rect(hx - 3, hy + 6, hx + 3, hy + 10, 's');                                                  // neck
+  s.ellipse(hx, hy, 7, 7.5, 's');                                                                // face
+  s.recolor(hx - 7, hy + 4, hx + 7, hy + 8, 's', 'z');
+  s.ellipse(hx, hy - 4, 7.5, 4, 'K'); s.rect(hx - 8, hy - 1, hx + 8, hy, 'd');                   // cap + brim
+  if (!pose.blink) { s.put(hx - 3, hy + 1, 'K'); s.put(hx + 3, hy + 1, 'K'); }
+  if (pose.mouth) s.rect(hx - 2, hy + 4, hx + 2, hy + 6, 'r'); else s.rect(hx - 2, hy + 5, hx + 2, hy + 5, 'z');
+  s.line(hx - 7, hy + 3, hx + 7, hy + 3, 'g'); s.line(hx - 6, hy + 8, hx + 6, hy + 8, 'g');     // mask bars
+  s.line(hx - 7, hy - 1, hx - 7, hy + 8, 'g'); s.line(hx + 7, hy - 1, hx + 7, hy + 8, 'g');
+  s.outline();
+  return s.rows();
+}
+
+const KNEES = { r: [[6, 36], [10, 46]], l: [[42, 36], [38, 46]] };
+const UMP_POSES = {
+  // strike styles
+  strike_hammer:   [{ r: [[5, 18], [8, 8]] }, { r: [[4, 24], [9, 17]], mouth: true }],
+  strike_bow:      [{ l: [[44, 20], [47, 15], true], r: [[8, 14], [17, 11]] }, { l: [[44, 20], [47, 15], true], r: [[4, 15], [1, 11]], mouth: true }, { l: [[42, 34], [38, 40]], r: [[6, 34], [10, 40]] }],
+  strike_chainsaw: [{ r: [[8, 34], [14, 40]], l: [[22, 36], [18, 41]] }, { r: [[4, 20], [4, 10]], l: [[12, 18], [10, 8]], bx: -1, mouth: true }],
+  strike_punch:    [{ r: [[8, 30], [18, 27]] }, { r: [[5, 26], [2, 24]], mouth: true }],
+  strike_disco:    [{ r: [[9, 12], [12, 2], true], l: [[42, 32], [36, 36]], hx: -1 }, { r: [[9, 12], [12, 2], true], l: [[42, 32], [36, 36]], hx: 1, mouth: true }],
+  strike_windmill: [{ r: [[8, 14], [4, 8]] }, { r: [[4, 28], [1, 34]] }, { r: [[14, 38], [20, 44]] }, { r: [[20, 18], [24, 8]] }, { r: [[5, 26], [2, 24]], mouth: true }],
+  // ball styles
+  ball_stone:  [{ ...KNEES }, { ...KNEES, blink: true }],
+  ball_shrug:  [{ r: [[4, 30], [1, 22], true], l: [[44, 30], [47, 22], true], by: -2, hx: 2 }, { r: [[4, 30], [1, 22], true], l: [[44, 30], [47, 22], true], by: -2, hx: -2 }],
+  ball_nope:   [{ r: KNEES.r, l: [[42, 30], [36, 30], true] }, { r: KNEES.r, l: [[44, 30], [47, 27], true] }, { r: KNEES.r, l: [[42, 30], [36, 30], true] }],
+  ball_shake:  [{ ...KNEES, hx: -3 }, { ...KNEES, hx: 3 }, { ...KNEES, hx: -3 }, { ...KNEES, hx: 0 }],
+  ball_duster: [{ by: 6, hy: 2, r: [[8, 40], [12, 46]], brush: [12, 45], l: [[42, 38], [38, 44]] }, { by: 6, hy: 2, r: [[14, 42], [22, 46]], brush: [22, 45], l: [[42, 38], [38, 44]] }],
+  ball_bark:   [{ mouth: true, r: KNEES.r, l: [[40, 30], [40, 26], true] }, { mouth: true, r: KNEES.r, l: [[44, 26], [47, 20], true] }],
+};
+const UMP_OUT = {};
+for (const [name, frames] of Object.entries(UMP_POSES)) frames.forEach((p, i) => { UMP_OUT['ump_' + name + '_' + i] = umpBust(p); });
+
 const OUT = {
+  ...UMP_OUT,
   mitt: mitt(),
   umpHand: umpHand(),
   catcher: catcher(),
