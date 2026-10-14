@@ -104,35 +104,36 @@ function batterTorso(s, lean) {                                         // lean:
   s.rect(11, 37, 25, 38, 'm'); s.rect(17, 37, 18, 38, 'G');             // belt + buckle
 }
 
-function batterLegsStance(s) {                                          // wide, knees in, shins flaring out
-  s.poly([[11, 39], [18, 39], [16, 51], [8, 51]], 'W');                 // back thigh (umpire's left)
-  s.poly([[8, 51], [16, 51], [13, 60], [4, 60]], 'W');                  // back shin
-  s.poly([[18, 39], [25, 39], [28, 51], [20, 51]], 'W');                // front thigh
-  s.poly([[20, 51], [28, 51], [31, 60], [23, 60]], 'W');                // front shin
-  s.recolor(8, 39, 9, 51, 'W', 'w'); s.recolor(4, 52, 7, 60, 'W', 'w');
-  s.recolor(20, 39, 21, 51, 'W', 'w'); s.recolor(23, 52, 24, 60, 'W', 'w');
-  s.line(15, 40, 11, 58, "w"); s.line(24, 41, 28, 58, "w");             // creases
-  s.rect(4, 59, 13, 62, 'B'); s.recolor(4, 59, 4, 62, 'B', 'l');        // stirrups
-  s.rect(23, 59, 31, 62, 'B'); s.recolor(23, 59, 23, 62, 'B', 'l');
-  s.rect(1, 62, 13, 64, 'm'); s.rect(1, 63, 13, 63, 'g');               // back cleat, toes out
-  s.rect(23, 62, 34, 64, 'm'); s.rect(23, 63, 34, 63, 'g');             // front cleat toward the plate
+function batterLegsStance(s) {                                          // two columns, slight knee bend, weight back
+  s.poly([[10, 39], [17, 39], [16, 50], [8, 50]], 'W');                 // back thigh (umpire's left)
+  s.poly([[8, 50], [16, 50], [15, 60], [7, 60]], 'W');                  // back shin, straight down
+  s.poly([[18, 39], [25, 39], [26, 50], [19, 50]], 'W');                // front thigh
+  s.poly([[19, 50], [26, 50], [28, 60], [21, 60]], 'W');                // front shin, knee turned toward the plate
+  s.recolor(7, 39, 9, 60, 'W', 'w'); s.recolor(19, 39, 20, 60, 'W', 'w');
+  s.line(12, 41, 11, 59, 'w'); s.line(23, 41, 25, 59, 'w');             // creases
+  s.line(9, 50, 15, 50, 'w'); s.line(20, 50, 25, 50, 'w');              // knees
+  s.rect(7, 58, 15, 62, 'B'); s.recolor(7, 58, 7, 62, 'B', 'l');        // stirrups
+  s.rect(21, 58, 28, 62, 'B'); s.recolor(21, 58, 21, 62, 'B', 'l');
+  s.rect(4, 62, 15, 64, 'm'); s.rect(4, 63, 15, 63, 'g');               // back cleat, toes out
+  s.rect(21, 62, 31, 64, 'm'); s.rect(21, 63, 31, 63, 'g');             // front cleat toward the plate
 }
 
 function batterLegsOpen(s) {                                            // hips opened: front leg braced, back knee turned in, heel up
-  s.poly([[11, 39], [18, 39], [19, 50], [13, 50]], 'W');
-  s.poly([[13, 50], [19, 50], [18, 58], [13, 58]], 'W');
-  s.poly([[18, 39], [25, 39], [27, 51], [20, 51]], 'W');
-  s.poly([[20, 51], [27, 51], [29, 60], [22, 60]], 'W');
-  s.recolor(11, 39, 13, 58, 'W', 'w'); s.recolor(20, 39, 22, 60, 'W', 'w');
-  s.rect(13, 57, 18, 60, 'B'); s.recolor(13, 57, 13, 60, 'B', 'l');
-  s.rect(22, 59, 29, 62, 'B'); s.recolor(22, 59, 22, 62, 'B', 'l');
-  s.rect(11, 60, 19, 62, 'm'); s.rect(11, 61, 19, 61, 'g');             // back foot pivoted up on the toe
+  s.poly([[10, 39], [17, 39], [18, 50], [12, 50]], 'W');
+  s.poly([[12, 50], [18, 50], [17, 58], [12, 58]], 'W');
+  s.poly([[18, 39], [25, 39], [27, 50], [20, 50]], 'W');
+  s.poly([[20, 50], [27, 50], [29, 60], [22, 60]], 'W');
+  s.recolor(10, 39, 12, 58, 'W', 'w'); s.recolor(20, 39, 21, 60, 'W', 'w');
+  s.line(13, 50, 17, 50, 'w'); s.line(21, 50, 26, 50, 'w');
+  s.rect(12, 57, 17, 60, 'B'); s.recolor(12, 57, 12, 60, 'B', 'l');
+  s.rect(22, 58, 29, 62, 'B'); s.recolor(22, 58, 22, 62, 'B', 'l');
+  s.rect(10, 60, 18, 62, 'm'); s.rect(10, 61, 18, 61, 'g');             // back foot pivoted up on the toe
   s.rect(22, 62, 32, 64, 'm'); s.rect(22, 63, 32, 63, 'g');
 }
 
 // Bat + hands: the bat is drawn first, then two stacked fists on top of its handle so the grip reads
 // (fists along the bat, knob just below the lower one), and each forearm ends on a fist.
-function batGrip(s, knob, tip, order) {
+function batGrip(s, knob, tip) {
   const dx = tip[0] - knob[0], dy = tip[1] - knob[1], len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
   const fistA = [knob[0] + ux * 3.2, knob[1] + uy * 3.2], fistB = [knob[0] + ux * 7.2, knob[1] + uy * 7.2];
   const bat = () => { s.line(knob[0], knob[1], tip[0], tip[1], 'c', 3); s.line(knob[0] + 0.7, knob[1] - 0.7, tip[0] + 0.7, tip[1] - 0.7, 'b', 1); s.rect(Math.round(knob[0]) - 1, Math.round(knob[1]) - 1, Math.round(knob[0]) + 1, Math.round(knob[1]) + 1, 'b'); };
