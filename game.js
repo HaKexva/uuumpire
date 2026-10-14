@@ -72,7 +72,9 @@
       css: { night: '#0058f8', gold: '#fce06c', navy: '#0000a8', white: '#fcfcfc', red: '#f83800', gray: '#d8d8d8', dim: '#6888c0', ink: '#000000', panel: '#000040', btn: '#fcfcfc' },
       pal: { n: '#3cbcfc', N: '#0058f8', u: '#0078f8', m: '#787878', e: '#00a800', E: '#58d854', b: '#c84c0c', c: '#e4a060', y: '#f8d878' } },
     { name: 'DOME',
-      css: { night: '#1c1c1c', gold: '#3cbcfc', navy: '#0078a8', white: '#fcfcfc', red: '#f85898', gray: '#bcbcbc', dim: '#5c5c5c', ink: '#000000', panel: '#000000', btn: '#fcfcfc' },
+      css: { night: '#1c1c1c', gold: '#3cbcfc', navy: '#0078a8', white: '#fcfcfc', red: '#f85898', gray: '#bcbcbc', dim: '#5c5c5c', ink: '#000000', panel: '#000000', btn: '#fcfcfc',
+             // the stacked logo/call shadows need darker blues than this palette's mid-blue "navy"
+             'logo-shadow': '4px 4px 0 #0b3d5c, 8px 8px 0 #06263a, 12px 12px 0 #000000', 'call-shadow': '3px 3px 0 #0b3d5c, 6px 6px 0 #000000' },
       pal: { n: '#2c2c2c', N: '#3c3c3c', u: '#3cbcfc', m: '#505050', e: '#00a800', E: '#00c800', b: '#a05020', c: '#c8783c', y: '#fcfcfc', G: '#3cbcfc', B: '#f85898' } },
     { name: 'GAME BOY',
       css: { night: '#9bbc0f', gold: '#0f380f', navy: '#306230', white: '#0f380f', red: '#0f380f', gray: '#306230', dim: '#306230', ink: '#0f380f', panel: '#8bac0f', btn: '#9bbc0f', 'btn-accent': '#8bac0f',
