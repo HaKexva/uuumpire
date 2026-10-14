@@ -540,10 +540,9 @@
   // DOM
   // ------------------------------------------------------------
   const $ = (id) => document.getElementById(id);
-  const screens = {
-    loading: $('screen-loading'), title: $('screen-title'), play: $('screen-play'), over: $('screen-over'),
-    howto: $('screen-howto'), records: $('screen-records'),
-  };
+  // every <section class="screen" id="screen-x"> in the page, keyed by x (so a screen added to the HTML
+  // can never be left visible by a script that does not know it)
+  const screens = Object.fromEntries([...document.querySelectorAll('.screen')].map((s) => [s.id.replace('screen-', ''), s]));
   const canvas = $('game');
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;

@@ -12,7 +12,10 @@ python3 -m http.server 8765
 # open http://localhost:8765
 ```
 
-Works on desktop and mobile (portrait).
+Works on desktop and mobile (portrait). Live: https://hakexva.github.io/uuumpire/
+
+When you change `style.css` or any script, bump the `?v=` query on their tags in `index.html` so GitHub
+Pages' 10-minute cache (and browsers) pick up the new files together.
 
 | Action | PC | Mobile |
 | --- | --- | --- |
