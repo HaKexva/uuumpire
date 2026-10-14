@@ -297,6 +297,23 @@ button { font-family: inherit; }
   text-shadow: var(--g-overlay-shadow, 2px 2px var(--g-ink));
 }
 .show { opacity: 1; }
+/* every overlay line sits on a dark plate so it reads on any palette and over the disco court */
+.plate {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(0, 0, 0, 0.85);
+  max-width: 100%;
+}
+.abs-text .plate, .style-text .plate { padding: 1px 5px; }
+@keyframes party {
+  0% { transform: translateY(0) rotate(-3deg) scale(1); }
+  100% { transform: translateY(-8px) rotate(3deg) scale(1.08); }
+}
+@keyframes rainbow { to { filter: hue-rotate(360deg); } }
+.plate.party { animation: party .45s ease-in-out infinite alternate, rainbow 1.6s linear infinite; }
+@keyframes wobble { 0% { transform: rotate(-2deg); } 100% { transform: rotate(2deg); } }
+.plate.wobble { animation: wobble .6s ease-in-out infinite alternate; }
 .game-btn--sm { min-height: 30px; min-width: 44px; padding: 0 10px; font-size: 14px; box-shadow: 3px 3px var(--g-ink); border-width: 2px; }
 .replay-btn { position: absolute; top: 8px; right: 8px; line-height: 1; z-index: 2; }
 /* crowd mood meter in the HUD: 5 cells, red when the stands are on you, gold when they are with you */

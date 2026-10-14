@@ -768,8 +768,8 @@
     el.btnReplay.classList.add('hidden');
     if (G.pitchIndex > 0 && G.pitchIndex % 5 === 0) {
       if (G.level === 11) { // cleared the disco inning
-        showText(el.call, t('congrats'), 'small');
-        showText(el.bonus, t('congrats.sub'), '');
+        showText(el.call, t('congrats'), 'small', 'party');
+        showText(el.bonus, t('congrats.sub'), '', 'wobble');
         spawnConfetti();
         setTimeout(() => Sfx.crowd('cheer', 1), 200);
       } else {
@@ -1040,8 +1040,13 @@
     el.crowd.classList.toggle('cold', lit === 0 && !!(G.result && !G.result.correct));
     el.crowd.querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i < lit));
   }
-  function showText(node, text, cls) {
-    node.textContent = text;
+  // text goes on a dark plate (.plate) inside the overlay node; inner = extra classes for the plate
+  function showText(node, text, cls, inner) {
+    node.textContent = '';
+    const span = document.createElement('span');
+    span.className = 'plate' + (inner ? ' ' + inner : '');
+    span.textContent = text;
+    node.appendChild(span);
     node.className = node.className.split(' ')[0] + ' ' + (cls || '') + ' show game-pop';
   }
   function hideText() {

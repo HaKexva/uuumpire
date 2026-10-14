@@ -130,47 +130,67 @@ function batterLegsOpen(s) {                                            // hips 
   s.rect(22, 62, 32, 64, 'm'); s.rect(22, 63, 32, 63, 'g');
 }
 
+// Bat + hands: the bat is drawn first, then two stacked fists on top of its handle so the grip reads
+// (fists along the bat, knob just below the lower one), and each forearm ends on a fist.
+function batGrip(s, knob, tip, order) {
+  const dx = tip[0] - knob[0], dy = tip[1] - knob[1], len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
+  const fistA = [knob[0] + ux * 3.2, knob[1] + uy * 3.2], fistB = [knob[0] + ux * 7.2, knob[1] + uy * 7.2];
+  const bat = () => { s.line(knob[0], knob[1], tip[0], tip[1], 'c', 3); s.line(knob[0] + 0.7, knob[1] - 0.7, tip[0] + 0.7, tip[1] - 0.7, 'b', 1); s.rect(Math.round(knob[0]) - 1, Math.round(knob[1]) - 1, Math.round(knob[0]) + 1, Math.round(knob[1]) + 1, 'b'); };
+  const px = -uy, py = ux;                                             // across the bat
+  const fists = () => {
+    s.ellipse(fistA[0], fistA[1], 2.1, 2.0, 's'); s.ellipse(fistB[0], fistB[1], 2.1, 2.0, 's');
+    const mx = (fistA[0] + fistB[0]) / 2, my = (fistA[1] + fistB[1]) / 2;
+    s.line(mx - px * 2.4, my - py * 2.4, mx + px * 2.4, my + py * 2.4, 'K', 1);   // gap between the two fists
+    const wx = fistA[0] - ux * 2.2, wy = fistA[1] - uy * 2.2;
+    s.line(wx - px * 2.2, wy - py * 2.2, wx + px * 2.2, wy + py * 2.2, 'z', 1);   // wrist crease
+    s.line(fistB[0] + ux * 2.4, fistB[1] + uy * 2.4, tip[0], tip[1], 'c', 3);     // bat continues above the top fist
+    s.line(fistB[0] + ux * 2.4 + 0.7, fistB[1] + uy * 2.4 - 0.7, tip[0] + 0.7, tip[1] - 0.7, 'b', 1);
+  };
+  return { fistA, fistB, bat, fists };
+}
+
 function batterStance(sc = 1) {
   const s = grid(BW, BH, NEAR * sc);
-  // far (front) arm is mostly behind the body from this angle: draw its forearm first so only the bit
-  // reaching over the shoulder to the hands shows
-  s.line(25, 20, 15, 15, "s", 2);
+  const g = batGrip(s, [15, 21], [2, 1]);                               // bat high over the back shoulder
+  g.bat();
+  s.line(26, 20, g.fistB[0], g.fistB[1], 's', 2);                       // far forearm reaching over the shoulder
   batterTorso(s, 1);
-  s.poly([[22, 19], [28, 19], [27, 24], [23, 24]], "J"); s.rect(23, 23, 27, 24, "j"); // far shoulder sleeve + shade
-  s.line(17, 21, 10, 24, "J", 4); s.line(16, 23, 10, 26, "j", 1);         // back arm: sleeve out to the raised elbow
-  s.line(10, 23, 13, 16, "s", 3);                                       // forearm up to the hands
-  s.ellipse(14, 15, 2.8, 2.6, 's'); s.recolor(11, 16, 17, 17, 's', 'z'); // hands at the back ear
-  s.rect(17, 15, 20, 18, 'z');                                          // neck
+  s.poly([[22, 19], [28, 19], [27, 24], [23, 24]], 'J'); s.rect(23, 23, 27, 24, 'j'); // far shoulder sleeve
+  s.line(17, 21, 9, 24, 'J', 4); s.line(16, 23, 10, 26, 'j', 1);         // near sleeve out to the raised elbow
+  s.line(9, 24, g.fistA[0], g.fistA[1], 's', 2);                         // forearm up to the lower fist
+  g.fists();
+  s.rect(17, 15, 20, 18, 'z');
   batterHead(s, 18, 10, 0);
   batterLegsStance(s);
-  s.line(14, 15, 2, 1, 'c', 3); s.line(14, 14, 2, 0, 'b', 1);           // bat, high over the back shoulder (nearest us)
-  s.rect(14, 18, 16, 19, 'b');                                          // knob below the hands
   s.outline();
   return s.rows();
 }
 
-function batterCheck(sc = 1) {                                                // bat tipped toward the pitcher, then held
+function batterCheck(sc = 1) {                                          // bat tipped toward the pitcher, held
   const s = grid(BW, BH, NEAR * sc);
-  s.line(27, 21, 21, 20, "s", 2);                                       // far forearm, behind the body
+  const g = batGrip(s, [20, 24], [40, 5]);
   batterTorso(s, 2);
-  s.poly([[23, 19], [29, 19], [28, 24], [24, 24]], "J"); s.rect(24, 23, 28, 24, "j"); // far shoulder sleeve + shade
-  s.line(17, 21, 10, 25, "J", 4); s.line(16, 24, 10, 27, "j", 1);
-  s.line(10, 24, 19, 21, "s", 3);
-  s.ellipse(21, 21, 2.8, 2.6, 's'); s.recolor(18, 22, 24, 23, 's', 'z');
+  s.poly([[23, 19], [29, 19], [28, 24], [24, 24]], 'J'); s.rect(24, 23, 28, 24, 'j');
+  s.line(17, 21, 11, 25, 'J', 4); s.line(16, 24, 11, 27, 'j', 1);
+  s.line(11, 25, g.fistA[0], g.fistA[1], 's', 2);
+  s.line(27, 22, g.fistB[0], g.fistB[1], 's', 2);                       // far forearm comes round to the top fist
+  g.bat();
+  g.fists();
   s.rect(17, 15, 20, 18, 'z');
   batterHead(s, 18, 10, 1);
   batterLegsStance(s);
-  s.line(21, 21, 39, 5, 'c', 3); s.line(22, 20, 40, 4, 'b', 1); s.rect(19, 24, 21, 25, 'b');
   s.outline();
   return s.rows();
 }
 
-function batterSwing(sc = 1) {                                                // bat across the plate, arms extended
+function batterSwing(sc = 1) {                                          // bat across the plate, arms extended
   const s = grid(BW, BH, NEAR * sc);
+  const g = batGrip(s, [28, 26], [46, 20]);
   batterTorso(s, 2);
-  s.line(24, 22, 30, 25, "J", 4);                                       // both arms out along the bat
-  s.line(29, 24, 44, 20, 'c', 3); s.line(29, 23, 44, 19, 'b', 1);
-  s.ellipse(30, 25, 2.8, 2.4, 's'); s.recolor(27, 25, 33, 27, 's', 'z');
+  s.line(17, 22, 23, 25, 'J', 4); s.line(23, 25, g.fistA[0], g.fistA[1], 's', 2);   // near arm out
+  s.line(27, 21, 30, 23, 'J', 4); s.line(30, 23, g.fistB[0], g.fistB[1], 's', 2);   // far arm out
+  g.bat();
+  g.fists();
   s.rect(17, 15, 20, 18, 'z');
   batterHead(s, 18, 10, 1);
   batterLegsOpen(s);
@@ -178,12 +198,14 @@ function batterSwing(sc = 1) {                                                //
   return s.rows();
 }
 
-function batterFollow(sc = 1) {                                               // bat wrapped over the front shoulder
+function batterFollow(sc = 1) {                                         // bat wrapped over the front shoulder, across the back
   const s = grid(BW, BH, NEAR * sc);
-  s.line(12, 20, 1, 34, 'c', 3); s.line(13, 20, 2, 34, 'b', 1);
+  const g = batGrip(s, [24, 21], [1, 32]);
   batterTorso(s, 1);
-  s.line(23, 23, 14, 20, "J", 4);                                       // arms across the chest
-  s.ellipse(12.5, 20, 2.8, 2.6, 's'); s.recolor(10, 21, 15, 22, 's', 'z');
+  s.line(17, 21, 21, 25, 'J', 4); s.line(21, 25, g.fistA[0], g.fistA[1], 's', 2);   // near arm wraps across
+  s.poly([[24, 19], [29, 19], [29, 24], [25, 24]], 'J');                               // far sleeve
+  g.bat();
+  g.fists();
   s.rect(17, 15, 20, 18, 'z');
   batterHead(s, 18, 10, 1);
   batterLegsOpen(s);
