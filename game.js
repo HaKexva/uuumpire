@@ -449,6 +449,7 @@
     let s = tbl[key];
     if (s === undefined) s = I18N.en[key];
     if (s === undefined) s = key;
+    if (Array.isArray(s)) s = s[rndInt(s.length)];
     return String(s).replace(/\{(\d)\}/g, (m, i) => (args[+i] === undefined ? '' : args[+i]));
   }
   function applyLang() {
@@ -700,6 +701,7 @@
   function onGameOver(s) {
     Music.stop();
     Sfx.over();
+    $('over-sub').textContent = t('over.sub');
     $('over-score').textContent = s.score;
     $('over-pitches').textContent = s.pitches;
     $('over-acc').textContent = s.accuracy + '%';
