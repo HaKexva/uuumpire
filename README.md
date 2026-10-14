@@ -14,8 +14,10 @@ python3 -m http.server 8765
 
 Works on desktop and mobile (portrait). Live: https://hakexva.github.io/uuumpire/
 
-When you change `style.css` or any script, bump the `?v=` query on their tags in `index.html` so GitHub
-Pages' 10-minute cache (and browsers) pick up the new files together.
+Cache busting: `index.html` is a static shell that fetches `version.json` (never cached) and loads every
+asset with `?v=<stamp>`, so a deploy is picked up even while GitHub Pages still serves the cached page.
+Run `sh tools/install-hooks.sh` once; the pre-commit hook then stamps `version.json` on every commit
+(`node tools/stamp.js` by hand otherwise).
 
 | Action | PC | Mobile |
 | --- | --- | --- |
@@ -118,6 +120,7 @@ WebAudio player with 2A03-like duty-cycle pulse waves:
   call-and-response, snare rolls).
 - `ballgame` — "Take Me Out to the Ball Game" (Norworth / Von Tilzer, 1908, public domain), chorus in 3/4
   with oom-pah-pah tuba.
+- `disco` — original level-10 track: from level 10 on, the PA switches to a four-on-the-floor disco inning.
 
 On top of those, `assets/songs/*.json` holds ballpark standards imported from single-melody MIDI files
 (flutetunes.com), all public domain, with an auto-generated comp:
@@ -143,6 +146,7 @@ key in `index.json`. The three built-in songs export to Standard MIDI Files:
 node tools/export-midi.js theme      # assets/uuumpire-theme.mid
 node tools/export-midi.js entry      # assets/uuumpire-entry.mid
 node tools/export-midi.js ballgame   # assets/uuumpire-ballgame.mid
+node tools/export-midi.js disco      # assets/uuumpire-disco.mid
 ```
 
 Edit the bars in `music.js` (8th-note steps, `.` = tie, `-` = rest) and re-run the export.

@@ -1,4 +1,25 @@
 {
-  "play": ["william-tell", "hat-dance", "gladiators", "saints", "hava-nagila", "camptown"],
-  "title": ["stars-and-stripes", "liberty-bell"]
+  "play": [
+    "william-tell",
+    "hat-dance",
+    "gladiators",
+    "saints",
+    "hava-nagila",
+    "camptown",
+    "cancan",
+    "maple-leaf",
+    "entertainer",
+    "mountain-king",
+    "radetzky",
+    "funiculi",
+    "turkey",
+    "yankee",
+    "bumblebee",
+    "washington-post",
+    "valkyries"
+  ],
+  "title": [
+    "stars-and-stripes",
+    "liberty-bell"
+  ]
 }

@@ -247,6 +247,7 @@ button { font-family: inherit; }
   text-shadow: var(--g-call-shadow, 3px 3px 0 var(--g-navy), 6px 6px 0 var(--g-ink));
 }
 .call-text.ball { color: var(--g-call-ball, var(--g-white)); }
+.call-text.small { font-size: 28px; }
 .judge-text {
   top: 38%;
   font-size: 30px;

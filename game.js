@@ -300,7 +300,7 @@
   let CROWD = null;
   function drawCrowd() {
     if (!CROWD) return;
-    const hot = (G.mood || 0) >= 4;
+    const hot = (G.mood || 0) >= 4 || G.level >= 10;
     const frame = Math.floor((G.crowdT || 0) / (hot ? 0.2 : 0.55)) % 2;
     const img = CROWD[frame];
     if (G.wave > 0) { // the wave rolls right to left across the stands
@@ -310,6 +310,50 @@
         ctx.drawImage(img, xx, 0, 4, CROWD_H + 2, xx, CROWD_Y - 2 - lift, 4, CROWD_H + 2);
       }
     } else ctx.drawImage(img, 0, CROWD_Y - 2);
+  }
+
+  // Level 10: disco court. A mirror ball over the field, the grass cycling through colours and light
+  // spots dancing over everything. Pure dressing, drawn on top of the scene each frame.
+  const DISCO_COLS = ['R', 'B', 'G', 'p', 'u', 'y'];
+  function drawDiscoField() {
+    const tick = Math.floor(G.crowdT / 0.2);
+    ctx.globalAlpha = 0.5;
+    let yy = 46, band = 3, k = 0;
+    while (yy < 140) { // same band layout as the grass stripes, two colours checkered
+      ctx.fillStyle = PAL[DISCO_COLS[(k * 2 + tick) % DISCO_COLS.length]];
+      ctx.fillRect(0, yy, W, band);
+      yy += band; band += 1; k++;
+    }
+    // two spotlight beams sweeping from the mirror ball across the field
+    for (let b = 0; b < 2; b++) {
+      const a = Math.sin(G.crowdT * 1.3 + b * 2.1) * 0.9;
+      const cx = 84 + a * 110, cy = 172;
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = PAL[DISCO_COLS[(tick + b * 3) % DISCO_COLS.length]];
+      ctx.beginPath(); ctx.moveTo(84, 14); ctx.lineTo(cx - 26, cy); ctx.lineTo(cx + 26, cy); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // mirror ball hanging over the mound
+    ctx.fillStyle = PAL.K; ctx.fillRect(84, 0, 1, 5);
+    fillCircle(84, 11, 6, PAL.K); fillCircle(84, 11, 5, PAL.g);
+    ctx.fillStyle = PAL.W;
+    for (let j = -4; j <= 4; j++) for (let i = -4; i <= 4; i++) if ((i + j + tick) % 2 === 0 && i * i + j * j <= 20) ctx.fillRect(84 + i, 11 + j, 1, 1);
+  }
+  function drawDiscoLights() {
+    const tick = Math.floor(G.crowdT / 0.1);
+    const rnd = seededRand(tick * 7919 + 13);
+    for (let n = 0; n < 70; n++) { // coloured light spots on everything
+      const x = (rnd() * W) | 0, y = 26 + ((rnd() * 160) | 0), sz = rnd() < 0.3 ? 3 : 2;
+      ctx.fillStyle = PAL[DISCO_COLS[(n + tick) % DISCO_COLS.length]];
+      ctx.globalAlpha = 0.7 + rnd() * 0.3;
+      ctx.fillRect(x, y, sz, sz);
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = PAL.W;
+    for (let n = 0; n < 16; n++) { // white sparkles: little plus signs that twinkle
+      const x = (rnd() * W) | 0, y = 26 + ((rnd() * 160) | 0);
+      ctx.fillRect(x - 1, y, 3, 1); ctx.fillRect(x, y - 1, 1, 3);
+    }
   }
 
   // ------------------------------------------------------------
@@ -486,7 +530,7 @@
     { name: 'SHOOT',    w: 2, speed: [138, 150], bx: [6, 10],  side: 'arm',   by: [1, 3],    fx: 'early', fy: 'std',    spin: 12, minLv: 2 }, // runs early, no sink
     { name: 'TWOSEAM',  w: 2, speed: [134, 146], bx: [5, 9],   side: 'arm',   by: [3, 6],    fx: 'late',  fy: 'late',   spin: 12, minLv: 3 }, // runs late with a bit of sink
     { name: 'CUTTER',   w: 2, speed: [140, 152], bx: [4, 7],   side: 'glove', by: [1, 2],    fx: 'sharp', fy: 'std',    spin: 12, minLv: 3 },
-    { name: 'SINKER',   w: 2, speed: [134, 146], bx: [4, 8],   side: 'arm',   by: [7, 11],   fx: 'std',   fy: 'late',   spin: 9,  minLv: 3 },
+    { name: 'SINKER',   w: 2, speed: [134, 146], bx: [6, 10],  side: 'arm',   by: [11, 16],  fx: 'late',  fy: 'sharp',  spin: 9,  minLv: 3 }, // bowling-ball: runs in and dives late
     { name: 'SPLITTER', w: 2, speed: [130, 142], bx: [0, 2],   side: 'any',   by: [10, 14],  fx: 'std',   fy: 'sharp',  spin: 3,  minLv: 3 }, // straight, then a sudden drop
     { name: 'FORKBALL', w: 2, speed: [126, 138], bx: [0, 2],   side: 'any',   by: [12, 18],  fx: 'std',   fy: 'tumble', spin: 2,  minLv: 6 },
     { name: 'SWEEPER',  w: 2, speed: [122, 136], bx: [16, 24], side: 'glove', by: [0, 3],    fx: 'std',   fy: 'std',    spin: 7,  minLv: 6 },
@@ -588,7 +632,7 @@
     if (level >= 4) {
       const r = Math.random();
       if (r < 0.14) swing = 'full';
-      else if (level >= 5 && r < 0.22) swing = 'check';
+      else if (r < 0.22) swing = 'check';
     }
     // catcher framing: after the catch he pulls the mitt toward the zone. On a near-miss ball that is the
     // trap (ball ends up looking inside); on an edge strike he just tidies it up toward the middle.
@@ -723,9 +767,16 @@
     hideText();
     el.btnReplay.classList.add('hidden');
     if (G.pitchIndex > 0 && G.pitchIndex % 5 === 0) {
-      showText(el.call, t('level.n', G.level), '');
-      const unlock = LEVEL_UNLOCK[G.level] ? t(LEVEL_UNLOCK[G.level]) : t('lvl.faster');
-      showText(el.bonus, G.level === 2 ? unlock + ' · ' + t('guide.gone') : unlock, '');
+      if (G.level === 11) { // cleared the disco inning
+        showText(el.call, t('congrats'), 'small');
+        showText(el.bonus, t('congrats.sub'), '');
+        spawnConfetti();
+        setTimeout(() => Sfx.crowd('cheer', 1), 200);
+      } else {
+        showText(el.call, t('level.n', G.level), '');
+        const unlock = LEVEL_UNLOCK[G.level] ? t(LEVEL_UNLOCK[G.level]) : t('lvl.faster');
+        showText(el.bonus, G.level === 2 ? unlock + ' · ' + t('guide.gone') : unlock, '');
+      }
     }
     updateHud();
   }
@@ -737,8 +788,14 @@
         vx: (Math.random() - 0.5) * 50, vy: -10 - Math.random() * 30, life: 0.22 + Math.random() * 0.15, age: 0 });
     }
   }
+  function spawnConfetti() {
+    for (let i = 0; i < 80; i++) {
+      G.particles.push({ x: Math.random() * W, y: -2 - Math.random() * 40, vx: (Math.random() - 0.5) * 24, vy: 18 + Math.random() * 30,
+        g: 8, size: 2, color: DISCO_COLS[i % DISCO_COLS.length], life: 2.6 + Math.random() * 1.2, age: 0 });
+    }
+  }
   function updateParticles(dt) {
-    for (const q of G.particles) { q.age += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 90 * dt; }
+    for (const q of G.particles) { q.age += dt; q.x += (q.vx + (q.size === 2 ? Math.sin(q.age * 6 + q.x) * 10 : 0)) * dt; q.y += q.vy * dt; q.vy += (q.g === undefined ? 90 : q.g) * dt; }
     G.particles = G.particles.filter((q) => q.age < q.life);
   }
 
@@ -837,7 +894,9 @@
             G.pitchIndex++;
             const up = levelFor(G.pitchIndex) > G.level;
             if (up) Sfx.levelUp();
-            startWindup(up ? 2.4 : 0.35); // level up: hold on the banner while the jingle plays
+            const next = levelFor(G.pitchIndex);
+            startWindup(up ? (next === 11 ? 3.6 : 2.4) : 0.35); // level up: hold on the banner while the jingle plays
+            if (up && G.level >= 10) Music.start('disco'); // level 10: the disco inning takes over the PA
           }
         }
         break;
@@ -1142,8 +1201,8 @@
   }
   function drawParticles() {
     for (const q of G.particles) {
-      ctx.fillStyle = q.age < q.life * 0.5 ? PAL.w : PAL.c;
-      ctx.fillRect(Math.round(q.x), Math.round(q.y), 1, 1);
+      ctx.fillStyle = q.color ? PAL[q.color] : (q.age < q.life * 0.5 ? PAL.w : PAL.c);
+      ctx.fillRect(Math.round(q.x), Math.round(q.y), q.size || 1, q.size || 1);
     }
   }
 
@@ -1152,6 +1211,8 @@
     if (G.shake > 0) ctx.translate(rndInt(3) - 1, rndInt(3) - 1);
     ctx.drawImage(BG, 0, 0);
     drawCrowd();
+    const disco = G.level >= 10 && G.phase !== 'idle';
+    if (disco) drawDiscoField();
 
     // pitcher: set -> kick -> cocked (windup), release -> follow-through (flight)
     const pf = IMG.pitcher[G.pitch ? G.pitch.form : 'OVERHAND'][G.pitch ? G.pitch.hand : 'R'];
@@ -1176,6 +1237,7 @@
     const guideOn = G.level === 1 && (G.phase === 'windup' || G.phase === 'flight' || G.phase === 'call');
     // catcher body
     ctx.drawImage(IMG.catcher, POS.catcher[0], POS.catcher[1]);
+    if (disco) drawDiscoLights();
     if (guideOn) drawZoneGuide(false); // drawn over the catcher like a TV K-zone box, so his helmet never hides it
 
     // replay: the zone box and the true landing spot stay up while the pitch runs again in slow motion
@@ -1458,8 +1520,9 @@
     fontReady.then(() => document.documentElement.classList.remove('fonts-loading'));
     addTask('FONT', fontReady);
     let index = { play: [], title: [] };
-    try { index = await (await fetch('assets/songs/index.json')).json(); } catch (e) { /* no extra songs */ }
-    const loadSong = (key, pool) => fetch('assets/songs/' + key + '.json')
+    const V = window.UU_V ? '?v=' + window.UU_V : '';
+    try { index = await (await fetch('assets/songs/index.json' + V)).json(); } catch (e) { /* no extra songs */ }
+    const loadSong = (key, pool) => fetch('assets/songs/' + key + '.json' + V)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((song) => { if (window.UUMusic) { window.UUMusic.Player.addSong(key, song); pool.push(key); } });
     for (const key of index.play || []) addTask(key.toUpperCase(), loadSong(key, PLAY_SONGS));

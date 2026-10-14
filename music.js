@@ -197,7 +197,103 @@
     },
   };
 
-  const SONGS = { theme: SONG, entry: ENTRY, ballgame: BALLGAME };
+  // ------------------------------------------------------------
+  // Level 10 disco (original). Four-on-the-floor, octave-bouncing bass, offbeat chord stabs, 16 bars.
+  // Chords: Am Am Dm Dm F G Am Am | C C F F Dm E7 Am Am
+  // ------------------------------------------------------------
+  const DISCO = {
+    title: 'UUUMPIRE Level 10 (Disco Inning)',
+    bpm: 124,
+    stepsPerBar: 8,
+    tracks: {
+      lead: {
+        type: 'pulse', duty: 0.5, vol: 0.05, midiProgram: 80,
+        bars: [
+          'e5 .  e5 g5 a5 .  g5 e5',
+          'd5 .  c5 .  a4 .  .  -',
+          'f5 .  f5 a5 c6 .  a5 f5',
+          'e5 .  d5 .  c5 .  .  -',
+          'c5 .  c5 d5 e5 .  f5 e5',
+          'd5 .  .  .  b4 .  d5 .',
+          'c5 b4 a4 .  e5 .  .  .',
+          'a4 .  .  .  -  -  -  -',
+          'g5 .  g5 a5 b5 .  a5 g5',
+          'e5 .  .  .  c5 .  e5 .',
+          'a5 .  a5 .  f5 .  a5 .',
+          'c6 .  b5 a5 g5 .  .  -',
+          'f5 .  e5 .  d5 .  f5 .',
+          'g#5 . .  .  b5 .  g#5 .',
+          'a5 .  .  .  e5 .  c5 .',
+          'a4 .  .  .  -  -  -  -',
+        ],
+      },
+      harmony: {
+        type: 'pulse', duty: 0.25, vol: 0.03, midiProgram: 62, transpose: -12,
+        bars: [
+          '- c5 - e5 - c5 - e5',
+          '- c5 - e5 - c5 - e5',
+          '- d5 - f5 - d5 - f5',
+          '- d5 - f5 - d5 - f5',
+          '- a4 - c5 - a4 - c5',
+          '- b4 - d5 - b4 - d5',
+          '- c5 - e5 - c5 - e5',
+          '- c5 - e5 - c5 - e5',
+          '- e5 - g5 - e5 - g5',
+          '- e5 - g5 - e5 - g5',
+          '- a4 - c5 - a4 - c5',
+          '- a4 - c5 - a4 - c5',
+          '- d5 - f5 - d5 - f5',
+          '- g#4 - b4 - g#4 - b4',
+          '- c5 - e5 - c5 - e5',
+          '- c5 - e5 - c5 - e5',
+        ],
+      },
+      bass: {
+        type: 'triangle', vol: 0.1, midiProgram: 39,
+        bars: [
+          'a2 a3 a2 a3 a2 a3 a2 a3',
+          'a2 a3 a2 a3 a2 a3 a2 a3',
+          'd2 d3 d2 d3 d2 d3 d2 d3',
+          'd2 d3 d2 d3 d2 d3 d2 d3',
+          'f2 f3 f2 f3 f2 f3 f2 f3',
+          'g2 g3 g2 g3 g2 g3 g2 g3',
+          'a2 a3 a2 a3 a2 a3 a2 a3',
+          'a2 a3 a2 a3 a2 a3 a2 a3',
+          'c3 c4 c3 c4 c3 c4 c3 c4',
+          'c3 c4 c3 c4 c3 c4 c3 c4',
+          'f2 f3 f2 f3 f2 f3 f2 f3',
+          'f2 f3 f2 f3 f2 f3 f2 f3',
+          'd2 d3 d2 d3 d2 d3 d2 d3',
+          'e2 e3 e2 e3 e2 e3 e2 e3',
+          'a2 a3 a2 a3 a2 a3 a2 a3',
+          'a2 a3 a2 a3 a2 a3 a2 a3',
+        ],
+      },
+      drums: {
+        type: 'noise', vol: 0.045,
+        bars: [
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S S K S S S',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S h K h S h',
+          'K h S S K S S S',
+        ],
+      },
+    },
+  };
+
+  const SONGS = { theme: SONG, entry: ENTRY, ballgame: BALLGAME, disco: DISCO };
 
   const NOTE_IDX = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
   function noteToMidi(tok) {
@@ -365,7 +461,7 @@
     },
   };
 
-  const api = { SONG, ENTRY, BALLGAME, SONGS, Player, noteToMidi, trackEvents };
+  const api = { SONG, ENTRY, BALLGAME, DISCO, SONGS, Player, noteToMidi, trackEvents };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.UUMusic = api;
 })(typeof window !== 'undefined' ? window : globalThis);
