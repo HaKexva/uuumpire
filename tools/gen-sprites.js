@@ -132,9 +132,12 @@ function batterLegsOpen(s) {                                            // hips 
 
 function batterStance(sc = 1) {
   const s = grid(BW, BH, NEAR * sc);
+  // far (front) arm is mostly behind the body from this angle: draw its forearm first so only the bit
+  // reaching over the shoulder to the hands shows
+  s.line(25, 20, 15, 15, "s", 2);
   batterTorso(s, 1);
-  s.line(27, 22, 18, 17, "J", 4); s.recolor(22, 18, 28, 24, "J", "j"); // front arm across the chest
-  s.line(17, 21, 10, 24, "j", 4);                                       // back arm: sleeve out to the raised elbow
+  s.poly([[22, 19], [28, 19], [27, 24], [23, 24]], "J"); s.rect(23, 23, 27, 24, "j"); // far shoulder sleeve + shade
+  s.line(17, 21, 10, 24, "J", 4); s.line(16, 23, 10, 26, "j", 1);         // back arm: sleeve out to the raised elbow
   s.line(10, 23, 13, 16, "s", 3);                                       // forearm up to the hands
   s.ellipse(14, 15, 2.8, 2.6, 's'); s.recolor(11, 16, 17, 17, 's', 'z'); // hands at the back ear
   s.rect(17, 15, 20, 18, 'z');                                          // neck
@@ -148,9 +151,10 @@ function batterStance(sc = 1) {
 
 function batterCheck(sc = 1) {                                                // bat tipped toward the pitcher, then held
   const s = grid(BW, BH, NEAR * sc);
+  s.line(27, 21, 21, 20, "s", 2);                                       // far forearm, behind the body
   batterTorso(s, 2);
-  s.line(28, 23, 22, 21, "J", 4);
-  s.line(17, 21, 10, 25, "j", 4);
+  s.poly([[23, 19], [29, 19], [28, 24], [24, 24]], "J"); s.rect(24, 23, 28, 24, "j"); // far shoulder sleeve + shade
+  s.line(17, 21, 10, 25, "J", 4); s.line(16, 24, 10, 27, "j", 1);
   s.line(10, 24, 19, 21, "s", 3);
   s.ellipse(21, 21, 2.8, 2.6, 's'); s.recolor(18, 22, 24, 23, 's', 'z');
   s.rect(17, 15, 20, 18, 'z');

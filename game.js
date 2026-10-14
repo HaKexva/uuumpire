@@ -1109,8 +1109,26 @@
 
   // Loading screen: the pixel font plus the ballpark tunes in assets/songs (index.json lists them and
   // which pool, title or play, each belongs to). A tune that fails to load is simply left out.
+  // the little baseball that rolls along the loading bar: 12x12, seams spin as it travels
+  function drawLoadBall(c, frame) {
+    c.clearRect(0, 0, 12, 12);
+    const disc = (cx, cy, r, color) => {
+      c.fillStyle = color;
+      for (let y = -6; y <= 6; y++) for (let x = -6; x <= 6; x++) if (x * x + y * y <= r * r) c.fillRect(cx + x, cy + y, 1, 1);
+    };
+    disc(6, 6, 5.3, PAL.K);
+    disc(6, 6, 4.3, PAL.w);
+    disc(5, 5, 3.2, PAL.W);
+    c.fillStyle = PAL.R;
+    for (const [dx, dy] of SEAMS[frame & 3]) c.fillRect(6 + dx, 6 + dy, 1, 1);
+  }
+
   async function boot() {
-    const fill = $('load-fill'), text = $('load-text');
+    const fill = $('load-fill'), text = $('load-text'), ball = $('load-ball');
+    const bctx = ball.getContext('2d');
+    let frame = 0;
+    const roll = setInterval(() => { drawLoadBall(bctx, frame++); ball.style.left = fill.style.width || '0%'; }, 90);
+    drawLoadBall(bctx, 0);
     const tasks = [];
     let done = 0;
     const tick = (label) => { done++; fill.style.width = Math.round(done / tasks.length * 100) + '%'; text.textContent = label; };
@@ -1132,7 +1150,8 @@
     fill.style.width = '0%';
     await Promise.all(tasks);
     fill.style.width = '100%'; text.textContent = 'PLAY BALL!';
-    await new Promise((r) => setTimeout(r, 250));
+    await new Promise((r) => setTimeout(r, 350));
+    clearInterval(roll);
     showScreen('title');
     armTitleMusic();
   }

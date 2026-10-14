@@ -138,7 +138,17 @@ button { font-family: inherit; }
   outline: 2px solid var(--g-white);
   background: var(--g-dim);
 }
+.loadbar { position: relative; }
 .loadbar-fill { height: 100%; width: 0%; background: var(--g-gold); transition: width .15s steps(4); }
+/* a baseball rolls along the leading edge of the fill (drawn by game.js) */
+.load-ball {
+  position: absolute;
+  top: 50%; left: 0;
+  width: 24px; height: 24px;
+  margin: -12px 0 0 -12px;
+  image-rendering: pixelated;
+  transition: left .15s steps(4);
+}
 .load-text { color: var(--g-gray); font-size: 14px; }
 
 /* ---- title ---- */
