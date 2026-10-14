@@ -907,7 +907,7 @@
     // Full = the stands are yours (chant + wave); empty = boos and heckles. Atmosphere only: it never
     // touches the call or the score.
     G.mood = correct ? Math.min(5, G.mood + 1) : Math.max(0, G.mood - 2);
-    Music.tempo(1 + 0.07 * G.mood);   // the band plays faster as the stands heat up: +7% per cell, 1.35x when full
+    Music.tempo(1 + 0.2 * G.mood);    // the band plays faster as the stands heat up: +20% per cell, 2x when full
     const tags = [];
     if (p.swing === 'full') tags.push(t('tag.swing'));
     else if (p.swing === 'check') tags.push(t('tag.check'));
