@@ -139,7 +139,9 @@ function batGrip(s, knob, tip) {
   const bat = () => { s.line(knob[0], knob[1], tip[0], tip[1], 'c', 3); s.line(knob[0] + 0.7, knob[1] - 0.7, tip[0] + 0.7, tip[1] - 0.7, 'b', 1); s.rect(Math.round(knob[0]) - 1, Math.round(knob[1]) - 1, Math.round(knob[0]) + 1, Math.round(knob[1]) + 1, 'b'); };
   const px = -uy, py = ux;                                             // across the bat
   const fists = () => {
-    s.ellipse(fistA[0], fistA[1], 2.1, 2.0, 's'); s.ellipse(fistB[0], fistB[1], 2.1, 2.0, 's');
+    // batting gloves: dark with a knuckle highlight, so the hands never read as part of the jersey
+    s.ellipse(fistA[0], fistA[1], 2.2, 2.1, 'm'); s.ellipse(fistB[0], fistB[1], 2.2, 2.1, 'm');
+    s.put(Math.round(fistA[0] - px), Math.round(fistA[1] - py), 'g'); s.put(Math.round(fistB[0] - px), Math.round(fistB[1] - py), 'g');
     const mx = (fistA[0] + fistB[0]) / 2, my = (fistA[1] + fistB[1]) / 2;
     s.line(mx - px * 2.4, my - py * 2.4, mx + px * 2.4, my + py * 2.4, 'K', 1);   // gap between the two fists
     const wx = fistA[0] - ux * 2.2, wy = fistA[1] - uy * 2.2;
