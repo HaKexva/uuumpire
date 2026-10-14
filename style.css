@@ -317,7 +317,7 @@ button { font-family: inherit; }
 .game-btn--sm { min-height: 30px; min-width: 44px; padding: 0 10px; font-size: 14px; box-shadow: 3px 3px var(--g-ink); border-width: 2px; }
 .replay-btn { position: absolute; top: 8px; right: 8px; line-height: 1; z-index: 2; }
 /* shown only while paused, under the PAUSED plate */
-.quit-btn { position: absolute; top: 60%; left: 50%; transform: translateX(-50%); line-height: 1; z-index: 2; display: none; }
+.quit-btn { position: absolute; top: 60%; left: 0; right: 0; width: max-content; margin: 0 auto; line-height: 1; z-index: 2; display: none; } /* centred without a transform: the press effect sets its own */
 .quit-btn.show { display: block; }
 /* crowd mood meter in the HUD: 5 cells, red when the stands are on you, gold when they are with you */
 .hud-value.meter { display: flex; gap: 3px; align-items: center; height: 22px; }
