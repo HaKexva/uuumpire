@@ -509,7 +509,7 @@
   const el = {
     score: $('hud-score'), streak: $('hud-streak'), level: $('hud-level'), miss: $('hud-miss'),
     call: $('call-text'), judge: $('judge-text'), bonus: $('bonus-text'), abs: $('abs-text'), react: $('react-text'), style: $('style-text'),
-    pause: $('pause-text'), btnPause: $('btn-pause'), btnReplay: $('btn-replay'), crowd: $('hud-crowd'), langLabel: $('lang-label'),
+    pause: $('pause-text'), btnPause: $('btn-pause'), btnReplay: $('btn-replay'), btnQuit: $('btn-quit'), crowd: $('hud-crowd'), langLabel: $('lang-label'),
     info: $('pitch-info'), count: $('pitch-count'), timer: $('timer-fill'),
     btnStrike: $('btn-strike'), btnBall: $('btn-ball'), stage: $('stage'),
     titleBest: $('title-best'), soundLabel: $('sound-label'), musicLabel: $('music-label'),
@@ -646,12 +646,16 @@
     if (currentScreen !== 'play') on = false;
     if (!game.setPaused(on)) return;
     el.pause.classList.toggle('show', G.paused);
+    el.btnQuit.classList.toggle('show', G.paused);
     el.btnPause.classList.toggle('pressed', G.paused);
     if (G.paused) Music.stop(); else Music.start();
     Sfx.init(); Sfx.select();
   }
 
   function makeCall(call) { game.call(call); }
+
+  // leave a game in progress (Escape, or EXIT TO TITLE on the pause overlay); the run is not recorded
+  function quitToTitle() { setPaused(false); Sfx.select(); Music.start('title'); showScreen('title'); }
 
   // the call is in: sound, crowd, the umpire's style for this reveal, the texts
   function onResolve(r) {
@@ -974,7 +978,9 @@
   // ------------------------------------------------------------
   // Main loop
   // ------------------------------------------------------------
-  const QS = new URLSearchParams(location.search);
+  // debug flags work only on a local dev server; the deployed page ignores them
+  const LOCAL = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
+  const QS = new URLSearchParams(LOCAL ? location.search : '');
   const SLOW = parseFloat(QS.get('slow')) || 1; // debug: ?slow=4 slows game time
   const DEBUG = QS.has('debug');               // debug: ?debug exposes window.__uu to pose frames
   if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); render(); }, sfx: Sfx };
@@ -1140,6 +1146,7 @@
     } catch (e) { /* user cancelled */ }
   });
   el.btnReplay.addEventListener('click', () => startReplay());
+  el.btnQuit.addEventListener('click', () => quitToTitle());
 
   // keyboard
   document.addEventListener('keydown', (e) => {
@@ -1154,7 +1161,7 @@
       else if (k === 'r' || k === 'R') { startReplay(); e.preventDefault(); }
       else if (k === 'ArrowLeft' || k === 's' || k === 'S' || k === '1') { makeCall('strike'); flashBtn(el.btnStrike); e.preventDefault(); }
       else if (k === 'ArrowRight' || k === 'b' || k === 'B' || k === '2') { makeCall('ball'); flashBtn(el.btnBall); e.preventDefault(); }
-      else if (k === 'Escape') { setPaused(false); showScreen('title'); }
+      else if (k === 'Escape') quitToTitle();
     } else if (currentScreen === 'over') {
       if (k === 'Enter' || k === ' ') { newGame(); e.preventDefault(); }
       else if (k === 'Escape') showScreen('title');

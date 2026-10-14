@@ -155,6 +155,8 @@ Edit the bars in `music.js` (8th-note steps, `.` = tie, `-` = rest) and re-run t
 
 ## Debug flags
 
+Local only: the page honours these on localhost / 127.0.0.1 and ignores them when served from GitHub Pages.
+
 - `?slow=4` — run game time at 1/4 speed.
 - `?debug` — exposes `window.__uu` (`G` core state, `V` view state, `game`, `core`, `pause`, `startWindup`, `render`,
   `genPitch`, `step(dt)` to run a frame by hand).
