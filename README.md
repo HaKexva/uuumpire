@@ -80,7 +80,7 @@ Glove-side pitches (slider, cutter, curve, sweeper) break away from the arm; arm
 ## Replay, crowd, languages
 
 - **REPLAY** (`R` or the button, top-right of the stage during the reveal): the pitch runs again at 0.35x with
-  the zone box and the true landing spot shown. The reveal holds ~2.7 s so there is time to use it.
+  the zone box and the true landing spot shown. The reveal holds ~2.3 s so there is time to use it.
 - **Reaction time** is shown on every call and averaged on the game-over screen.
 - **Crowd / bench**: the CROWD meter (5 cells) fills one cell per correct call and loses two on a miss.
   Cheers, claps and boos follow your calls; a full meter gets the wave and a chant, an empty one gets

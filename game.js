@@ -820,7 +820,7 @@
       }
 
       case 'reveal':
-        if (G.t >= 2.7) { // long enough to read the ABS line and hit REPLAY
+        if (G.t >= 2.3) { // long enough to read the ABS line and hit REPLAY
           if (G.misses >= 3) gameOver();
           else {
             G.pitchIndex++;
