@@ -438,6 +438,7 @@
       const p = this.player;
       if (!p || !settings.music) return;
       if (song === 'title') {
+        p.setTempo(1); // menu songs always play straight
         if (p.playing && TITLE_SONGS.includes(p.current)) return; // already on a menu song: keep it
         song = pick(TITLE_SONGS);
       } else if (song === 'play') {
@@ -446,6 +447,7 @@
       p.setEnabled(true); p.start(song);
     },
     stop() { const p = this.player; if (p) p.stop(); },
+    tempo(mult) { const p = this.player; if (p) p.setTempo(mult); },
     apply() { const p = this.player; if (!p) return; p.setEnabled(settings.music); if (settings.music) p.start(); },
   };
   document.addEventListener('visibilitychange', () => {
@@ -702,6 +704,7 @@
     updateHud();
     el.info.textContent = ' ';
     showScreen('play');
+    Music.tempo(1);
     Music.start('play');
     startWindup(0.9);
   }
@@ -904,6 +907,7 @@
     // Full = the stands are yours (chant + wave); empty = boos and heckles. Atmosphere only: it never
     // touches the call or the score.
     G.mood = correct ? Math.min(5, G.mood + 1) : Math.max(0, G.mood - 2);
+    Music.tempo(1 + 0.07 * G.mood);   // the band plays faster as the stands heat up: +7% per cell, 1.35x when full
     const tags = [];
     if (p.swing === 'full') tags.push(t('tag.swing'));
     else if (p.swing === 'check') tags.push(t('tag.check'));

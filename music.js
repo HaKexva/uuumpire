@@ -254,6 +254,8 @@
     ctx: null, master: null, enabled: true, playing: false,
     timer: null, step: 0, nextTime: 0, waves: {}, noiseBuf: null,
     songs: {}, current: 'theme',
+    tempo: 1,                        // playback speed multiplier (the game pushes it up with the crowd gauge)
+    setTempo(mult) { this.tempo = Math.max(0.5, Math.min(2, mult || 1)); },
     get song() { return this.songs[this.current]; },
 
     attach(ctx) {
@@ -316,9 +318,9 @@
         for (const name in s.tracks) {
           const tr = s.tracks[name];
           const evs = tr.byStep.get(this.step % tr.total);
-          if (evs) for (const e of evs) this.play(tr.def, e, this.nextTime, s.stepDur);
+          if (evs) for (const e of evs) this.play(tr.def, e, this.nextTime, s.stepDur / this.tempo);
         }
-        this.nextTime += s.stepDur;
+        this.nextTime += s.stepDur / this.tempo;
         this.step = (this.step + 1) % s.totalSteps;
       }
     },

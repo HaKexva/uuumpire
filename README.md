@@ -84,7 +84,8 @@ Glove-side pitches (slider, cutter, curve, sweeper) break away from the arm; arm
 - **Reaction time** is shown on every call and averaged on the game-over screen.
 - **Crowd / bench**: the CROWD meter (5 cells) fills one cell per correct call and loses two on a miss.
   Cheers, claps and boos follow your calls; a full meter gets the wave and a chant, an empty one gets
-  heckled. Atmosphere only: it never touches the call or the score.
+  heckled. The stadium music speeds up with it (+7% per cell, 1.35x at full). Atmosphere only: it never
+  touches the call or the score.
 - **Languages**: English, 繁體中文, 日本語 (`i18n.js`, picked from the browser language, switchable in the
   menu). Cubic 11 covers the CJK text.
 
