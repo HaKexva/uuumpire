@@ -9,22 +9,12 @@
   // Layout: umpire crouched in the slot, eyes just above the catcher, looking slightly down.
   // Horizon high, zone around mid-frame, dirt visible below the players' feet.
   // Everything at the plate is drawn 1.4x (the umpire stands right behind the catcher); the pitcher is 1x.
-  // Strike zone at the plate (px): 33 wide = 17in. Its height follows the batter at the plate
-  // (knees to mid-chest), so y0/y1 are reset by genPitch() for each batter height.
-  const ZONE = { x0: 68, x1: 101, y0: 120, y1: 148 };
-  const BATTER_H = { short: 0.88, mid: 1, tall: 1.12 };   // sprite scale; same numbers as tools/gen-sprites.js
-  const BATTER_FEET_Y = 172;                              // where every batter's cleats sit
-  // rulebook zone: midpoint of shoulders and belt (52px above the cleats on the mid batter) down to
-  // the hollow of the knee (24px above)
-  const zoneFor = (h) => ({ y0: Math.round(BATTER_FEET_Y - 52 * h), y1: Math.round(BATTER_FEET_Y - 24 * h) });
-  const BALL_R = 5;                                     // ball radius at the plate (px)
-  // Release points = the throwing hand pixel of each pitcher sprite (POS.pitcher + hand offset).
-  // R = right-hander (arm on the umpire's left); L mirrors it.
-  const RELEASE = { // pitcher sprites are 32x37 (1.3x), drawn at POS.pitcher (68, 33)
-    OVERHAND:  { R: { x: 75, y: 36 }, L: { x: 93, y: 36 } },
-    SUBMARINE: { R: { x: 74, y: 66 }, L: { x: 94, y: 66 } },
-  };
-  const MITT_REST = { x: 84, y: 170 };
+  // Rules, pitch model and the state machine live in core.js (no art in there). This file is the
+  // presentation: sprites, palettes, sound, HUD, and the mapping of core events to effects.
+  // Zone geometry, batter heights and the pitchers' release points come from there too, so the art
+  // (tools/gen-sprites.js: pitcher hand pixels, cleat line) and the rules agree on the same numbers.
+  const C = window.UU_CORE;
+  const { BALL_R, BATTER_H, BATTER_FEET_Y, MITT_REST, UNLOCKS } = C;
   const POS = { pitcher: [68, 33], catcher: [53, 138], batterR: [23, 78], batterL: [78, 78] }; // batter body ~6px off the zone edge
   const PLATE_Y = 150;                                  // front edge of home plate
   const STORE_KEY = 'uuumpire.v1';
@@ -301,10 +291,10 @@
   function drawCrowd() {
     if (!CROWD) return;
     const hot = (G.mood || 0) >= 4 || G.level >= 10;
-    const frame = Math.floor((G.crowdT || 0) / (hot ? 0.2 : 0.55)) % 2;
+    const frame = Math.floor(V.crowdT / (hot ? 0.2 : 0.55)) % 2;
     const img = CROWD[frame];
-    if (G.wave > 0) { // the wave rolls right to left across the stands
-      const ph = (2.2 - G.wave) * 9;
+    if (V.wave > 0) { // the wave rolls right to left across the stands
+      const ph = (2.2 - V.wave) * 9;
       for (let xx = 0; xx < W; xx += 4) {
         const lift = Math.sin(xx / 14 + ph) > 0.6 ? 2 : 0;
         ctx.drawImage(img, xx, 0, 4, CROWD_H + 2, xx, CROWD_Y - 2 - lift, 4, CROWD_H + 2);
@@ -316,7 +306,7 @@
   // spots dancing over everything. Pure dressing, drawn on top of the scene each frame.
   const DISCO_COLS = ['R', 'B', 'G', 'p', 'u', 'y'];
   function drawDiscoField() {
-    const tick = Math.floor(G.crowdT / 0.2);
+    const tick = Math.floor(V.crowdT / 0.2);
     ctx.globalAlpha = 0.5;
     let yy = 46, band = 3, k = 0;
     while (yy < 140) { // same band layout as the grass stripes, two colours checkered
@@ -326,7 +316,7 @@
     }
     // two spotlight beams sweeping from the mirror ball across the field
     for (let b = 0; b < 2; b++) {
-      const a = Math.sin(G.crowdT * 1.3 + b * 2.1) * 0.9;
+      const a = Math.sin(V.crowdT * 1.3 + b * 2.1) * 0.9;
       const cx = 84 + a * 110, cy = 172;
       ctx.globalAlpha = 0.28;
       ctx.fillStyle = PAL[DISCO_COLS[(tick + b * 3) % DISCO_COLS.length]];
@@ -340,7 +330,7 @@
     for (let j = -4; j <= 4; j++) for (let i = -4; i <= 4; i++) if ((i + j + tick) % 2 === 0 && i * i + j * j <= 20) ctx.fillRect(84 + i, 11 + j, 1, 1);
   }
   function drawDiscoLights() {
-    const tick = Math.floor(G.crowdT / 0.1);
+    const tick = Math.floor(V.crowdT / 0.1);
     const rnd = seededRand(tick * 7919 + 13);
     for (let n = 0; n < 70; n++) { // coloured light spots on everything
       const x = (rnd() * W) | 0, y = 26 + ((rnd() * 160) | 0), sz = rnd() < 0.3 ? 3 : 2;
@@ -501,187 +491,9 @@
     } else if (Sfx.ctx && currentScreen !== 'over' && !G.paused) Music.start();
   });
 
-  // ------------------------------------------------------------
-  // Pitch generation
-  // ------------------------------------------------------------
-  const rnd = (a, b) => a + Math.random() * (b - a);
   const rndInt = (n) => Math.floor(Math.random() * n);
   const pick = (arr) => arr[rndInt(arr.length)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const sgn = () => (Math.random() < 0.5 ? -1 : 1);
-
-  // Break profiles: f(0)=0, f(1)=1. Shape = when the movement happens.
-  const PROFILE = {
-    std:    (t) => t * t,                                        // steady bend
-    late:   (t) => t * t * t,                                    // most movement in the last third
-    sharp:  (t) => t * t * t * t,                                // tiny then sudden
-    early:  (t) => 1 - (1 - t) * (1 - t),                        // runs early, then straight
-    tumble: (t) => (t < 0.55 ? 0 : Math.pow((t - 0.55) / 0.45, 2)), // nothing, then falls off the table
-  };
-
-  // side: 'glove' breaks away from the pitcher's arm side, 'arm' runs toward it, 'any' = random.
-  // hump: rises first (curveball loop). spin: seam animation speed. minLv: first level it appears.
-  const PITCH_TYPES = [
-    // level 1: four-seamers only. 2: breaking stuff. 3: the sinking/running family. 6: the nasty pitches.
-    { name: 'FOURSEAM', w: 5, speed: [136, 148], bx: [0, 2],   side: 'any',   by: [-4, -2],  fx: 'std',   fy: 'std',    spin: 14, minLv: 1 }, // +level: 137-149 at lv1, 157-169 at lv12
-    { name: 'SLIDER',   w: 3, speed: [128, 140], bx: [9, 15],  side: 'glove', by: [2, 5],    fx: 'late',  fy: 'late',   spin: 8,  minLv: 2 },
-    { name: 'CURVE',    w: 2, speed: [98, 110],  bx: [6, 10],  side: 'glove', by: [14, 20],  fx: 'std',   fy: 'std',    spin: 5,  minLv: 2, hump: [7, 10] }, // slow, loops up then drops
-    { name: 'CHANGEUP', w: 2, speed: [116, 128], bx: [4, 7],   side: 'arm',   by: [4, 7],    fx: 'late',  fy: 'late',   spin: 4,  minLv: 2 }, // fastball look, dies late
-    { name: 'SHOOT',    w: 2, speed: [138, 150], bx: [6, 10],  side: 'arm',   by: [1, 3],    fx: 'early', fy: 'std',    spin: 12, minLv: 2 }, // runs early, no sink
-    { name: 'TWOSEAM',  w: 2, speed: [134, 146], bx: [5, 9],   side: 'arm',   by: [3, 6],    fx: 'late',  fy: 'late',   spin: 12, minLv: 3 }, // runs late with a bit of sink
-    { name: 'CUTTER',   w: 2, speed: [140, 152], bx: [4, 7],   side: 'glove', by: [1, 2],    fx: 'sharp', fy: 'std',    spin: 12, minLv: 3 },
-    { name: 'SINKER',   w: 2, speed: [134, 146], bx: [6, 10],  side: 'arm',   by: [11, 16],  fx: 'late',  fy: 'sharp',  spin: 9,  minLv: 3 }, // bowling-ball: runs in and dives late
-    { name: 'SPLITTER', w: 2, speed: [130, 142], bx: [0, 2],   side: 'any',   by: [10, 14],  fx: 'std',   fy: 'sharp',  spin: 3,  minLv: 3 }, // straight, then a sudden drop
-    { name: 'FORKBALL', w: 2, speed: [126, 138], bx: [0, 2],   side: 'any',   by: [12, 18],  fx: 'std',   fy: 'tumble', spin: 2,  minLv: 6 },
-    { name: 'SWEEPER',  w: 2, speed: [122, 136], bx: [16, 24], side: 'glove', by: [0, 3],    fx: 'std',   fy: 'std',    spin: 7,  minLv: 6 },
-    { name: 'RISING',   w: 2, speed: [138, 150], bx: [0, 3],   side: 'any',   by: [-14, -10], fx: 'std',  fy: 'late',   spin: 16, minLv: 6 },
-    { name: 'KNUCKLE',  w: 2, speed: [100, 114], bx: [0, 3],   side: 'any',   by: [2, 6],    fx: 'std',   fy: 'late',   spin: 0,  minLv: 6, wobble: [3, 5] },
-  ];
-
-  // What each level adds (shown under the LEVEL banner). Levels not listed just get faster/tighter.
-  const LEVEL_UNLOCK = { 2: 'lvl.2', 3: 'lvl.3', 4: 'lvl.4', 5: 'lvl.5', 6: 'lvl.6', 7: 'lvl.7', 10: 'lvl.10' };
-
-  // Pitcher delivery. Submarine shows up from level 2, releases at knee height, and its ball
-  // naturally rises and runs to the arm side. The sprite + release point follow the form.
-  function pickForm(level) {
-    return level >= 3 && Math.random() < 0.3 ? 'SUBMARINE' : 'OVERHAND';
-  }
-
-  function pickType(level) {
-    // early levels: mostly fastballs; the arsenal opens up with level
-    const pool = [];
-    for (const t of PITCH_TYPES) {
-      if (level < t.minLv) continue;
-      let w = t.w;
-      if (t.name === 'FOURSEAM') w += Math.max(0, 5 - level);
-      for (let i = 0; i < w; i++) pool.push(t);
-    }
-    return pick(pool);
-  }
-
-  // jersey numbers: a new one for every batter, never the same twice in a row
-  let lastNumber = -1;
-  function nextNumber() {
-    let n;
-    do { n = rndInt(100); } while (n === lastNumber);
-    lastNumber = n;
-    return n;
-  }
-
-  function genPitch(level) {
-    // who is up: a short, average or tall batter; the zone is sized to him before the pitch is placed
-    const r0 = Math.random();
-    const batterSize = r0 < 0.3 ? 'short' : r0 < 0.7 ? 'mid' : 'tall';
-    Object.assign(ZONE, zoneFor(BATTER_H[batterSize]));
-    const ex0 = ZONE.x0 - BALL_R, ex1 = ZONE.x1 + BALL_R;
-    const ey0 = ZONE.y0 - BALL_R, ey1 = ZONE.y1 + BALL_R;
-    const isStrike = Math.random() < 0.5;
-    const edgeProb = clamp(0.2 + level * 0.07, 0.2, 0.8);
-    const edge = Math.random() < edgeProb;
-    let x, y;
-    const side = rndInt(4); // 0 left, 1 right, 2 top, 3 bottom
-
-    if (isStrike) {
-      if (edge) {
-        const d = rnd(1, 3.6);
-        if (side === 0) { x = ex0 + d; y = rnd(ey0 + 2, ey1 - 2); }
-        else if (side === 1) { x = ex1 - d; y = rnd(ey0 + 2, ey1 - 2); }
-        else if (side === 2) { y = ey0 + d; x = rnd(ex0 + 2, ex1 - 2); }
-        else { y = ey1 - d; x = rnd(ex0 + 2, ex1 - 2); }
-      } else {
-        x = rnd(ex0 + 3, ex1 - 3); y = rnd(ey0 + 3, ey1 - 3);
-      }
-    } else {
-      const d = edge ? rnd(1, 3.6) : rnd(3, 10);   // clear balls still miss, but not by a mile
-      const spread = edge ? 3 : 7;
-      if (side === 0) { x = ex0 - d; y = rnd(ey0 - spread, ey1 + spread); }
-      else if (side === 1) { x = ex1 + d; y = rnd(ey0 - spread, ey1 + spread); }
-      else if (side === 2) { y = ey0 - d; x = rnd(ex0 - spread, ex1 + spread); }
-      else { y = ey1 + d; x = rnd(ex0 - spread, ex1 + spread); }
-    }
-    x = clamp(x, 46, 122); y = clamp(y, ZONE.y0 - 25, ZONE.y1 + 25);
-
-    const type = pickType(level);
-    const form = pickForm(level);
-    const hand = sgn(); // +1 right-hander: arm on the umpire's left (-x), glove side = +x
-    const dir = type.side === 'glove' ? hand : type.side === 'arm' ? -hand : sgn();
-    let bx = rnd(type.bx[0], type.bx[1]) * dir;
-    let by = rnd(type.by[0], type.by[1]);
-    const hump = type.hump ? rnd(type.hump[0], type.hump[1]) : 0;
-    // speed creeps up with level, then jumps from level 10 on
-    let speed = Math.round(rnd(type.speed[0], type.speed[1]) + Math.min(level, 8) + Math.max(0, level - 9) * 3);
-    // knuckleball: no spin, flutters side to side on the way in (sin terms vanish at t=1, so it still lands on target)
-    const wob = type.wobble ? {
-      ax: rnd(type.wobble[0], type.wobble[1]) * sgn(), ay: rnd(type.wobble[0], type.wobble[1]) * 0.6 * sgn(),
-      nx: pick([2, 3]), ny: pick([2, 3, 4]),
-    } : null;
-    if (form === 'SUBMARINE') {
-      by -= rnd(3, 5);            // comes up from the knee: everything rides a little
-      bx += rnd(2, 4) * -hand;    // arm-side run
-      speed -= 6;
-    }
-    // flight time from the real distance (18.44 m) at the shown speed, stretched 1.3x so it stays
-    // readable, then tightened a little per level. 137 km/h at level 1 ~ 0.62 s; 169 at level 12 ~ 0.41 s.
-    let dur = (18.44 / (speed / 3.6)) * 1.3;
-    dur *= clamp(1 - (level - 1) * 0.03, 0.72, 1); // each level is a noticeable tick quicker
-
-    const located = isStrikeAt(x, y);
-    const edgeDist = edgeDistance(x, y);
-    // batter: sometimes swings through (a strike wherever it is), sometimes checks (held = no swing)
-    let swing = 'none';
-    if (level >= 4) {
-      const r = Math.random();
-      if (r < 0.14) swing = 'full';
-      else if (r < 0.22) swing = 'check';
-    }
-    // catcher framing: after the catch he pulls the mitt toward the zone. On a near-miss ball that is the
-    // trap (ball ends up looking inside); on an edge strike he just tidies it up toward the middle.
-    let frame = null;
-    if (swing !== 'full' && level >= 5 && edgeDist < 11) {
-      const pTrap = clamp(0.35 + level * 0.05, 0, 0.8);
-      if (!located && Math.random() < pTrap) {
-        const ix = clamp(x, ZONE.x0 - BALL_R + 3, ZONE.x1 + BALL_R - 3);
-        const iy = clamp(y, ZONE.y0 - BALL_R + 3, ZONE.y1 + BALL_R - 3);
-        frame = { dx: ix - x, dy: iy - y, trap: true };
-      } else if (located && edgeDist < 4 && Math.random() < 0.5) {
-        const cx = (ZONE.x0 + ZONE.x1) / 2, cy = (ZONE.y0 + ZONE.y1) / 2;
-        const d = Math.hypot(cx - x, cy - y) || 1;
-        frame = { dx: (cx - x) / d * 5.5, dy: (cy - y) / d * 5.5, trap: false };
-      }
-    }
-
-    return {
-      x, y, bx, by, hump, fx: PROFILE[type.fx], fy: PROFILE[type.fy], spin: type.spin,
-      type: type.name, speed, dur, form, hand: hand > 0 ? 'R' : 'L', wob,
-      rel: RELEASE[form][hand > 0 ? 'R' : 'L'],
-      strike: located || swing === 'full',
-      located, edgeDist, swing, frame,
-      batterLeft: Math.random() < 0.35, batterSize, number: nextNumber(), kit: rndInt(KITS.length),
-    };
-  }
-
-  function isStrikeAt(x, y) {
-    return x >= ZONE.x0 - BALL_R && x <= ZONE.x1 + BALL_R && y >= ZONE.y0 - BALL_R && y <= ZONE.y1 + BALL_R;
-  }
-  function edgeDistance(x, y) {
-    const ex0 = ZONE.x0 - BALL_R, ex1 = ZONE.x1 + BALL_R, ey0 = ZONE.y0 - BALL_R, ey1 = ZONE.y1 + BALL_R;
-    const dx = Math.max(ex0 - x, 0, x - ex1), dy = Math.max(ey0 - y, 0, y - ey1);
-    if (dx === 0 && dy === 0) return Math.min(x - ex0, ex1 - x, y - ey0, ey1 - y); // inside
-    return Math.hypot(dx, dy);
-  }
-
-  function ballPos(p, t) {
-    let sx = p.rel.x + (p.x - p.bx - p.rel.x) * t + p.bx * p.fx(t);
-    let sy = p.rel.y + (p.y - p.by - p.rel.y) * t + p.by * p.fy(t) - p.hump * Math.sin(Math.PI * t);
-    if (p.wob) {
-      sx += p.wob.ax * Math.sin(Math.PI * p.wob.nx * t) * t;
-      sy += p.wob.ay * Math.sin(Math.PI * p.wob.ny * t) * t;
-    }
-    return { x: sx, y: sy, r: 1 + (BALL_R - 1) * t * t };
-  }
-
-  function levelFor(pitchIndex) { return Math.min(12, 1 + Math.floor(pitchIndex / 5)); }
-  function callWindowFor(level) { return Math.max(0.9, 2.2 - level * 0.12); }
 
   // ------------------------------------------------------------
   // DOM
@@ -725,260 +537,140 @@
   window.addEventListener('resize', fitCanvas);
 
   // ------------------------------------------------------------
-  // Game state
+  // Game state: the simulation is core.js; this layer keeps the view-only state and turns core
+  // events into sound, text and particles.
   // ------------------------------------------------------------
-  const G = {
-    phase: 'idle',   // idle | windup | flight | call | reveal | over
-    t: 0,            // phase timer (s)
-    pitchIndex: 0, score: 0, streak: 0, bestStreak: 0, misses: 0, correct: 0,
-    pitch: null, level: 1, callTime: 0, callWindow: 2, userCall: null, result: null,
-    ball: null, mitt: { x: MITT_REST.x, y: MITT_REST.y }, trail: [],
-    shake: 0, flash: 0,
+  const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent });
+  const G = game.state;      // phase, t, pitch, score, streak, misses, mood, ball, mitt, zone, result ...
+  const ZONE = G.zone;       // sized per batter by the core; same object for the whole game
+  const V = {                // view state: nothing here changes a call or a point
+    shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null,
   };
+  let lastGame = null;       // summary of the last game (game-over screen, leaderboard submit)
 
   function newGame() {
-    Object.assign(G, {
-      phase: 'idle', t: 0, pitchIndex: 0, score: 0, streak: 0, bestStreak: 0, misses: 0, correct: 0,
-      pitch: null, level: 1, userCall: null, result: null, ball: null, trail: [], shake: 0, flash: 0,
-      mood: 0, wave: 0, crowdT: 0, reactSum: 0, reactN: 0, lastReaction: null, particles: [], replayCaught: false,
-    });
-    G.mitt = { x: MITT_REST.x, y: MITT_REST.y };
-    G.paused = false; el.pause.classList.remove("show"); el.btnPause.classList.remove("pressed");
+    Object.assign(V, { shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null });
+    el.pause.classList.remove("show"); el.btnPause.classList.remove("pressed");
     hideText();
-    updateHud();
     el.info.textContent = ' ';
     showScreen('play');
     Music.tempo(1);
     Music.start('play');
-    startWindup(0.9);
+    game.start();
+    updateHud();
   }
 
-  function startWindup(delay) {
-    G.phase = 'windup';
-    G.t = -(delay || 0);
-    G.level = levelFor(G.pitchIndex);
-    G.pitch = genPitch(G.level);
-    G.callWindow = callWindowFor(G.level);
-    G.ball = null; G.trail = []; G.userCall = null; G.result = null;
-    G.mitt = { x: MITT_REST.x, y: MITT_REST.y };
-    el.count.textContent = t('pitch.n', G.pitchIndex + 1);
-    el.timer.style.width = '0%';
-    el.timer.classList.remove('warn');
-    hideText();
-    el.btnReplay.classList.add('hidden');
-    if (G.pitchIndex > 0 && G.pitchIndex % 5 === 0) {
-      if (G.level === 11) { // cleared the disco inning
-        showText(el.call, t('congrats'), 'small', 'party');
-        showText(el.bonus, t('congrats.sub'), '', 'wobble');
-        spawnConfetti();
-        setTimeout(() => Sfx.crowd('cheer', 1), 200);
-      } else {
-        showText(el.call, t('level.n', G.level), '');
-        const unlock = LEVEL_UNLOCK[G.level] ? t(LEVEL_UNLOCK[G.level]) : t('lvl.faster');
-        showText(el.bonus, G.level === 2 ? unlock + ' · ' + t('guide.gone') : unlock, '');
+  function onGameEvent(type, e) {
+    switch (type) {
+      case 'next': { // a pitch is set up; the windup starts after the delay the core chose
+        V.trail = [];
+        el.count.textContent = t('pitch.n', e.pitchIndex + 1);
+        el.timer.style.width = '0%';
+        el.timer.classList.remove('warn');
+        hideText();
+        el.btnReplay.classList.add('hidden');
+        if (e.levelUp) Sfx.levelUp();
+        if (e.levelUp && e.level >= C.RULES.discoLevel) Music.start('disco'); // level 10: the disco inning takes over the PA
+        if (e.congrats) { // cleared the disco inning
+          showText(el.call, t('congrats'), 'small', 'party');
+          showText(el.bonus, t('congrats.sub'), '', 'wobble');
+          spawnConfetti();
+          setTimeout(() => Sfx.crowd('cheer', 1), 200);
+        } else if (e.banner) {
+          showText(el.call, t('level.n', e.level), '');
+          const unlock = UNLOCKS[e.level] ? t('lvl.' + e.level) : t('lvl.faster');
+          showText(el.bonus, e.level === 2 ? unlock + ' · ' + t('guide.gone') : unlock, '');
+        }
+        updateHud();
+        break;
       }
+      case 'windup': Sfx.windup(); break;
+      case 'pitch': hideText(); Sfx.whoosh(); break;
+      case 'catch':
+        Sfx.pop();
+        spawnDust(e.x, e.y);
+        if (!e.replay) V.flash = 0.06;
+        break;
+      case 'resolve': onResolve(e); break;
+      case 'replay': V.trail = []; hideText(); el.btnReplay.classList.add('hidden'); Sfx.select(); break;
+      case 'replayEnd':
+        showRevealTexts();
+        setTimeout(() => { if (G.phase === 'reveal') el.btnReplay.classList.remove('hidden'); }, 350);
+        break;
+      case 'over': onGameOver(e); break;
     }
-    updateHud();
   }
 
   // Dust kicked up when the ball hits the mitt: a few short-lived pixels
   function spawnDust(x, y) {
     for (let i = 0; i < 7; i++) {
-      G.particles.push({ x: x + (Math.random() - 0.5) * 4, y: y + (Math.random() - 0.5) * 4,
+      V.particles.push({ x: x + (Math.random() - 0.5) * 4, y: y + (Math.random() - 0.5) * 4,
         vx: (Math.random() - 0.5) * 50, vy: -10 - Math.random() * 30, life: 0.22 + Math.random() * 0.15, age: 0 });
     }
   }
   function spawnConfetti() {
     for (let i = 0; i < 80; i++) {
-      G.particles.push({ x: Math.random() * W, y: -2 - Math.random() * 40, vx: (Math.random() - 0.5) * 24, vy: 18 + Math.random() * 30,
+      V.particles.push({ x: Math.random() * W, y: -2 - Math.random() * 40, vx: (Math.random() - 0.5) * 24, vy: 18 + Math.random() * 30,
         g: 8, size: 2, color: DISCO_COLS[i % DISCO_COLS.length], life: 2.6 + Math.random() * 1.2, age: 0 });
     }
   }
-  function updateParticles(dt) {
-    for (const q of G.particles) { q.age += dt; q.x += (q.vx + (q.size === 2 ? Math.sin(q.age * 6 + q.x) * 10 : 0)) * dt; q.y += q.vy * dt; q.vy += (q.g === undefined ? 90 : q.g) * dt; }
-    G.particles = G.particles.filter((q) => q.age < q.life);
-  }
 
-  // Slow-motion replay of the pitch just called (R / REPLAY). Runs the same flight at 0.35x with the
-  // zone box and the true landing spot shown, then returns to the reveal.
-  function startReplay() {
-    if (G.phase !== 'reveal' || G.paused) return;
-    G.phase = 'replay'; G.t = 0; G.trail = []; G.ball = null; G.replayCaught = false;
-    G.mitt = { x: MITT_REST.x, y: MITT_REST.y };
-    hideText();
-    el.btnReplay.classList.add('hidden');
-    Sfx.select();
-  }
-
-  function update(dt) {
-    G.t += G.phase === 'replay' ? dt * 0.35 : dt;
-    if (G.shake > 0) G.shake -= dt;
-    if (G.flash > 0) G.flash -= dt;
-    if (G.wave > 0) G.wave -= dt;
-    G.crowdT += dt;
-    updateParticles(dt);
-
-    switch (G.phase) {
-      case 'windup':
-        if (G.t >= 0 && G.t - dt < 0) Sfx.windup();
-        if (G.t >= 0.55) {
-          G.phase = 'flight'; G.t = 0;
-          hideText();
-          Sfx.whoosh();
-        }
-        break;
-
-      case 'flight': {
-        const p = G.pitch;
-        const tt = Math.min(1, G.t / p.dur);
-        G.ball = ballPos(p, tt);
-        if (G.trail.length === 0 || Math.hypot(G.ball.x - G.trail[G.trail.length - 1].x, G.ball.y - G.trail[G.trail.length - 1].y) > 2) {
-          G.trail.push({ x: G.ball.x, y: G.ball.y, r: G.ball.r });
-          const maxTrail = G.pitch.speed >= 140 ? 5 : G.pitch.speed >= 125 ? 3 : 2; // faster = longer streak
-          while (G.trail.length > maxTrail) G.trail.shift();
-        }
-        if (tt >= 1) {
-          G.phase = 'call'; G.t = 0; G.callTime = 0;
-          G.ball = { x: p.x, y: p.y, r: BALL_R };
-          Sfx.pop();
-          spawnDust(p.x, p.y);
-          G.flash = 0.06;
-        }
-        break;
+  // Per-frame view bookkeeping, after game.update(dt): timers, particles, the ball's trail, the call timer.
+  function updateView(dt) {
+    if (V.shake > 0) V.shake -= dt;
+    if (V.flash > 0) V.flash -= dt;
+    if (V.wave > 0) V.wave -= dt;
+    V.crowdT += dt;
+    for (const q of V.particles) { q.age += dt; q.x += (q.vx + (q.size === 2 ? Math.sin(q.age * 6 + q.x) * 10 : 0)) * dt; q.y += q.vy * dt; q.vy += (q.g === undefined ? 90 : q.g) * dt; }
+    V.particles = V.particles.filter((q) => q.age < q.life);
+    if ((G.phase === 'flight' || G.phase === 'replay') && G.ball) {
+      const b = G.ball, last = V.trail[V.trail.length - 1];
+      if (!last || Math.hypot(b.x - last.x, b.y - last.y) > 2) {
+        V.trail.push({ x: b.x, y: b.y, r: b.r });
+        const maxTrail = G.phase === 'replay' ? 6 : G.pitch.speed >= 140 ? 5 : G.pitch.speed >= 125 ? 3 : 2; // faster = longer streak
+        while (V.trail.length > maxTrail) V.trail.shift();
       }
-
-      case 'replay': {
-        const p = G.pitch;
-        const tt = Math.min(1, G.t / p.dur);
-        G.ball = ballPos(p, tt);
-        if (G.trail.length === 0 || Math.hypot(G.ball.x - G.trail[G.trail.length - 1].x, G.ball.y - G.trail[G.trail.length - 1].y) > 2) {
-          G.trail.push({ x: G.ball.x, y: G.ball.y, r: G.ball.r });
-          while (G.trail.length > 6) G.trail.shift();
-        }
-        if (tt >= 1) {
-          if (!G.replayCaught) { G.replayCaught = true; Sfx.pop(); spawnDust(p.x, p.y); }
-          G.mitt.x = p.x; G.mitt.y = p.y;
-          if (G.t >= p.dur + 0.25) { // hold on the catch, then back to the reveal (about 1.5 s more)
-            G.phase = 'reveal'; G.t = 1.3; G.ball = null;
-            showRevealTexts();
-            setTimeout(() => { if (G.phase === 'reveal') el.btnReplay.classList.remove('hidden'); }, 350);
-          }
-        }
-        break;
-      }
-
-      case 'call': {
-        // mitt snaps onto the ball shortly after it arrives
-        const p = G.pitch;
-        const k = clamp(G.t / 0.1, 0, 1);
-        G.mitt.x = MITT_REST.x + (p.x - MITT_REST.x) * k;
-        G.mitt.y = MITT_REST.y + (p.y - MITT_REST.y) * k;
-        if (p.frame) {
-          // framing: after the catch the mitt (ball inside) drifts toward the zone
-          const f = clamp((G.t - 0.08) / 0.16, 0, 1); // quick tug, right after the catch
-          const e = f * f * (3 - 2 * f);
-          G.mitt.x += p.frame.dx * e; G.mitt.y += p.frame.dy * e;
-          G.ball = { x: p.x + p.frame.dx * e, y: p.y + p.frame.dy * e, r: BALL_R };
-        }
-        const remain = 1 - G.t / G.callWindow;
-        el.timer.style.width = Math.max(0, remain * 100) + '%';
-        el.timer.classList.toggle('warn', remain < 0.35);
-        if (G.t >= G.callWindow) resolveCall(null);
-        break;
-      }
-
-      case 'reveal':
-        if (G.t >= 2.3) { // long enough to read the ABS line and hit REPLAY
-          if (G.misses >= 3) gameOver();
-          else {
-            G.pitchIndex++;
-            const up = levelFor(G.pitchIndex) > G.level;
-            if (up) Sfx.levelUp();
-            const next = levelFor(G.pitchIndex);
-            startWindup(up ? (next === 11 ? 3.6 : 2.4) : 0.35); // level up: hold on the banner while the jingle plays
-            if (up && G.level >= 10) Music.start('disco'); // level 10: the disco inning takes over the PA
-          }
-        }
-        break;
+    }
+    if (G.phase === 'call') {
+      const remain = game.callRemain();
+      el.timer.style.width = remain * 100 + '%';
+      el.timer.classList.toggle('warn', remain < 0.35);
     }
   }
+
+  // Slow-motion replay of the pitch just called (R / REPLAY).
+  function startReplay() { game.replay(); }
 
   // Pause (space / P / the || button). Freezes the game clock and the music; the scene stays drawn.
   function setPaused(on) {
-    if (currentScreen !== 'play' || G.phase === 'idle' || G.phase === 'over') on = false;
-    if (on === !!G.paused) return;
-    G.paused = on;
-    el.pause.classList.toggle('show', on);
-    el.btnPause.classList.toggle('pressed', on);
-    if (on) Music.stop(); else Music.start();
+    if (currentScreen !== 'play') on = false;
+    if (!game.setPaused(on)) return;
+    el.pause.classList.toggle('show', G.paused);
+    el.btnPause.classList.toggle('pressed', G.paused);
+    if (G.paused) Music.stop(); else Music.start();
     Sfx.init(); Sfx.select();
   }
 
-  function makeCall(call) {
-    if (G.paused) return;
-    if (G.phase === 'flight' && G.t / G.pitch.dur >= 0.9) {
-      // early (but acceptable) call: snap the ball in
-      G.phase = 'call'; G.t = 0; G.ball = { x: G.pitch.x, y: G.pitch.y, r: BALL_R };
-      Sfx.pop();
-      spawnDust(G.pitch.x, G.pitch.y);
-    }
-    if (G.phase !== 'call') return;
-    resolveCall(call);
-  }
+  function makeCall(call) { game.call(call); }
 
-  function resolveCall(call) {
+  // the call is in: sound, crowd, the umpire's style for this reveal, the texts
+  function onResolve(r) {
     const p = G.pitch;
-    const reaction = G.t;
-    G.userCall = call;
-    const correct = call !== null && call === (p.strike ? 'strike' : 'ball');
-    G.result = { correct, timeout: call === null };
-    G.phase = 'reveal'; G.t = 0; G.replayCaught = false;
-    G.umpStyle = pickUmpStyle(p.strike);
+    V.umpStyle = pickUmpStyle(p.strike);
     el.timer.style.width = '0%';
-    if (call !== null) { G.lastReaction = reaction; G.reactSum += reaction; G.reactN++; } else G.lastReaction = null;
-
-    if (call === 'strike') Sfx.strikeCall(); else if (call === 'ball') Sfx.ballCall();
-
-    let bonusMsgs = [];
-    if (correct) {
-      G.streak++;
-      G.correct++;
-      G.bestStreak = Math.max(G.bestStreak, G.streak);
-      let pts = 100;
-      const mult = 1 + Math.min(G.streak - 1, 10) * 0.1;
-      pts *= mult;
-      // framing never changes the call or the score: the ball is judged where it crossed the plate
-      if (p.edgeDist < 3.8 && p.swing !== 'full') { pts += 50; bonusMsgs.push(t('tag.fine')); }
-      if (reaction < 0.6) { pts += 30; bonusMsgs.push(t('tag.quick')); }
-      if (mult > 1) bonusMsgs.unshift('x' + mult.toFixed(1));
-      pts = Math.round(pts);
-      G.score += pts;
-      setTimeout(() => Sfx.good(), 120);
-    } else {
-      G.streak = 0;
-      G.misses++;
-      G.shake = 0.3;
+    if (r.call === 'strike') Sfx.strikeCall(); else if (r.call === 'ball') Sfx.ballCall();
+    if (r.correct) setTimeout(() => Sfx.good(), 120);
+    else {
+      V.shake = 0.3;
       setTimeout(() => Sfx.bad(), 120);
       el.stage.classList.remove('game-shake'); void el.stage.offsetWidth; el.stage.classList.add('game-shake');
     }
-
-    // Crowd heat (the CROWD meter, 0-5 cells): every correct call fills a cell, a miss knocks two out.
-    // Full = the stands are yours (chant + wave); empty = boos and heckles. Atmosphere only: it never
-    // touches the call or the score.
-    G.mood = correct ? Math.min(5, G.mood + 1) : Math.max(0, G.mood - 2);
-    Music.tempo(1 + 0.2 * G.mood);    // the band plays faster as the stands heat up: +20% per cell, 2x when full
-    const tags = [];
-    if (p.swing === 'full') tags.push(t('tag.swing'));
-    else if (p.swing === 'check') tags.push(t('tag.check'));
-    if (p.frame) tags.push(t('tag.framed'));
-    if (!correct && G.mood === 0) tags.unshift(t('tag.heckle'));
-    else if (correct && G.mood >= 5) { tags.unshift(t('tag.chant')); G.wave = 2.2; }
+    Music.tempo(1 + 0.2 * r.mood);    // the band plays faster as the stands heat up: +20% per cell, 2x when full
+    if (r.crowd === 'chant') V.wave = 2.2;
     setTimeout(() => {
-      if (!correct) Sfx.crowd('boo', G.mood === 0 ? 1 : 0.6);
-      else Sfx.crowd(call === 'strike' ? 'cheer' : 'clap', 0.4 + 0.12 * G.mood);
+      if (!r.correct) Sfx.crowd('boo', r.mood === 0 ? 1 : 0.6);
+      else Sfx.crowd(r.call === 'strike' ? 'cheer' : 'clap', 0.4 + 0.12 * r.mood);
     }, 250);
-
-    G.revealTexts = { tags, bonusMsgs, correct };
     showRevealTexts();
     el.info.textContent = (p.form === 'SUBMARINE' ? t('sub') : '') + t('pt.' + p.type) + ' ' + p.speed + ' ' + t('kmh');
     el.btnReplay.classList.add('hidden');
@@ -988,38 +680,37 @@
 
   // the reveal overlay texts (also re-shown after a replay)
   function showRevealTexts() {
-    const p = G.pitch;
-    const { tags, bonusMsgs, correct } = G.revealTexts;
+    const p = G.pitch, r = G.result;
     const only = (fn) => { if (G.phase === 'reveal') fn(); };
     showText(el.call, p.strike ? t('call.strike') : t('call.ball'), p.strike ? '' : 'ball');
-    const judge = G.result.timeout ? t('judge.late') : correct ? t('judge.ok') : t('judge.ng');
-    setTimeout(() => only(() => showText(el.judge, judge, correct ? 'ok' : 'ng')), 180);
-    if (G.lastReaction !== null) setTimeout(() => only(() => showText(el.react, t('reaction', G.lastReaction.toFixed(2)), '')), 240);
-    if (G.umpStyle) setTimeout(() => only(() => showText(el.style, t('ump.' + G.umpStyle), '')), 500);
-    const msgs = tags.concat(correct ? bonusMsgs : []);
+    const judge = r.timeout ? t('judge.late') : r.correct ? t('judge.ok') : t('judge.ng');
+    setTimeout(() => only(() => showText(el.judge, judge, r.correct ? 'ok' : 'ng')), 180);
+    if (r.reaction !== null) setTimeout(() => only(() => showText(el.react, t('reaction', r.reaction.toFixed(2)), '')), 240);
+    if (V.umpStyle) setTimeout(() => only(() => showText(el.style, t('ump.' + V.umpStyle), '')), 500);
+    // crowd line, then swing / framing tags, then (on a correct call) the multiplier and bonuses
+    const msgs = (r.crowd ? [t('tag.' + r.crowd)] : []).concat(r.tags.map((k) => t('tag.' + k)));
+    if (r.correct) {
+      if (r.mult > 1) msgs.push('x' + r.mult.toFixed(1));
+      for (const k of r.bonus) msgs.push(t('tag.' + k));
+    }
     if (msgs.length) setTimeout(() => only(() => showText(el.bonus, msgs.join('  '), '')), 300);
-    // ABS readout on a wrong call, or on any edge pitch (never on a swing: location did not matter)
-    G.showAbs = p.swing !== 'full' && (!correct || p.edgeDist < 3.8);
-    if (G.showAbs) setTimeout(() => only(() => showText(el.abs, absText(p), '')), 450);
+    if (r.abs) setTimeout(() => only(() => showText(el.abs, absText(p), '')), 450);
   }
 
-  function gameOver() {
-    G.phase = 'over';
+  function onGameOver(s) {
     Music.stop();
     Sfx.over();
-    const acc = G.pitchIndex + 1 > 0 ? Math.round(G.correct / (G.pitchIndex + 1) * 100) : 0;
-    $('over-score').textContent = G.score;
-    $('over-pitches').textContent = G.pitchIndex + 1;
-    $('over-acc').textContent = acc + '%';
-    $('over-streak').textContent = G.bestStreak;
-    const avgReact = G.reactN ? G.reactSum / G.reactN : null;
-    $('over-react').textContent = avgReact === null ? '-' : avgReact.toFixed(2) + 's';
-    G.lastGame = { score: G.score, pitches: G.pitchIndex + 1, accuracy: acc, streak: G.bestStreak, reaction: avgReact === null ? null : +avgReact.toFixed(3) };
+    $('over-score').textContent = s.score;
+    $('over-pitches').textContent = s.pitches;
+    $('over-acc').textContent = s.accuracy + '%';
+    $('over-streak').textContent = s.streak;
+    $('over-react').textContent = s.reaction === null ? '-' : s.reaction.toFixed(2) + 's';
+    lastGame = s;
     Board.resetSubmit();
     const prevBest = settings.records.length ? settings.records[0].score : 0;
-    const isBest = G.score > prevBest && G.score > 0;
+    const isBest = s.score > prevBest && s.score > 0;
     $('over-newbest').classList.toggle('hidden', !isBest);
-    settings.records.push({ score: G.score, pitches: G.pitchIndex + 1, acc, date: new Date().toISOString().slice(0, 10) });
+    settings.records.push({ score: s.score, pitches: s.pitches, acc: s.accuracy, date: new Date().toISOString().slice(0, 10) });
     settings.records.sort((a, b) => b.score - a.score);
     settings.records = settings.records.slice(0, 5);
     saveSettings();
@@ -1053,19 +744,12 @@
     for (const n of [el.call, el.judge, el.bonus, el.abs, el.react, el.style]) n.className = n.className.split(' ')[0];
   }
 
-  // ABS-style readout: how far the ball was from the zone, in inches (zone is 28px = 17in wide)
-  const IN_PER_PX = 17 / (ZONE.x1 - ZONE.x0);
+  // ABS-style readout: how far the ball was from the zone (core.absInfo), in inches for English and
+  // centimetres for 中文 / 日本語 (the strings carry the unit)
   function absText(p) {
-    // inches in English, centimetres for 中文 / 日本語 (the strings carry the unit)
-    const inches = (p.edgeDist * IN_PER_PX * (t('abs.unit') === 'cm' ? 2.54 : 1)).toFixed(1);
-    if (p.located) return t('abs.strike', inches);
-    const ex0 = ZONE.x0 - BALL_R, ex1 = ZONE.x1 + BALL_R, ey0 = ZONE.y0 - BALL_R, ey1 = ZONE.y1 + BALL_R;
-    const dx = p.x < ex0 ? p.x - ex0 : p.x > ex1 ? p.x - ex1 : 0;
-    const dy = p.y < ey0 ? p.y - ey0 : p.y > ey1 ? p.y - ey1 : 0;
-    let where;
-    if (Math.abs(dy) >= Math.abs(dx)) where = dy < 0 ? t('high') : t('low');
-    else where = (dx < 0) === !p.batterLeft ? t('inside') : t('outside'); // relative to the batter
-    return t('abs.ball', inches, where);
+    const a = C.absInfo(p);
+    const n = (a.inches * (t('abs.unit') === 'cm' ? 2.54 : 1)).toFixed(1);
+    return a.located ? t('abs.strike', n) : t('abs.ball', n, t(a.where));
   }
   // gold measuring tick from the ball's edge to the nearest point of the zone box
   function drawAbsTick(p) {
@@ -1132,7 +816,7 @@
     ctx.fillStyle = PAL.W; ctx.fillRect(bx, by, bw, bh);
     ctx.fillStyle = PAL.n; ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
     const call = strike ? 'strike' : 'ball';
-    const style = G.umpStyle && IMG.ump[call][G.umpStyle] ? G.umpStyle : Object.keys(IMG.ump[call])[0];
+    const style = V.umpStyle && IMG.ump[call][V.umpStyle] ? V.umpStyle : Object.keys(IMG.ump[call])[0];
     const frames = IMG.ump[call][style];
     if (!frames) return;
     const seq = UMP_SEQ[call][style] || [0];
@@ -1205,7 +889,7 @@
     ctx.globalAlpha = 1;
   }
   function drawParticles() {
-    for (const q of G.particles) {
+    for (const q of V.particles) {
       ctx.fillStyle = q.color ? PAL[q.color] : (q.age < q.life * 0.5 ? PAL.w : PAL.c);
       ctx.fillRect(Math.round(q.x), Math.round(q.y), q.size || 1, q.size || 1);
     }
@@ -1213,7 +897,7 @@
 
   function render() {
     ctx.save();
-    if (G.shake > 0) ctx.translate(rndInt(3) - 1, rndInt(3) - 1);
+    if (V.shake > 0) ctx.translate(rndInt(3) - 1, rndInt(3) - 1);
     ctx.drawImage(BG, 0, 0);
     drawCrowd();
     const disco = G.level >= 10 && G.phase !== 'idle';
@@ -1255,7 +939,7 @@
     // ball (+ shadow, trail)
     if ((G.phase === 'flight' || G.phase === 'replay') && G.ball) {
       drawBallShadow(G.ball, Math.min(1, G.t / G.pitch.dur));
-      for (const tr of G.trail) drawBall(tr, true);
+      for (const tr of V.trail) drawBall(tr, true);
       drawBall(G.ball, false, Math.floor(G.t * G.pitch.spin));
     } else if (G.phase === 'call' && G.ball) {
       drawBall(G.ball, false, 0);
@@ -1278,12 +962,12 @@
       const blink = Math.floor(G.t * 6) % 2 === 0;
       fillCircle(p.x, p.y, BALL_R + 0.6, PAL.K);
       fillCircle(p.x, p.y, BALL_R, blink ? (p.strike ? PAL.G : PAL.W) : PAL.g);
-      if (G.showAbs && G.t > 0.3) drawAbsTick(p);
+      if (G.result && G.result.abs && G.t > 0.3) drawAbsTick(p);
       if (G.t > 0.15) drawUmpire(p.strike);
     }
 
     // flash on catch
-    if (G.flash > 0) { ctx.fillStyle = 'rgba(252,252,252,0.25)'; ctx.fillRect(0, 0, W, H); }
+    if (V.flash > 0) { ctx.fillStyle = 'rgba(252,252,252,0.25)'; ctx.fillRect(0, 0, W, H); }
     ctx.restore();
   }
 
@@ -1293,7 +977,7 @@
   const QS = new URLSearchParams(location.search);
   const SLOW = parseFloat(QS.get('slow')) || 1; // debug: ?slow=4 slows game time
   const DEBUG = QS.has('debug');               // debug: ?debug exposes window.__uu to pose frames
-  if (DEBUG) window.__uu = { G, ZONE, pause: false, startWindup, render, genPitch, ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { update(dt); render(); }, sfx: Sfx };
+  if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); render(); }, sfx: Sfx };
   let last = performance.now();
   function loop(now) {
     let dt = (now - last) / 1000;
@@ -1301,7 +985,7 @@
     if (dt > 0.1) dt = 0.1;
     dt /= SLOW;
     const paused = G.paused || (DEBUG && window.__uu.pause);
-    if (!paused && currentScreen === 'play' && G.phase !== 'idle' && G.phase !== 'over') update(dt);
+    if (!paused && currentScreen === 'play' && G.phase !== 'idle' && G.phase !== 'over') { game.update(dt); updateView(dt); }
     if (currentScreen === 'play') render();
     requestAnimationFrame(loop);
   }
@@ -1389,7 +1073,7 @@
         const mine = (settings.name || '').trim();
         for (const s of data.scores) {
           const li = document.createElement('li');
-          if (mine && s.name === mine && G.lastGame && s.score === G.lastGame.score) li.className = 'me';
+          if (mine && s.name === mine && lastGame && s.score === lastGame.score) li.className = 'me';
           const who = document.createElement('span'); who.className = 'who';
           const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = s.name;
           const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy);
@@ -1404,14 +1088,14 @@
     },
     resetSubmit() {
       const row = $('submit-row'), st = $('submit-status'), input = $('name-input'), btn = $('btn-submit');
-      row.classList.toggle('hidden', !this.enabled || !G.lastGame || G.lastGame.score <= 0);
+      row.classList.toggle('hidden', !this.enabled || !lastGame || lastGame.score <= 0);
       st.textContent = '';
       input.value = settings.name || '';
       btn.disabled = false;
       this.busy = false;
     },
     async submit() {
-      if (!this.enabled || this.busy || !G.lastGame) return;
+      if (!this.enabled || this.busy || !lastGame) return;
       const name = $('name-input').value.trim().slice(0, 12);
       if (!name) { $('name-input').focus(); return; }
       settings.name = name; saveSettings();
@@ -1420,7 +1104,7 @@
       try {
         const r = await this.fetchJson('/api/scores', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(Object.assign({ name, lang: settings.lang }, G.lastGame)),
+          body: JSON.stringify(Object.assign({ name, lang: settings.lang }, lastGame)),
         });
         $('submit-status').textContent = t('submit.sent', r.rankDaily, r.rankAll);
         Sfx.good();

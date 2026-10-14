@@ -157,7 +157,7 @@
   window.UU_V = v;
   const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "style.css?v=" + v; document.head.appendChild(css);
   const load = (src) => new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src + "?v=" + v; s.onload = ok; s.onerror = fail; document.body.appendChild(s); });
-  try { for (const f of ["i18n.js", "sprites.js", "music.js", "game.js"]) await load(f); }
+  try { for (const f of ["i18n.js", "sprites.js", "music.js", "core.js", "game.js"]) await load(f); }
   catch (e) { document.documentElement.classList.remove("fonts-loading"); document.getElementById("load-text").textContent = "LOAD FAILED. RELOAD?"; }
 })();
 </script>

@@ -47,7 +47,7 @@ Run `sh tools/install-hooks.sh` once; the pre-commit hook then stamps `version.j
 
 ## Pitches
 
-Thirteen types, each with its own speed band, break direction and break timing (see `PITCH_TYPES` in `game.js`).
+Thirteen types, each with its own speed band, break direction and break timing (see `PITCH_TYPES` in `core.js`).
 Speeds creep up +1 km/h per level to level 8, then jump +3 km/h per level from level 10:
 
 | Type | Speed | Movement |
@@ -154,11 +154,33 @@ Edit the bars in `music.js` (8th-note steps, `.` = tie, `-` = rest) and re-run t
 ## Debug flags
 
 - `?slow=4` — run game time at 1/4 speed.
-- `?debug` — exposes `window.__uu` (`G` state, `pause`, `startWindup`, `render`, `genPitch`).
+- `?debug` — exposes `window.__uu` (`G` core state, `V` view state, `game`, `core`, `pause`, `startWindup`, `render`,
+  `genPitch`, `step(dt)` to run a frame by hand).
+
+## Code layout: core vs. art
+
+The rules and the simulation are a separate library with no art in it, so they can be tested and reused
+without a browser:
+
+- `core.js` — `window.UU_CORE` in the page, `require('./core.js')` in Node. Pure data and functions, no DOM,
+  canvas, audio, timers or UI strings: the pitch table and break profiles, zone geometry per batter height,
+  `genPitch(level, { rng, kits, prevNumber })`, `ballPos(pitch, t)`, strike / edge-distance tests, the level
+  ladder and call window, scoring (`scoreCall`), the crowd meter (`moodAfter`), the ABS readout data
+  (`absInfo`), and `createGame({ rng, kits, onEvent })`, the state machine (idle → windup → flight → call →
+  reveal / replay → over). It reports what happens as events: `next`, `windup`, `pitch`, `catch`, `resolve`,
+  `replay`, `replayEnd`, `over`. Results carry keys (`fine`, `quick`, `swing`, `framed`, `chant`, `heckle`),
+  never text. Every random draw goes through the injectable `rng`, so a seeded game replays exactly.
+- `game.js` — the presentation: sprites, palettes, background and crowd, the chiptune `Sfx`, music pools,
+  HUD and overlay text (i18n), particles, screen shake, the umpire's call styles, the title menu, the
+  leaderboard client. It owns a `V` view-state object and maps core events to effects; nothing in it changes
+  a call or a point.
+- `tools/test-core.js` — headless checks: pitch-model invariants per level (strike flag, landing spot, speed
+  bands, when swings / framing / submarine appear, ball distance) and scripted umpires playing whole games
+  (perfect, always wrong, silent, early caller, replay, pause, 60 random seeds). Run `node tools/test-core.js`.
 
 ## Files
 
-- `index.html`, `style.css`, `game.js` — the game (vanilla JS, canvas at 168x192, integer-scaled). `i18n.js` — UI strings.
+- `index.html`, `style.css`, `core.js`, `game.js` — the game (vanilla JS, canvas at 168x192, integer-scaled). `i18n.js` — UI strings.
 - `server/` — leaderboard API (Node + Postgres) for Railway.
 - `sprites.js` — pixel art as text (one char per pixel, keys map to the palette). Pitcher (overhand + submarine), catcher, mitt, batter, umpire.
 - `tools/gen-sprites.js` — shape-based rasterizer for the batter (stance, check, swing, follow-through; posed after the

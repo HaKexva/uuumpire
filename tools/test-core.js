@@ -1,0 +1,221 @@
+#!/usr/bin/env node
+/* Headless checks of core.js: the pitch model and the whole state machine, played by scripted umpires.
+   No browser, no art.  Run: node tools/test-core.js  (exit code 1 on any failure) */
+'use strict';
+const C = require('../core.js');
+
+let fails = 0, checks = 0;
+const ok = (cond, msg) => { checks++; if (!cond) { fails++; console.log('FAIL ' + msg); } };
+const near = (a, b, eps) => Math.abs(a - b) <= (eps || 1e-6);
+function mulberry32(a) {
+  return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
+// ---------------------------------------------------------------- pitch model
+console.log('pitch model');
+console.log('  lv  strike%  edge%   sub%  swing%  frame%  speed');
+const byName = Object.fromEntries(C.PITCH_TYPES.map((t) => [t.name, t]));
+for (let level = 1; level <= 12; level++) {
+  const rng = mulberry32(level * 101);
+  const N = 3000;
+  let strikes = 0, edges = 0, subs = 0, swings = 0, frames = 0, speedSum = 0, prev = -1;
+  for (let i = 0; i < N; i++) {
+    const p = C.genPitch(level, { rng, kits: 6, prevNumber: prev });
+    const type = byName[p.type];
+    ok(type && type.minLv <= level, `lv${level}: ${p.type} before its level`);
+    ok(p.strike === (p.located || p.swing === 'full'), 'strike flag = located or full swing');
+    ok(p.located === C.isStrikeAt(p.zone, p.x, p.y), 'located agrees with isStrikeAt');
+    ok(near(p.edgeDist, C.edgeDistance(p.zone, p.x, p.y)), 'edgeDist agrees with edgeDistance');
+    if (!p.located) ok(p.edgeDist >= 1 - 1e-9 && p.edgeDist <= 12.3, `ball ${p.edgeDist.toFixed(2)}px off: at least 1px, never a mile`);
+    if (level < C.RULES.swingLevel) ok(p.swing === 'none', 'no swings before level 4');
+    if (level < C.RULES.framingLevel) ok(p.frame === null, 'no framing before level 5');
+    if (level < C.RULES.submarineLevel) ok(p.form === 'OVERHAND', 'no submarine before level 3');
+    if (p.frame) {
+      ok(p.swing !== 'full', 'no framing on a swing');
+      ok(p.frame.trap ? !p.located : p.located, 'trap frames only balls, tidy frames only strikes');
+      ok(p.edgeDist < 11, 'framing only on near pitches');
+    }
+    const lo = type.speed[0] + Math.min(level, 8) + Math.max(0, level - 9) * 3 - (p.form === 'SUBMARINE' ? 6 : 0);
+    ok(p.speed >= lo - 0.5 && p.speed <= lo + (type.speed[1] - type.speed[0]) + 0.5, `${p.type} speed ${p.speed} in band at lv${level}`);
+    ok(p.dur > 0.3 && p.dur < 0.9, 'flight time sane');
+    const end = C.ballPos(p, 1), start = C.ballPos(p, 0);
+    ok(near(end.x, p.x) && near(end.y, p.y) && near(end.r, C.BALL_R), 'ball lands on the generated spot');
+    ok(near(start.x, p.rel.x) && near(start.y, p.rel.y), 'ball leaves from the release point');
+    ok(p.number !== prev && p.number >= 0 && p.number < 100, 'new jersey number');
+    ok(p.kit >= 0 && p.kit < 6, 'kit index');
+    ok(['short', 'mid', 'tall'].includes(p.batterSize), 'batter size');
+    const z = C.zoneFor(C.BATTER_H[p.batterSize]);
+    ok(z.y0 === p.zone.y0 && z.y1 === p.zone.y1 && z.y0 < z.y1, 'zone sized to the batter');
+    const a = C.absInfo(p);
+    ok(a.located === p.located && (a.located ? a.where === null : ['high', 'low', 'inside', 'outside'].includes(a.where)), 'absInfo');
+    prev = p.number;
+    strikes += p.strike; edges += p.edgeDist < C.RULES.fineEdge; subs += p.form === 'SUBMARINE'; swings += p.swing !== 'none'; frames += !!p.frame; speedSum += p.speed;
+  }
+  const pc = (n) => (n / N * 100).toFixed(0).padStart(5);
+  console.log(`  ${String(level).padStart(2)}  ${pc(strikes)}   ${pc(edges)}  ${pc(subs)}   ${pc(swings)}   ${pc(frames)}   ${(speedSum / N).toFixed(0)}`);
+  ok(strikes / N > 0.42 && strikes / N < 0.62, `lv${level}: about half strikes (${(strikes / N * 100).toFixed(0)}%)`);
+}
+ok(C.levelFor(0) === 1 && C.levelFor(4) === 1 && C.levelFor(5) === 2 && C.levelFor(45) === 10 && C.levelFor(999) === 12, 'level ladder');
+ok(C.callWindowFor(1) > C.callWindowFor(12) && C.callWindowFor(12) >= 0.9, 'call window shrinks, floors at 0.9');
+
+// ---------------------------------------------------------------- state machine
+console.log('state machine');
+const DT = 1 / 60;
+function play(umpire, opts) {
+  // umpire(game, events) is called every frame; returns nothing. Stops at game over or maxPitches.
+  const log = [];
+  const game = C.createGame({ rng: mulberry32(opts.seed || 1), kits: 6, onEvent: (type, e) => log.push({ type, e, phase: game.state.phase }) });
+  game.start();
+  const max = opts.maxPitches || 1000;
+  let guard = 0;
+  while (game.state.phase !== 'over' && game.state.pitchIndex < max && guard++ < 2e6) {
+    game.update(DT);
+    umpire(game, log);
+  }
+  return { game, G: game.state, log };
+}
+const types = (log) => log.map((l) => l.type);
+const count = (log, type) => log.filter((l) => l.type === type).length;
+
+// perfect umpire, calls 0.3 s after the catch
+{
+  const { G, log } = play((g) => { if (g.state.phase === 'call' && g.state.t >= 0.3) g.call(g.state.pitch.strike ? 'strike' : 'ball'); }, { maxPitches: 60, seed: 7 });
+  ok(G.phase !== 'over' && G.misses === 0 && G.correct === 60, `perfect umpire: no misses (${G.misses}), 60 correct (${G.correct})`);
+  ok(G.level === 12 && G.pitchIndex === 60, `level 12 after 60 pitches (lv ${G.level})`);
+  ok(G.streak === 60 && G.bestStreak === 60, 'streak counts every call');
+  ok(G.mood === 5, 'crowd meter full');
+  const resolves = log.filter((l) => l.type === 'resolve').map((l) => l.e);
+  ok(resolves.every((r) => r.correct && !r.timeout && r.pts >= 100), 'every resolve correct and paid');
+  ok(resolves[0].mult === 1 && near(resolves[10].mult, 2) && near(resolves[59].mult, 2), 'multiplier x1.0 .. x2.0 (capped)');
+  ok(resolves.every((r) => r.bonus.includes('quick')), 'a 0.3 s call is quick');
+  ok(resolves.slice(4).every((r) => r.crowd === 'chant' && r.mood === 5), 'full stands chant on every call from the fifth');
+  ok(G.score === resolves.reduce((a, r) => a + r.pts, 0), 'score is the sum of the points paid');
+  ok(G.score <= 60 * 400, 'never beyond the server plausibility cap');
+  // event order per pitch
+  const seq = types(log).filter((t) => ['next', 'windup', 'pitch', 'catch', 'resolve'].includes(t));
+  let good = true;
+  for (let i = 0; i < 60; i++) { const s = seq.slice(i * 5, i * 5 + 5).join(','); if (s !== 'next,windup,pitch,catch,resolve') { good = false; break; } }
+  ok(good && seq.length === 5 * 60 + 1, 'next > windup > pitch > catch > resolve for every pitch');
+  const nexts = log.filter((l) => l.type === 'next').map((l) => l.e);
+  ok(nexts.filter((n) => n.levelUp).map((n) => n.level).join(',') === '2,3,4,5,6,7,8,9,10,11,12', 'level-up flags on every fifth pitch');
+  ok(nexts.filter((n) => n.banner).length === 12 && nexts.filter((n) => n.congrats).length === 1 && nexts.find((n) => n.congrats).level === 11, 'banners each level, one congratulation at level 11');
+  ok(G.reactN === 60 && near(G.reactSum / G.reactN, 0.3, 0.02), 'reaction times averaged');
+  const s = log[0] && G; // summary shape
+  const sum = { score: G.score, pitches: G.pitchIndex + 1 };
+  ok(sum.pitches === 61, 'summary counts the pitch in progress');
+}
+
+// always wrong: out after three pitches
+{
+  const { G, log } = play((g) => { if (g.state.phase === 'call') g.call(g.state.pitch.strike ? 'ball' : 'strike'); }, { seed: 3 });
+  ok(G.phase === 'over' && G.misses === 3 && G.score === 0, 'three wrong calls end the game with no points');
+  const over = log.find((l) => l.type === 'over');
+  ok(over && over.e.pitches === 3 && over.e.accuracy === 0 && over.e.streak === 0 && typeof over.e.reaction === 'number', 'over summary');
+  ok(count(log, 'over') === 1, 'over fires once');
+  const r = log.filter((l) => l.type === 'resolve').map((l) => l.e);
+  ok(r.every((x) => !x.correct && !x.timeout && x.pts === 0), 'wrong calls pay nothing');
+  ok(r[0].mood === 0 && r[0].crowd === 'heckle', 'empty stands heckle a miss');
+}
+
+// never calls: timeouts
+{
+  const { G, log } = play(() => {}, { seed: 5 });
+  ok(G.phase === 'over', 'silence ends the game');
+  const r = log.filter((l) => l.type === 'resolve').map((l) => l.e);
+  ok(r.length === 3 && r.every((x) => x.timeout && x.call === null && x.reaction === null), 'timeouts resolve with no call and no reaction time');
+  const over = log.find((l) => l.type === 'over');
+  ok(over.e.reaction === null, 'no reaction average without a call');
+}
+
+// early call: accepted from 90% of the flight, the ball snaps in
+{
+  let early = null;
+  const { log } = play((g) => {
+    const s = g.state;
+    if (s.phase === 'flight' && s.t / s.pitch.dur >= 0.92 && early === null) early = g.call(s.pitch.strike ? 'strike' : 'ball');
+    else if (s.phase === 'call') g.call(s.pitch.strike ? 'strike' : 'ball');
+  }, { maxPitches: 1, seed: 9 });
+  const c = log.find((l) => l.type === 'catch');
+  ok(early === true && c && c.e.early === true, 'a call at 92% of the flight is taken, with an early catch');
+}
+// too early: ignored
+{
+  const game = C.createGame({ rng: mulberry32(11), kits: 6 });
+  game.start();
+  ok(game.call('strike') === false && game.state.phase === 'windup', 'a call during the windup is ignored');
+  while (game.state.phase !== 'flight') game.update(DT);
+  ok(game.call('strike') === false && game.state.phase === 'flight', 'a call at release is ignored');
+}
+
+// replay: back to the reveal with time left, then the next pitch
+{
+  const game = C.createGame({ rng: mulberry32(13), kits: 6, onEvent: (type, e) => log.push({ type, e }) });
+  const log = [];
+  game.start();
+  while (game.state.phase !== 'call') game.update(DT);
+  game.call('ball');
+  ok(game.state.phase === 'reveal', 'reveal after the call');
+  ok(game.replay() === true && game.state.phase === 'replay', 'replay starts from the reveal');
+  ok(game.replay() === false, 'no replay inside a replay');
+  let steps = 0;
+  while (game.state.phase === 'replay' && steps++ < 5000) game.update(DT);
+  ok(game.state.phase === 'reveal' && near(game.state.t, C.TIMING.replayBack), 'replay returns to the reveal at replayBack');
+  const c = log.filter((l) => l.type === 'catch');
+  ok(c.length === 2 && c[1].e.replay === true, 'the replay catch is flagged');
+  ok(types(log).slice(-2).join(',') === 'catch,replayEnd', 'replayEnd event');
+  ok(steps > (game.state.pitch.dur / C.TIMING.replaySpeed) / DT * 0.9, 'replay runs in slow motion');
+  while (game.state.phase === 'reveal') game.update(DT);
+  ok(game.state.phase === 'windup' && game.state.pitchIndex === 1, 'then the next pitch');
+}
+
+// pause freezes the clock and blocks calls
+{
+  const game = C.createGame({ rng: mulberry32(17), kits: 6 });
+  ok(game.setPaused(true) === false, 'no pause before the game starts');
+  game.start();
+  while (game.state.phase !== 'call') game.update(DT);
+  const t0 = game.state.t;
+  ok(game.setPaused(true) === true && game.state.paused, 'paused');
+  for (let i = 0; i < 100; i++) game.update(DT);
+  ok(game.state.t === t0 && game.state.phase === 'call', 'clock frozen while paused');
+  ok(game.call('strike') === false, 'calls blocked while paused');
+  ok(game.replay() === false, 'replay blocked while paused');
+  game.setPaused(false);
+  game.update(DT);
+  ok(game.state.t > t0, 'clock runs again');
+  ok(game.callRemain() > 0 && game.callRemain() < 1, 'call window remaining');
+}
+
+// scoring rules
+{
+  const p = { edgeDist: 1, swing: 'none' };
+  ok(C.scoreCall(1, p, 1).pts === 150 && C.scoreCall(1, p, 1).bonus.join() === 'fine', 'edge bonus');
+  ok(C.scoreCall(1, { edgeDist: 1, swing: 'full' }, 1).pts === 100, 'no edge bonus on a swing');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 0.2).pts === 130, 'quick bonus');
+  ok(C.scoreCall(11, { edgeDist: 9, swing: 'none' }, 1).pts === 200 && C.scoreCall(50, { edgeDist: 9, swing: 'none' }, 1).mult === 2, 'x2 cap');
+  ok(C.moodAfter(0, true) === 1 && C.moodAfter(5, true) === 5 && C.moodAfter(1, false) === 0 && C.moodAfter(5, false) === 3, 'crowd meter +1 / -2');
+}
+
+// random umpires, many seeds: no exceptions, invariants hold
+{
+  let games = 0, overs = 0;
+  for (let seed = 100; seed < 160; seed++) {
+    const rng = mulberry32(seed * 7);
+    let lastScore = 0, bad = false;
+    const { G, log } = play((g) => {
+      const s = g.state;
+      if (s.phase === 'call' && rng() < 0.1) g.call(rng() < 0.5 ? 'strike' : 'ball');
+      if (s.phase === 'reveal' && rng() < 0.01) g.replay();
+      if (s.score < lastScore || s.misses > 3 || s.mood < 0 || s.mood > 5) bad = true;
+      lastScore = s.score;
+    }, { seed, maxPitches: 200 });
+    ok(!bad, `seed ${seed}: score never drops, misses <= 3, mood 0..5`);
+    ok(G.score <= (G.pitchIndex + 1) * 400, `seed ${seed}: score under the plausibility cap`);
+    if (G.phase === 'over') { overs++; ok(count(log, 'over') === 1 && G.misses === 3, `seed ${seed}: over once, at three misses`); }
+    games++;
+  }
+  console.log(`  ${games} random games, ${overs} ended by three misses`);
+}
+
+console.log(`${checks} checks, ${fails} failed`);
+process.exit(fails ? 1 : 0);
