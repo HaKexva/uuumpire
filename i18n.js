@@ -71,7 +71,7 @@ window.UU_I18N = {
     'abs.unit': 'cm', 'abs.strike': 'ABS：好球，進壘 {0} 公分', 'abs.ball': 'ABS：壞球，偏{1} {0} 公分',
     'high': '高', 'low': '低', 'inside': '內角', 'outside': '外角',
     'reaction': '反應 {0} 秒', 'sub': '下勾 ', 'kmh': 'km/h',
-    'over.title': '你出局了！', 'over.sub': ['總教練已經去聯盟投訴了。', '觀眾還在噓你。', '聯盟把你下放到小聯盟了。', '連捕手都在搖頭。'],
+    'over.title': '你出局了！', 'over.sub': ['總教練已經去聯盟投訴了。', '觀眾還在噓你。', '明天小聯盟見。', '連捕手都在搖頭。'],
     'over.score': '分數', 'over.pitches': '球數', 'over.acc': '準確率', 'over.streak': '最長連續',
     'over.react': '平均反應', 'over.newbest': '新紀錄！',
     'btn.again': '再來一場', 'btn.share': '分享', 'btn.copied': '已複製！', 'btn.title': '回標題', 'btn.back': '返回',
