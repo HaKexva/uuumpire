@@ -219,10 +219,10 @@ function batterStance(sc = 1) {
 
 function batterCheck(sc = 1) {                                          // bat tipped toward the pitcher, held
   const s = grid(BW, BH, NEAR * sc), u = shifted(s, CROUCH);
-  const g = batGrip(u, [20, 24], [40, 5]);
+  const g = batGrip(u, [23, 27], [34, 6]);                              // hands pushed out in front of the chest; the bat points at the pitcher, foreshortened
   batterTorso(u, 1);
-  arm(u, [11, 21], [5, 28], g.fistB);                                   // back arm: elbow dropped behind, forearm across to the top hand
-  arm(u, [27, 20], [30, 29], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, short forearm up to the bottom hand
+  arm(u, [11, 21], [8, 29], g.fistB);                                   // back arm: elbow dropped behind, forearm across to the top hand
+  arm(u, [27, 20], [30, 30], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, short forearm up to the bottom hand
   g.bat();
   g.fists();
   u.rect(17, 15, 20, 18, 'z');
@@ -234,10 +234,10 @@ function batterCheck(sc = 1) {                                          // bat t
 
 function batterSwing(sc = 1) {                                          // contact: bat across the plate toward the pitcher, both arms extended
   const s = grid(BW, BH, NEAR * sc);
-  const g = batGrip(s, [33, 27], [47, 8]);                              // hands out past the front shoulder; the bat foreshortens toward the pitcher
+  const g = batGrip(s, [27, 28], [46, 21]);                             // hands out past the front shoulder; the bat lies flat across the plate (perpendicular to the pitch)
   batterTorso(s, 2);
-  arm(s, [12, 21], [22, 25], g.fistB);                                  // back arm: extended across the chest to the top hand
-  arm(s, [27, 20], [31, 25], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, out to the bottom hand
+  arm(s, [12, 21], [19, 28], g.fistB);                                  // back arm: extended across the chest to the top hand
+  arm(s, [27, 20], [27, 29], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, out to the bottom hand
   g.bat();
   g.fists();
   s.rect(19, 15, 22, 18, 'z');

@@ -871,10 +871,10 @@
     if (!p || p.swing === 'none') return 0;
     const flying = G.phase === 'flight' || G.phase === 'replay';
     const tt = flying ? G.t / p.dur : G.phase === 'windup' ? 0 : 2;
-    if (p.swing === 'check') return tt >= 0.86 ? 1 : 0;
+    if (p.swing === 'check') return tt >= 0.8 ? 1 : 0;
     // full swing: straight from the stance to the bat through the zone as the ball arrives, then the
     // follow-through. (It never shows the tipped-bat pose, so a held check swing is unmistakable.)
-    if (tt < 0.9) return 0;
+    if (tt < 0.82) return 0;
     if ((flying && tt < 1) || (G.phase === 'replay' && G.t < p.dur + 0.06) || (G.phase === 'call' && G.t < 0.12)) return 2;
     return 3;
   }
