@@ -64,7 +64,7 @@ window.UU_I18N = {
     'btn.strike': '好球', 'btn.ball': '壞球', 'btn.replay': '重播', 'paused': '暫停',
     'hint.keys': '← / S = 好球    → / B = 壞球    空白鍵 = 暫停    R = 重播',
     'pitch.n': '第 {0} 球', 'level.n': '第 {0} 級', 'guide.gone': '好球帶提示關閉',
-    'call.strike': '好球！', 'call.ball': '壞球', 'judge.late': '太慢了！', 'judge.ok': ['判決正確！', '判得漂亮！', '完全正確！', '好眼力！'], 'judge.ng': ['判決錯誤！', '誤判！', '看看重播吧！', '休息區炸鍋了！'],
+    'call.strike': '好球！', 'call.ball': '壞球', 'judge.late': '太慢了！', 'judge.ok': ['判決正確！', '判得漂亮！', '完全正確！', '好眼力！'], 'judge.ng': ['判決錯誤！', '誤判！', '看看重播吧！', '總誒跨欄出來了！'],
     'tag.swing': '揮棒落空！', 'tag.check': '半揮棒・未揮棒', 'tag.framed': '偷好球！',
     'tag.fine': '精準判決 +50', 'tag.quick': '迅速 +30',
     'tag.chant': '觀眾：裁判水啦！', 'tag.heckle': '休息區：你是瞎了嗎？！',
