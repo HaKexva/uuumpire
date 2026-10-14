@@ -9,7 +9,7 @@
   <meta name="description" content="UUUMPIRE - an 8-bit strike/ball judging game. You are the home plate umpire.">
   <title>UUUMPIRE</title>
   <link rel="preload" href="fonts/Cubic_11.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <div id="app" class="game-root">
@@ -27,7 +27,6 @@
     <p class="tagline game-shadow" data-i18n="tagline">STRIKE? OR BALL? YOU CALL IT.</p>
     <ul class="menu" id="title-menu">
       <li class="menu-item" data-action="start"><span class="game-caret"></span><span data-i18n="menu.start">PLAY BALL</span></li>
-      <li class="menu-item" data-action="guide"><span class="game-caret"></span><span><span data-i18n="menu.guide">ZONE GUIDE</span>: <b id="guide-label">ON</b></span></li>
       <li class="menu-item" data-action="howto"><span class="game-caret"></span><span data-i18n="menu.howto">HOW TO PLAY</span></li>
       <li class="menu-item" data-action="records"><span class="game-caret"></span><span data-i18n="menu.records">RECORDS</span></li>
       <li class="menu-item" data-action="board"><span class="game-caret"></span><span data-i18n="menu.board">LEADERBOARD</span></li>
@@ -113,7 +112,7 @@
       <p data-i18n-html="howto.7.html">A full <b>swing and miss</b> is a strike no matter where the ball went. A held check swing is not.</p>
       <p data-i18n-html="howto.8.html">The catcher may <b>frame</b> a ball by pulling the mitt into the zone. Judge where it crossed, not where the mitt ends up.</p>
       <p data-i18n-html="howto.9.html">Miss a call and the <b>ABS</b> readout shows how far the ball was from the zone. Press <b>R</b> for a slow-motion replay.</p>
-      <p data-i18n-html="howto.10.html"><b>ZONE GUIDE</b> shows the zone during level 1 only. Turn it off for x1.5 score.</p>
+      <p data-i18n-html="howto.10.html">The dotted <b>zone guide</b> shows during level 1 only. From level 2 you call it blind.</p>
       <p data-i18n-html="howto.11.html">The crowd and the bench are atmosphere only. Boos never change a call.</p>
     </div>
     <button class="game-btn btn-back" data-action="back" type="button" data-i18n="btn.back">BACK</button>
@@ -143,9 +142,9 @@
   </section>
 
 </div>
-<script src="i18n.js?v=6"></script>
-<script src="sprites.js?v=6"></script>
-<script src="music.js?v=6"></script>
-<script src="game.js?v=6"></script>
+<script src="i18n.js?v=7"></script>
+<script src="sprites.js?v=7"></script>
+<script src="music.js?v=7"></script>
+<script src="game.js?v=7"></script>
 </body>
 </html>

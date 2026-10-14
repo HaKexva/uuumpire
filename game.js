@@ -389,7 +389,7 @@
       try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch (e) { /* ignore */ }
     },
   };
-  let settings = Object.assign({ guide: true, sound: true, music: true, palette: 0, records: [], lang: detectLang(), name: '' }, store.load());
+  let settings = Object.assign({ sound: true, music: true, palette: 0, records: [], lang: detectLang(), name: '' }, store.load());
   const saveSettings = () => store.save(settings);
 
   // ------------------------------------------------------------
@@ -646,7 +646,7 @@
     pause: $('pause-text'), btnPause: $('btn-pause'), btnReplay: $('btn-replay'), crowd: $('hud-crowd'), langLabel: $('lang-label'),
     info: $('pitch-info'), count: $('pitch-count'), timer: $('timer-fill'),
     btnStrike: $('btn-strike'), btnBall: $('btn-ball'), stage: $('stage'),
-    titleBest: $('title-best'), guideLabel: $('guide-label'), soundLabel: $('sound-label'), musicLabel: $('music-label'),
+    titleBest: $('title-best'), soundLabel: $('sound-label'), musicLabel: $('music-label'),
     paletteLabel: $('palette-label'),
   };
 
@@ -714,7 +714,7 @@
     if (G.pitchIndex > 0 && G.pitchIndex % 5 === 0) {
       showText(el.call, t('level.n', G.level), '');
       const unlock = LEVEL_UNLOCK[G.level] ? t(LEVEL_UNLOCK[G.level]) : t('lvl.faster');
-      showText(el.bonus, G.level === 2 && settings.guide ? unlock + ' · ' + t('guide.gone') : unlock, '');
+      showText(el.bonus, G.level === 2 ? unlock + ' · ' + t('guide.gone') : unlock, '');
     }
     updateHud();
   }
@@ -879,7 +879,6 @@
       // framing never changes the call or the score: the ball is judged where it crossed the plate
       if (p.edgeDist < 3.8 && p.swing !== 'full') { pts += 50; bonusMsgs.push(t('tag.fine')); }
       if (reaction < 0.6) { pts += 30; bonusMsgs.push(t('tag.quick')); }
-      if (!settings.guide) pts *= 1.5;
       if (mult > 1) bonusMsgs.unshift('x' + mult.toFixed(1));
       pts = Math.round(pts);
       G.score += pts;
@@ -1144,7 +1143,7 @@
     }
 
     // zone guide: only while learning (level 1), only if enabled
-    const guideOn = settings.guide && G.level === 1 && (G.phase === 'windup' || G.phase === 'flight' || G.phase === 'call');
+    const guideOn = G.level === 1 && (G.phase === 'windup' || G.phase === 'flight' || G.phase === 'call');
     // catcher body
     ctx.drawImage(IMG.catcher, POS.catcher[0], POS.catcher[1]);
     if (guideOn) drawZoneGuide(false); // drawn over the catcher like a TV K-zone box, so his helmet never hides it
@@ -1221,7 +1220,6 @@
   }
   function refreshTitle() {
     el.titleBest.textContent = settings.records.length ? settings.records[0].score : 0;
-    el.guideLabel.textContent = settings.guide ? t('on') : t('guide.off');
     el.soundLabel.textContent = settings.sound ? t('on') : t('off');
     el.musicLabel.textContent = settings.music ? t('on') : t('off');
     el.paletteLabel.textContent = t('pal.' + (PALETTES[settings.palette] ? settings.palette : 0));
@@ -1233,7 +1231,6 @@
     Music.start('title');
     switch (action) {
       case 'start': Sfx.select(); newGame(); break;
-      case 'guide': settings.guide = !settings.guide; saveSettings(); Sfx.select(); refreshTitle(); break;
       case 'sound': settings.sound = !settings.sound; Sfx.enabled = settings.sound; saveSettings(); Sfx.select(); refreshTitle(); break;
       case 'music': settings.music = !settings.music; saveSettings(); Music.apply(); Sfx.select(); refreshTitle(); break;
       case 'palette': settings.palette = (settings.palette + 1) % PALETTES.length; saveSettings(); applyPalette(settings.palette); Sfx.select(); refreshTitle(); break;

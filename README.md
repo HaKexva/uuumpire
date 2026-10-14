@@ -29,7 +29,7 @@ Pages' 10-minute cache (and browsers) pick up the new files together.
 - Any part of the ball touching the zone is a strike.
 - Call before the timer runs out. Three wrong calls and you're out.
 - Streaks multiply score (up to x2). Edge pitches (+50) and quick calls (+30) earn bonus.
-- ZONE GUIDE shows the zone during level 1 only (first 5 pitches). Turn it off on the title screen for x1.5 score.
+- The dotted zone guide shows during level 1 only (first 5 pitches); from level 2 you call it blind.
 - Pitch speed, break and edge frequency ramp up every 5 pitches.
 - Batters come short, average or tall (30/40/30%). The zone is knees to mid-chest of whoever is up, so a
   short batter's zone is about 11% shorter than a tall one's. Width is always 17 inches (33px).
@@ -103,7 +103,6 @@ plausibility (max 400 pts per pitch, 12 posts per minute per IP) and names are 1
 
 ## Title menu options
 
-- **ZONE GUIDE** — dotted zone during level 1 pitches (off = x1.5 score).
 - **SOUND / MUSIC** — SFX and the background theme, saved in `localStorage`.
 - **PALETTE** — four looks: NIGHT GAME, DAY GAME, DOME, GAME BOY.
   Defined in `PALETTES` in `game.js`; each one sets the UI custom properties and the scene colors.
