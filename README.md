@@ -45,22 +45,28 @@ Pages' 10-minute cache (and browsers) pick up the new files together.
 
 ## Pitches
 
-Eleven types, each with its own speed band, break direction and break timing (see `PITCH_TYPES` in `game.js`).
+Thirteen types, each with its own speed band, break direction and break timing (see `PITCH_TYPES` in `game.js`).
 Speeds creep up +1 km/h per level to level 8, then jump +3 km/h per level from level 10:
 
 | Type | Speed | Movement |
 | --- | --- | --- |
-| FASTBALL | 136-148 | straight, slight rise, fast spin |
-| SHOOT | 138-150 | runs arm-side early |
-| CUTTER | 140-152 | tiny, sudden glove-side bite |
-| SLIDER | 128-140 | late glove-side sweep |
-| CURVE | 106-120 | rises first, then big loop down |
-| SINKER | 134-146 | arm-side, drops late |
-| FORKBALL | 126-138 | straight, then falls off the table |
-| CHANGEUP | 110-124 | fastball look, slow, late fade |
-| SWEEPER | 122-136 | huge flat glove-side sweep, almost no drop |
-| RISING | 138-150 | fastball that hops up at the last moment |
-| KNUCKLE | 100-114 | no spin, flutters side to side all the way in |
+| 4-SEAM | 136-148 | straight, slight rise, fast spin (level 1+) |
+| SLIDER | 128-140 | late glove-side sweep (2+) |
+| CURVE | 98-110 | slow, loops up first then a big drop (2+) |
+| CHANGEUP | 116-128 | fastball look, dies late to the arm side (2+) |
+| SHOOT | 138-150 | runs arm-side early, no sink (2+) |
+| 2-SEAM | 134-146 | runs arm-side late with a little sink (3+) |
+| CUTTER | 140-152 | tiny, sudden glove-side bite (3+) |
+| SINKER | 134-146 | arm-side, drops late (3+) |
+| SPLITTER | 130-142 | straight, then a sudden drop (3+) |
+| FORKBALL | 126-138 | straight, then falls off the table (6+) |
+| SWEEPER | 122-136 | huge flat glove-side sweep, almost no drop (6+) |
+| RISING | 138-150 | fastball that hops up at the last moment (6+) |
+| KNUCKLE | 100-114 | no spin, flutters side to side all the way in (6+) |
+
+Level ladder (every 5 pitches): 1 four-seamers with the zone guide · 2 breaking balls, guide off · 3 submarine
+arms, sinkers and cutters · 4 batters swing and check-swing · 5 catcher framing · 6 the nasty stuff · 7+ faster
+flights and shorter call windows · 10+ pro speed. The LEVEL banner says what just unlocked.
 
 Faster pitches leave a longer trail and arrive sooner: flight time is the real 18.44 m at the shown speed,
 stretched 1.3x (155 km/h ~ 0.5 s), tightened a little per level. Arsenal opens up by level (fastballs only at
@@ -70,6 +76,30 @@ Pitchers come in both hands and two deliveries. From level 2 about 30% of pitche
 **submarine**: the ball leaves from knee height, rides up a little and runs to the arm side.
 Glove-side pitches (slider, cutter, curve, sweeper) break away from the arm; arm-side ones
 (shoot, sinker, changeup) run toward it, so a left-hander's slider goes the other way.
+
+## Replay, crowd, languages
+
+- **REPLAY** (`R` or the button, top-right of the stage during the reveal): the pitch runs again at 0.35x with
+  the zone box and the true landing spot shown. The reveal holds ~2.8 s so there is time to use it.
+- **Reaction time** is shown on every call and averaged on the game-over screen.
+- **Crowd / bench**: the home crowd backs its pitcher. Strike calls raise the CROWD meter, ball calls lower
+  it, every miss drops it hard. Cheers, claps and boos follow your calls; a hot crowd does the wave and
+  chants, a cold bench heckles. Atmosphere only: mood never touches the call or the score.
+- **Languages**: English, 繁體中文, 日本語 (`i18n.js`, picked from the browser language, switchable in the
+  menu). Cubic 11 covers the CJK text.
+
+## Leaderboard
+
+`server/` is a small Node + Postgres API (plain `http`, `pg`), deployed on Railway at
+`https://api-production-c3f4.up.railway.app`. TODAY is the Asia/Taipei day. Scores are validated for
+plausibility (max 400 pts per pitch, 12 posts per minute per IP) and names are 12 characters.
+
+- `GET /api/scores?period=daily|all` top 20; `POST /api/scores` `{ name, score, pitches, accuracy, streak, reaction, lang }`.
+- The game submits from the game-over screen (name is remembered) and shows TODAY / ALL TIME from the title menu.
+- `API_BASE` in `game.js` points at the server; `?api=http://localhost:8787` overrides it. Without a reachable
+  API the board says offline and the submit row stays hidden.
+- Run locally: `cd server && npm install && node index.js` (in-memory without `DATABASE_URL`).
+  Deploy: `railway up --service api` from `server/` (project `uuumpire`, Postgres linked via `DATABASE_URL`).
 
 ## Title menu options
 
@@ -124,7 +154,8 @@ Edit the bars in `music.js` (8th-note steps, `.` = tie, `-` = rest) and re-run t
 
 ## Files
 
-- `index.html`, `style.css`, `game.js` — the game (vanilla JS, canvas at 168x192, integer-scaled).
+- `index.html`, `style.css`, `game.js` — the game (vanilla JS, canvas at 168x192, integer-scaled). `i18n.js` — UI strings.
+- `server/` — leaderboard API (Node + Postgres) for Railway.
 - `sprites.js` — pixel art as text (one char per pixel, keys map to the palette). Pitcher (overhand + submarine), catcher, mitt, batter, umpire.
 - `tools/gen-sprites.js` — shape-based rasterizer for the batter (stance, check, swing, follow-through; posed after the
   behind-the-plate batters in Baseball Stars 2 and Clutch Hitter), catcher, mitt

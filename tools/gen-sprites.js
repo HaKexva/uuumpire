@@ -260,6 +260,8 @@ function catcher() {
 // Right-hander: throwing arm on the umpire's left. Feet on row 27.
 // ------------------------------------------------------------
 const PW = 24, PH = 28;
+// The pitcher is far away but was reading too small next to the 1.4x plate layer: drawn at 1.3x.
+const PITCHER_SCALE = 1.3;
 
 function pitcherHead(s, hx, headY) {                     // hx = left column of the face
   s.ellipse(hx + 3.5, headY + 2, 4.2, 2.8, 'B');
@@ -279,7 +281,7 @@ function jersey(s, x0, x1, y0, y1, lean = 0) {
 }
 
 function pitcherSet() {
-  const s = grid(PW, PH);
+  const s = grid(PW, PH, PITCHER_SCALE);
   jersey(s, 6, 17, 12, 21);
   s.rect(7, 22, 16, 22, 'm');
   s.rect(7, 23, 10, 26, 'g'); s.rect(13, 23, 16, 26, 'g');
@@ -293,7 +295,7 @@ function pitcherSet() {
 }
 
 function pitcherKick() {                                 // balanced on the back leg, lead knee up
-  const s = grid(PW, PH);
+  const s = grid(PW, PH, PITCHER_SCALE);
   jersey(s, 6, 17, 12, 21);
   s.rect(7, 22, 16, 22, 'm');
   s.rect(8, 23, 11, 26, 'g'); s.recolor(8, 23, 8, 26, 'g', 'd'); // back leg, straight
@@ -308,7 +310,7 @@ function pitcherKick() {                                 // balanced on the back
 }
 
 function pitcherCock() {                                 // stride, arm cocked back, glove pointing at us
-  const s = grid(PW, PH);
+  const s = grid(PW, PH, PITCHER_SCALE);
   jersey(s, 6, 17, 12, 21, 1);
   s.rect(8, 22, 17, 22, 'm');
   s.rect(7, 23, 10, 26, 'g'); s.recolor(7, 23, 7, 26, 'g', 'd');       // back leg
@@ -324,7 +326,7 @@ function pitcherCock() {                                 // stride, arm cocked b
 }
 
 function pitcherThrow() {                                // release: arm over the top, body tilted to the glove side
-  const s = grid(PW, PH);
+  const s = grid(PW, PH, PITCHER_SCALE);
   jersey(s, 7, 18, 12, 21, 1);
   s.rect(9, 22, 18, 22, 'm');
   s.rect(9, 23, 12, 25, 'g'); s.recolor(9, 23, 9, 25, 'g', 'd');       // back leg dragging
@@ -341,7 +343,7 @@ function pitcherThrow() {                                // release: arm over th
 }
 
 function pitcherFollow() {                               // bent forward, arm swung across, back leg kicked up
-  const s = grid(PW, PH);
+  const s = grid(PW, PH, PITCHER_SCALE);
   jersey(s, 7, 18, 15, 22, 1);
   s.rect(9, 23, 18, 23, 'm');
   s.rect(10, 24, 13, 25, 'g'); s.rect(9, 26, 13, 26, 'K');            // back foot lifted off the rubber
@@ -357,7 +359,7 @@ function pitcherFollow() {                               // bent forward, arm sw
 
 // submarine: same windup, then he drops low and the arm whips under
 function pitcherSetUnder() {
-  const s = grid(PW, PH);
+  const s = grid(PW, PH, PITCHER_SCALE);
   jersey(s, 5, 18, 15, 22);
   s.rect(6, 23, 17, 23, 'm');
   s.poly([[6, 24], [10, 24], [7, 27], [3, 27]], 'g');
@@ -371,7 +373,7 @@ function pitcherSetUnder() {
 }
 
 function pitcherCockUnder() {                            // dropped low, arm swung back behind the hip
-  const s = grid(PW, PH);
+  const s = grid(PW, PH, PITCHER_SCALE);
   jersey(s, 6, 18, 17, 23, 1);
   s.rect(8, 24, 18, 24, 'm');
   s.rect(8, 25, 11, 26, 'g');
@@ -386,7 +388,7 @@ function pitcherCockUnder() {                            // dropped low, arm swu
 }
 
 function pitcherThrowUnder() {                           // release at the knee, body bent forward
-  const s = grid(PW, PH);
+  const s = grid(PW, PH, PITCHER_SCALE);
   jersey(s, 7, 19, 16, 23, 1);
   s.rect(8, 24, 18, 24, 'm');
   s.rect(8, 25, 11, 26, 'g');
@@ -402,7 +404,7 @@ function pitcherThrowUnder() {                           // release at the knee,
 }
 
 function pitcherFollowUnder() {                          // arm whipped up and across, still low
-  const s = grid(PW, PH);
+  const s = grid(PW, PH, PITCHER_SCALE);
   jersey(s, 7, 19, 16, 23, 1);
   s.rect(8, 24, 18, 24, 'm');
   s.rect(9, 25, 12, 25, 'g'); s.rect(8, 26, 12, 26, 'K');
@@ -416,8 +418,24 @@ function pitcherFollowUnder() {                          // arm whipped up and a
   return s.rows();
 }
 
+// The umpire's own left hand with the indicator (clicker), bottom corner of the frame: first-person touch.
+function umpHand() {
+  const s = grid(26, 14, NEAR);
+  s.poly([[13, 5], [25, 3], [25, 13], [13, 13]], "N");                   // navy sleeve coming in from the corner
+  s.recolor(13, 10, 25, 13, "N", "l");
+  s.rect(24, 3, 25, 13, "w");                                            // shirt cuff
+  s.ellipse(8, 8, 6, 4.5, "s");                                          // fist
+  s.recolor(2, 9, 14, 12, "s", "z");
+  s.rect(3, 1, 9, 5, "K");                                               // indicator
+  s.put(4, 2, "W"); s.put(6, 2, "W"); s.put(8, 2, "W"); s.put(4, 4, "W"); s.put(6, 4, "W");
+  s.ellipse(11, 5, 2.2, 2, "s");                                         // thumb over it
+  s.outline();
+  return s.rows();
+}
+
 const OUT = {
   mitt: mitt(),
+  umpHand: umpHand(),
   catcher: catcher(),
   pitcherSet: pitcherSet(),
   pitcherKick: pitcherKick(),

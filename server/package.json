@@ -1,0 +1,17 @@
+{
+  "name": "uuumpire-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leaderboard API for UUUMPIRE (TODAY / ALL TIME top scores).",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "pg": "^8.12.0"
+  }
+}

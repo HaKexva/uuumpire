@@ -163,7 +163,7 @@ button { font-family: inherit; }
   display: flex;
   flex-direction: column;
   gap: 4px;
-  width: 100%;
+  width: 100%;             /* fixed-width block centred under the logo: toggling a value never shifts the text */
   max-width: 400px;
 }
 .menu-item {
@@ -232,7 +232,7 @@ button { font-family: inherit; }
   height: 384px;
 }
 
-.call-text, .judge-text, .bonus-text, .abs-text, .pause-text {
+.call-text, .judge-text, .bonus-text, .abs-text, .pause-text, .react-text {
   position: absolute;
   left: 0; right: 0;
   text-align: center;
@@ -278,7 +278,20 @@ button { font-family: inherit; }
   text-shadow: var(--g-call-shadow, 3px 3px 0 var(--g-navy), 6px 6px 0 var(--g-ink));
   animation: blink 1s steps(2, start) infinite;
 }
+.react-text {
+  top: 27%;
+  font-size: 14px;
+  color: var(--g-overlay, var(--g-white));
+  text-shadow: var(--g-overlay-shadow, 2px 2px var(--g-ink));
+}
 .show { opacity: 1; }
+.game-btn--sm { min-height: 30px; min-width: 44px; padding: 0 10px; font-size: 14px; box-shadow: 3px 3px var(--g-ink); border-width: 2px; }
+.replay-btn { position: absolute; top: 8px; right: 8px; line-height: 1; z-index: 2; }
+/* crowd mood meter in the HUD: 5 cells, red when the stands are on you, gold when they are with you */
+.hud-value.meter { display: flex; gap: 3px; align-items: center; height: 22px; }
+.hud-value.meter i { display: block; width: 8px; height: 12px; background: var(--g-dim); border: 2px solid var(--g-ink); }
+.hud-value.meter i.on { background: var(--g-gold); }
+.hud-value.meter.cold i.on { background: var(--g-red); }
 .game-btn--pause { flex: 0 0 52px; min-width: 52px; min-height: 64px; padding: 0; }
 /* pause icon: two fat bars; while paused the same element becomes a play triangle */
 .icon-pause {
@@ -364,6 +377,34 @@ button { font-family: inherit; }
 }
 @keyframes blink { to { visibility: hidden; } }
 .btn-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.submit-row { display: flex; gap: 8px; margin-top: 10px; align-items: stretch; }
+.game-input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 18px;
+  padding: 4px 8px;
+  color: var(--g-ink);
+  background: var(--g-btn);
+  border: 3px solid var(--g-ink);
+  border-radius: 0;
+  outline: none;
+}
+.game-input:focus { box-shadow: 0 0 0 2px var(--g-gold); }
+.submit-status { margin: 6px 0 0; min-height: 14px; color: var(--g-gold); }
+.submit-row.hidden, .submit-status.hidden { display: none; }
+
+/* ---- leaderboard ---- */
+.tabs { display: flex; gap: 10px; }
+.tab { opacity: .6; }
+.tab.active { opacity: 1; background: var(--g-btn-accent); }
+.board-panel { min-height: 120px; }
+.records.board li { gap: 8px; }
+.records.board li .who { flex: 1; display: flex; gap: 10px; min-width: 0; }
+.records.board li .who .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 11em; }
+.records.board li .who .meta { color: var(--g-gray); font-size: 13px; align-self: center; white-space: nowrap; }
+.records.board li.me { background: var(--g-hi-bg, var(--g-navy)); margin: 0 -8px; padding: 3px 8px; }
+.board-status { margin: 8px 0 0; }
 
 /* ---- howto / records ---- */
 .section-title { margin: 16px 0 0; font-size: 28px; color: var(--g-gold); text-shadow: var(--g-text-shadow, 3px 3px var(--g-ink)); font-weight: normal; }

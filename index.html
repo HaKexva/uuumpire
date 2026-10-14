@@ -9,7 +9,7 @@
   <meta name="description" content="UUUMPIRE - an 8-bit strike/ball judging game. You are the home plate umpire.">
   <title>UUUMPIRE</title>
   <link rel="preload" href="fonts/Cubic_11.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div id="app" class="game-root">
@@ -18,45 +18,50 @@
   <section id="screen-loading" class="screen">
     <h1 class="game-logo">UUUMPIRE</h1>
     <div class="loadbar"><div id="load-fill" class="loadbar-fill"></div><canvas id="load-ball" class="load-ball" width="12" height="12"></canvas></div>
-    <p id="load-text" class="hint load-text">LOADING...</p>
+    <p id="load-text" class="hint load-text" data-i18n="loading">LOADING...</p>
   </section>
 
   <!-- TITLE -->
   <section id="screen-title" class="screen hidden">
     <h1 class="game-logo">UUUMPIRE</h1>
-    <p class="tagline game-shadow">STRIKE? OR BALL? YOU CALL IT.</p>
+    <p class="tagline game-shadow" data-i18n="tagline">STRIKE? OR BALL? YOU CALL IT.</p>
     <ul class="menu" id="title-menu">
-      <li class="menu-item" data-action="start"><span class="game-caret"></span><span>PLAY BALL</span></li>
-      <li class="menu-item" data-action="guide"><span class="game-caret"></span><span>ZONE GUIDE: <b id="guide-label">ON</b></span></li>
-      <li class="menu-item" data-action="howto"><span class="game-caret"></span><span>HOW TO PLAY</span></li>
-      <li class="menu-item" data-action="records"><span class="game-caret"></span><span>RECORDS</span></li>
-      <li class="menu-item" data-action="sound"><span class="game-caret"></span><span>SOUND: <b id="sound-label">ON</b></span></li>
-      <li class="menu-item" data-action="music"><span class="game-caret"></span><span>MUSIC: <b id="music-label">ON</b></span></li>
-      <li class="menu-item" data-action="palette"><span class="game-caret"></span><span>PALETTE: <b id="palette-label">NIGHT GAME</b></span></li>
+      <li class="menu-item" data-action="start"><span class="game-caret"></span><span data-i18n="menu.start">PLAY BALL</span></li>
+      <li class="menu-item" data-action="guide"><span class="game-caret"></span><span><span data-i18n="menu.guide">ZONE GUIDE</span>: <b id="guide-label">ON</b></span></li>
+      <li class="menu-item" data-action="howto"><span class="game-caret"></span><span data-i18n="menu.howto">HOW TO PLAY</span></li>
+      <li class="menu-item" data-action="records"><span class="game-caret"></span><span data-i18n="menu.records">RECORDS</span></li>
+      <li class="menu-item" data-action="board"><span class="game-caret"></span><span data-i18n="menu.board">LEADERBOARD</span></li>
+      <li class="menu-item" data-action="sound"><span class="game-caret"></span><span><span data-i18n="menu.sound">SOUND</span>: <b id="sound-label">ON</b></span></li>
+      <li class="menu-item" data-action="music"><span class="game-caret"></span><span><span data-i18n="menu.music">MUSIC</span>: <b id="music-label">ON</b></span></li>
+      <li class="menu-item" data-action="palette"><span class="game-caret"></span><span><span data-i18n="menu.palette">PALETTE</span>: <b id="palette-label">NIGHT GAME</b></span></li>
+      <li class="menu-item" data-action="lang"><span class="game-caret"></span><span><span data-i18n="menu.lang">LANGUAGE</span>: <b id="lang-label">ENGLISH</b></span></li>
     </ul>
     <div class="game-panel best-panel">
-      <div class="panel-title">BEST CALL</div>
+      <div class="panel-title" data-i18n="best">BEST CALL</div>
       <div id="title-best" class="best-score">0</div>
     </div>
-    <p class="hint">PC: ARROWS + ENTER &nbsp;/&nbsp; MOBILE: TAP</p>
-    <p id="music-hint" class="hint music-hint hidden">&#9834; TAP OR ANY KEY FOR MUSIC</p>
+    <p class="hint" data-i18n="hint.controls">PC: ARROWS + ENTER / MOBILE: TAP</p>
+    <p id="music-hint" class="hint music-hint hidden" data-i18n="hint.music">&#9834; TAP OR ANY KEY FOR MUSIC</p>
   </section>
 
   <!-- PLAY -->
   <section id="screen-play" class="screen hidden">
     <div class="hud">
-      <div class="hud-cell"><span class="hud-label">SCORE</span><span id="hud-score" class="hud-value">0</span></div>
-      <div class="hud-cell"><span class="hud-label">STREAK</span><span id="hud-streak" class="hud-value">0</span></div>
-      <div class="hud-cell"><span class="hud-label">LV</span><span id="hud-level" class="hud-value">1</span></div>
-      <div class="hud-cell"><span class="hud-label">MISS</span><span id="hud-miss" class="hud-value miss"><i></i><i></i><i></i></span></div>
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.score">SCORE</span><span id="hud-score" class="hud-value">0</span></div>
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.streak">STREAK</span><span id="hud-streak" class="hud-value">0</span></div>
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.level">LV</span><span id="hud-level" class="hud-value">1</span></div>
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.miss">MISS</span><span id="hud-miss" class="hud-value miss"><i></i><i></i><i></i></span></div>
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.crowd">CROWD</span><span id="hud-crowd" class="hud-value meter"><i></i><i></i><i></i><i></i><i></i></span></div>
     </div>
     <div class="stage" id="stage">
       <canvas id="game" width="168" height="192"></canvas>
       <div id="call-text" class="call-text"></div>
+      <div id="react-text" class="react-text"></div>
       <div id="judge-text" class="judge-text"></div>
       <div id="bonus-text" class="bonus-text"></div>
       <div id="abs-text" class="abs-text"></div>
-      <div id="pause-text" class="pause-text">PAUSED</div>
+      <div id="pause-text" class="pause-text" data-i18n="paused">PAUSED</div>
+      <button id="btn-replay" class="game-btn game-btn--sm replay-btn hidden" type="button" data-i18n="btn.replay">REPLAY</button>
     </div>
     <div class="info-row">
       <span id="pitch-info" class="pitch-info">&nbsp;</span>
@@ -64,61 +69,83 @@
     </div>
     <div class="timer"><div id="timer-fill" class="timer-fill"></div></div>
     <div class="controls">
-      <button id="btn-strike" class="game-btn game-btn--big game-btn--gold" type="button">STRIKE</button>
+      <button id="btn-strike" class="game-btn game-btn--big game-btn--gold" type="button" data-i18n="btn.strike">STRIKE</button>
       <button id="btn-pause" class="game-btn game-btn--pause" type="button" aria-label="Pause"><span class="icon-pause"></span></button>
-      <button id="btn-ball" class="game-btn game-btn--big" type="button">BALL</button>
+      <button id="btn-ball" class="game-btn game-btn--big" type="button" data-i18n="btn.ball">BALL</button>
     </div>
-    <div class="key-hint">← / S = STRIKE &nbsp;&nbsp; → / B = BALL &nbsp;&nbsp; SPACE = PAUSE</div>
+    <div class="key-hint" data-i18n="hint.keys">← / S = STRIKE &nbsp;&nbsp; → / B = BALL &nbsp;&nbsp; SPACE = PAUSE &nbsp;&nbsp; R = REPLAY</div>
   </section>
 
   <!-- GAME OVER -->
   <section id="screen-over" class="screen hidden">
-    <h2 class="game-logo game-logo--sm">YOU'RE OUT!</h2>
-    <p class="over-sub game-shadow">THE MANAGER HAD A WORD WITH THE LEAGUE.</p>
+    <h2 class="game-logo game-logo--sm" data-i18n="over.title">YOU'RE OUT!</h2>
+    <p class="over-sub game-shadow" data-i18n="over.sub">THE MANAGER HAD A WORD WITH THE LEAGUE.</p>
     <div class="game-panel result-panel">
-      <div class="result-row"><span>SCORE</span><b id="over-score">0</b></div>
-      <div class="result-row"><span>PITCHES</span><b id="over-pitches">0</b></div>
-      <div class="result-row"><span>ACCURACY</span><b id="over-acc">0%</b></div>
-      <div class="result-row"><span>BEST STREAK</span><b id="over-streak">0</b></div>
-      <div id="over-newbest" class="new-best hidden">NEW RECORD!</div>
+      <div class="result-row"><span data-i18n="over.score">SCORE</span><b id="over-score">0</b></div>
+      <div class="result-row"><span data-i18n="over.pitches">PITCHES</span><b id="over-pitches">0</b></div>
+      <div class="result-row"><span data-i18n="over.acc">ACCURACY</span><b id="over-acc">0%</b></div>
+      <div class="result-row"><span data-i18n="over.streak">BEST STREAK</span><b id="over-streak">0</b></div>
+      <div class="result-row"><span data-i18n="over.react">AVG REACTION</span><b id="over-react">-</b></div>
+      <div id="over-newbest" class="new-best hidden" data-i18n="over.newbest">NEW RECORD!</div>
+      <div id="submit-row" class="submit-row">
+        <input id="name-input" class="game-input" type="text" maxlength="12" autocomplete="off" data-i18n-ph="name.ph" placeholder="YOUR NAME">
+        <button id="btn-submit" class="game-btn game-btn--sm" type="button" data-i18n="btn.submit">SUBMIT</button>
+      </div>
+      <p id="submit-status" class="hint submit-status"></p>
     </div>
     <div class="btn-row">
-      <button id="btn-retry" class="game-btn game-btn--gold" type="button">PLAY AGAIN</button>
-      <button id="btn-share" class="game-btn" type="button">SHARE</button>
-      <button id="btn-title" class="game-btn" type="button">TITLE</button>
+      <button id="btn-retry" class="game-btn game-btn--gold" type="button" data-i18n="btn.again">PLAY AGAIN</button>
+      <button id="btn-share" class="game-btn" type="button" data-i18n="btn.share">SHARE</button>
+      <button id="btn-title" class="game-btn" type="button" data-i18n="btn.title">TITLE</button>
     </div>
   </section>
 
   <!-- HOW TO -->
   <section id="screen-howto" class="screen hidden">
-    <h2 class="section-title">HOW TO PLAY</h2>
+    <h2 class="section-title" data-i18n="howto.title">HOW TO PLAY</h2>
     <div class="game-panel text-panel">
-      <p>You are the home plate umpire.</p>
-      <p>Watch the pitch. When it hits the mitt, call it: <b class="gold">STRIKE</b> or <b>BALL</b>.</p>
-      <p>Any part of the ball touching the zone is a <b class="gold">STRIKE</b>.</p>
-      <p>Call it before the timer runs out. 3 wrong calls and you're out.</p>
-      <p>Streaks multiply your score. Edge pitches and quick calls earn bonus.</p>
-      <p>Pitchers throw lefty or righty, overhand or <b>submarine</b>. Watch the arm.</p>
-      <p>A full <b>swing and miss</b> is a strike no matter where the ball went. A held check swing is not.</p>
-      <p>The catcher may <b>frame</b> a ball by pulling the mitt into the zone. Judge where it crossed, not where the mitt ends up.</p>
-      <p>Miss a call and the <b>ABS</b> readout shows how far the ball was from the zone.</p>
-      <p><b>ZONE GUIDE</b> shows the zone during level 1 only. Turn it off for x1.5 score.</p>
+      <p data-i18n-html="howto.1.html">You are the home plate umpire.</p>
+      <p data-i18n-html="howto.2.html">Watch the pitch. When it hits the mitt, call it: <b class="gold">STRIKE</b> or <b>BALL</b>.</p>
+      <p data-i18n-html="howto.3.html">Any part of the ball touching the zone is a <b class="gold">STRIKE</b>.</p>
+      <p data-i18n-html="howto.4.html">Call it before the timer runs out. 3 wrong calls and you're out.</p>
+      <p data-i18n-html="howto.5.html">Streaks multiply your score. Edge pitches and quick calls earn bonus.</p>
+      <p data-i18n-html="howto.6.html">Pitchers throw lefty or righty, overhand or <b>submarine</b>. Watch the arm.</p>
+      <p data-i18n-html="howto.7.html">A full <b>swing and miss</b> is a strike no matter where the ball went. A held check swing is not.</p>
+      <p data-i18n-html="howto.8.html">The catcher may <b>frame</b> a ball by pulling the mitt into the zone. Judge where it crossed, not where the mitt ends up.</p>
+      <p data-i18n-html="howto.9.html">Miss a call and the <b>ABS</b> readout shows how far the ball was from the zone. Press <b>R</b> for a slow-motion replay.</p>
+      <p data-i18n-html="howto.10.html"><b>ZONE GUIDE</b> shows the zone during level 1 only. Turn it off for x1.5 score.</p>
+      <p data-i18n-html="howto.11.html">The crowd and the bench are atmosphere only. Boos never change a call.</p>
     </div>
-    <button class="game-btn btn-back" data-action="back" type="button">BACK</button>
+    <button class="game-btn btn-back" data-action="back" type="button" data-i18n="btn.back">BACK</button>
   </section>
 
   <!-- RECORDS -->
   <section id="screen-records" class="screen hidden">
-    <h2 class="section-title">RECORDS</h2>
+    <h2 class="section-title" data-i18n="records.title">RECORDS</h2>
     <div class="game-panel text-panel">
       <ol id="records-list" class="records"></ol>
     </div>
-    <button class="game-btn btn-back" data-action="back" type="button">BACK</button>
+    <button class="game-btn btn-back" data-action="back" type="button" data-i18n="btn.back">BACK</button>
+  </section>
+
+  <!-- LEADERBOARD -->
+  <section id="screen-board" class="screen hidden">
+    <h2 class="section-title" data-i18n="board.title">LEADERBOARD</h2>
+    <div class="tabs">
+      <button class="game-btn game-btn--sm tab active" type="button" data-period="daily" data-i18n="board.today">TODAY</button>
+      <button class="game-btn game-btn--sm tab" type="button" data-period="all" data-i18n="board.all">ALL TIME</button>
+    </div>
+    <div class="game-panel text-panel board-panel">
+      <ol id="board-list" class="records board"></ol>
+      <p id="board-status" class="hint board-status"></p>
+    </div>
+    <button class="game-btn btn-back" data-action="back" type="button" data-i18n="btn.back">BACK</button>
   </section>
 
 </div>
-<script src="sprites.js?v=4"></script>
-<script src="music.js?v=4"></script>
-<script src="game.js?v=4"></script>
+<script src="i18n.js?v=5"></script>
+<script src="sprites.js?v=5"></script>
+<script src="music.js?v=5"></script>
+<script src="game.js?v=5"></script>
 </body>
 </html>
