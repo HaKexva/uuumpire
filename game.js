@@ -292,7 +292,7 @@
   let CROWD = null;
   function drawCrowd() {
     if (!CROWD) return;
-    const hot = (G.mood || 0) > 0.5;
+    const hot = (G.mood || 0) >= 4;
     const frame = Math.floor((G.crowdT || 0) / (hot ? 0.2 : 0.55)) % 2;
     const img = CROWD[frame];
     if (G.wave > 0) { // the wave rolls right to left across the stands
@@ -820,7 +820,7 @@
       }
 
       case 'reveal':
-        if (G.t >= 2.8) { // long enough to read the ABS line and hit REPLAY
+        if (G.t >= 2.7) { // long enough to read the ABS line and hit REPLAY
           if (G.misses >= 3) gameOver();
           else {
             G.pitchIndex++;
@@ -892,19 +892,19 @@
       el.stage.classList.remove('game-shake'); void el.stage.offsetWidth; el.stage.classList.add('game-shake');
     }
 
-    // The home crowd backs its pitcher: strike calls please them, ball calls do not, and every miss
-    // costs you. Mood is atmosphere only (noise, chants, the wave); it never touches the call or score.
-    const favor = call === 'strike' ? 0.12 : call === 'ball' ? -0.08 : -0.15;
-    G.mood = clamp(G.mood + favor + (correct ? 0.06 : -0.3), -1, 1);
+    // Crowd heat (the CROWD meter, 0-5 cells): every correct call fills a cell, a miss knocks two out.
+    // Full = the stands are yours (chant + wave); empty = boos and heckles. Atmosphere only: it never
+    // touches the call or the score.
+    G.mood = correct ? Math.min(5, G.mood + 1) : Math.max(0, G.mood - 2);
     const tags = [];
     if (p.swing === 'full') tags.push(t('tag.swing'));
     else if (p.swing === 'check') tags.push(t('tag.check'));
     if (p.frame) tags.push(t('tag.framed'));
-    if (!correct && G.mood < -0.4) tags.unshift(t('tag.heckle'));
-    else if (correct && G.mood > 0.6) { tags.unshift(t('tag.chant')); G.wave = 2.2; }
+    if (!correct && G.mood === 0) tags.unshift(t('tag.heckle'));
+    else if (correct && G.mood >= 5) { tags.unshift(t('tag.chant')); G.wave = 2.2; }
     setTimeout(() => {
-      if (!correct) Sfx.crowd('boo', 0.6 + 0.4 * Math.max(0, -G.mood));
-      else Sfx.crowd(call === 'strike' ? 'cheer' : 'clap', 0.5 + 0.5 * Math.max(0, G.mood));
+      if (!correct) Sfx.crowd('boo', G.mood === 0 ? 1 : 0.6);
+      else Sfx.crowd(call === 'strike' ? 'cheer' : 'clap', 0.4 + 0.12 * G.mood);
     }, 250);
 
     G.revealTexts = { tags, bonusMsgs, correct };
@@ -963,10 +963,9 @@
     el.level.textContent = G.level;
     const dots = el.miss.querySelectorAll('i');
     dots.forEach((d, i) => d.classList.toggle('on', i < G.misses));
-    // crowd meter: cells light from the middle outward, red when they are against you
-    const mood = G.mood || 0;
-    const lit = Math.round(Math.abs(mood) * 5);
-    el.crowd.classList.toggle('cold', mood < 0);
+    // crowd meter: one cell per correct call, two lost per miss
+    const lit = G.mood || 0;
+    el.crowd.classList.toggle('cold', lit === 0 && !!(G.result && !G.result.correct));
     el.crowd.querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i < lit));
   }
   function showText(node, text, cls) {

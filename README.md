@@ -80,11 +80,11 @@ Glove-side pitches (slider, cutter, curve, sweeper) break away from the arm; arm
 ## Replay, crowd, languages
 
 - **REPLAY** (`R` or the button, top-right of the stage during the reveal): the pitch runs again at 0.35x with
-  the zone box and the true landing spot shown. The reveal holds ~2.8 s so there is time to use it.
+  the zone box and the true landing spot shown. The reveal holds ~2.7 s so there is time to use it.
 - **Reaction time** is shown on every call and averaged on the game-over screen.
-- **Crowd / bench**: the home crowd backs its pitcher. Strike calls raise the CROWD meter, ball calls lower
-  it, every miss drops it hard. Cheers, claps and boos follow your calls; a hot crowd does the wave and
-  chants, a cold bench heckles. Atmosphere only: mood never touches the call or the score.
+- **Crowd / bench**: the CROWD meter (5 cells) fills one cell per correct call and loses two on a miss.
+  Cheers, claps and boos follow your calls; a full meter gets the wave and a chant, an empty one gets
+  heckled. Atmosphere only: it never touches the call or the score.
 - **Languages**: English, 繁體中文, 日本語 (`i18n.js`, picked from the browser language, switchable in the
   menu). Cubic 11 covers the CJK text.
 
