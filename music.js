@@ -172,7 +172,7 @@
   const waltzBrass = (chords) => chords.map((c) => { const [, , t, u] = CHORD[c]; return `- - ${t} . ${u} .`; });
   const BALLGAME = {
     title: 'Take Me Out to the Ball Game (chiptune)',
-    bpm: 160,
+    bpm: 180,
     stepsPerBar: 6,
     tracks: {
       lead: {
