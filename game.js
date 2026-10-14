@@ -1116,7 +1116,13 @@
     let done = 0;
     const tick = (label) => { done++; fill.style.width = Math.round(done / tasks.length * 100) + '%'; text.textContent = label; };
     const addTask = (label, p) => tasks.push(p.catch(() => {}).then(() => tick(label)));
-    addTask('FONT', document.fonts ? document.fonts.ready : Promise.resolve());
+    // the page is hidden (html.fonts-loading) until the pixel font is really usable, so no text is
+    // ever shown in a fallback font; a 3 s safety timeout reveals it regardless
+    const fontReady = document.fonts
+      ? Promise.race([document.fonts.load('16px "Cubic 11"').then(() => document.fonts.ready), new Promise((r) => setTimeout(r, 3000))])
+      : Promise.resolve();
+    fontReady.then(() => document.documentElement.classList.remove('fonts-loading'));
+    addTask('FONT', fontReady);
     let index = { play: [], title: [] };
     try { index = await (await fetch('assets/songs/index.json')).json(); } catch (e) { /* no extra songs */ }
     const loadSong = (key, pool) => fetch('assets/songs/' + key + '.json')

@@ -1,8 +1,10 @@
 @font-face {
   font-family: "Cubic 11";
   src: url("fonts/Cubic_11.woff2") format("woff2");
-  font-display: swap;
+  font-display: block;
 }
+/* nothing is drawn in a fallback font: the page stays blank until Cubic 11 is in (game.js clears this) */
+html.fonts-loading #app { visibility: hidden; }
 
 :root {
   --g-night: #01215b;
