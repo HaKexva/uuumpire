@@ -88,8 +88,8 @@ Glove-side pitches (slider, cutter, curve, sweeper) break away from the arm; arm
   Cheers, claps and boos follow your calls; a full meter gets the wave and a chant, an empty one gets
   heckled. The stadium music speeds up with it (+20% per cell, 2x at full). Atmosphere only: it never
   touches the call or the score.
-- **Languages**: English, 繁體中文, 日本語 (`i18n.js`, picked from the browser language, switchable in the
-  menu). Cubic 11 covers the CJK text.
+- **Languages**: English, 繁體中文, 日本語, 台語 (教育部推薦漢字) (`i18n.js`, picked from the browser language,
+  switchable in the menu). Cubic 11 covers the CJK text.
 
 ## Leaderboard
 
@@ -99,6 +99,7 @@ plausibility (max 400 pts per pitch, 12 posts per minute per IP) and names are 1
 
 - `GET /api/scores?period=daily|all` top 20; `POST /api/scores` `{ name, score, pitches, accuracy, streak, reaction, lang }`.
 - The game submits from the game-over screen (name is remembered) and shows TODAY / ALL TIME from the title menu.
+  Each row shows pitches, accuracy and the average reaction time (rows posted before reaction was recorded show `-`).
 - `API_BASE` in `game.js` points at the server; `?api=http://localhost:8787` overrides it. Without a reachable
   API the board says offline and the submit row stays hidden.
 - Run locally: `cd server && npm install && node index.js` (in-memory without `DATABASE_URL`).

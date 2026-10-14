@@ -441,7 +441,7 @@
   const LANGS = Object.keys(I18N);
   function detectLang() {
     const l = (navigator.language || 'en').toLowerCase();
-    return l.startsWith('zh') ? 'zh' : l.startsWith('ja') ? 'ja' : 'en';
+    return l.startsWith('nan') ? 'nan' : l.startsWith('zh') ? 'zh' : l.startsWith('ja') ? 'ja' : 'en';
   }
   if (!I18N[settings.lang]) settings.lang = 'en';
   function t(key, ...args) {
@@ -1076,7 +1076,7 @@
           if (mine && s.name === mine && lastGame && s.score === lastGame.score) li.className = 'me';
           const who = document.createElement('span'); who.className = 'who';
           const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = s.name;
-          const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy);
+          const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy, s.reaction === null || s.reaction === undefined ? '-' : Number(s.reaction).toFixed(2));
           who.appendChild(nm); who.appendChild(meta);
           const b = document.createElement('b'); b.textContent = s.score;
           li.appendChild(who); li.appendChild(b);

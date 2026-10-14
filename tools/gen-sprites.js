@@ -112,23 +112,24 @@ function batterTorso(s, lean) {
 // Stance, seen from the side (the umpire looks across him): the belly points at the plate (right), the
 // back and butt at the dugout (left). Narrow torso, chest edge shaded as it rounds away from us.
 function batterTorsoProfile(s) {
-  s.poly([[13, 19], [22, 19], [24, 22], [26, 28], [26, 33], [24, 37], [12, 37], [10, 32], [10, 25]], 'J');
+  s.poly([[13, 19], [22, 19], [24, 22], [26, 28], [26, 33], [24, 37], [10, 37], [9, 33], [10, 25]], 'J');
   s.recolor(24, 19, 26, 37, 'J', 'j');                                  // chest/belly rounds away toward the plate
-  s.recolor(10, 19, 11, 37, 'J', 'j');                                  // sliver on the back
-  s.rect(12, 37, 24, 38, 'm'); s.rect(23, 37, 24, 38, 'G');             // belt, buckle at the front
+  s.recolor(9, 19, 10, 37, 'J', 'j');                                   // sliver on the back
+  s.rect(10, 37, 24, 38, 'm'); s.rect(23, 37, 24, 38, 'G');             // belt, buckle at the front
 }
 
 // Legs in profile: knees bent, hips back so the butt sits out behind him, both cleats pointing at the
 // plate. The front leg (toward the pitcher, farther from us) is drawn first, a little up and forward,
 // in the shade colour; the back leg (nearer us) goes over it with a dark edge so the two read apart.
 function batterLegsProfile(s) {
-  s.poly([[14, 38], [25, 38], [27, 48], [18, 48]], 'w');                // front thigh
-  s.poly([[18, 48], [26, 48], [25, 58], [19, 58]], 'w');                // front shin
-  s.rect(19, 56, 25, 60, 'l');                                          // front stirrup (in shadow)
-  s.rect(17, 60, 31, 62, 'm'); s.rect(17, 61, 31, 61, 'd'); s.rect(30, 60, 31, 61, 'd'); // front cleat, toe to the plate
-  s.poly([[9, 39], [21, 39], [23, 50], [13, 50]], 'W');                 // back thigh: hip pushed out behind, thigh angled to the knee
+  s.poly([[15, 39], [26, 39], [28, 46], [19, 46]], 'w');                // front thigh (farther away: a little higher, a step toward the pitcher), under the belt
+  s.poly([[19, 46], [27, 46], [26, 56], [20, 56]], 'w');                // front shin
+  s.rect(20, 54, 26, 58, 'l');                                          // front stirrup (in shadow)
+  s.rect(18, 58, 32, 60, 'm'); s.rect(18, 59, 32, 59, 'd'); s.rect(31, 58, 32, 59, 'd'); // front cleat, toe to the plate
+  s.ellipse(13.5, 42.5, 4.5, 4, 'W');                                   // hip: the butt rounds out behind him, under the jersey hem
+  s.poly([[10, 39], [21, 39], [23, 50], [13, 50]], 'W');                // back thigh, angled forward to the knee
   s.poly([[13, 50], [22, 50], [21, 60], [14, 60]], 'W');                // back shin
-  s.recolor(9, 39, 11, 50, 'W', 'w'); s.recolor(13, 50, 14, 60, 'W', 'w');
+  s.recolor(8, 39, 11, 50, 'W', 'w'); s.recolor(13, 50, 14, 60, 'W', 'w');
   s.line(21, 39, 23, 50, 'K', 1); s.line(22, 50, 21, 60, 'K', 1);       // dark edge where the back leg covers the front one
   s.line(14, 50, 21, 50, 'w');                                          // knee
   s.rect(14, 58, 21, 62, 'B'); s.recolor(14, 58, 14, 62, 'B', 'l');     // back stirrup
@@ -195,11 +196,11 @@ function arm(s, sh, el, fi, o = {}) {
 
 function batterStance(sc = 1) {
   const s = grid(BW, BH, NEAR * sc);
-  const g = batGrip(s, [11, 17], [0, -1]);                              // hands back by the helmet, bat up over the back shoulder
+  const g = batGrip(s, [12, 18], [1, 0]);                               // hands up beside the ear flap, bat up and back over the back shoulder
   g.bat();
-  arm(s, [16, 20], [28, 26], [g.fistB[0] + 1, g.fistB[1] + 1], { sleeve: 3.8, fore: 3 }); // front arm (far side): only the elbow past the chest and the forearm above the shoulder show
+  arm(s, [21, 20], [31, 27], [g.fistB[0] + 1, g.fistB[1] + 1], { sleeve: 3.8, fore: 3 }); // front arm (far side): sleeve and elbow forward past the chest, forearm back up to the top fist (behind the body)
   batterTorsoProfile(s);
-  arm(s, [15, 21], [6, 22], g.fistA);                                   // back arm: upper arm straight back, elbow out behind him, forearm up to the hands
+  arm(s, [15, 21], [7, 20], g.fistA, { sleeve: 4.6 });                  // back arm: elbow raised to shoulder height and pointed back at us (short, fat sleeve), forearm up to the hands
   g.fists();
   s.rect(16, 15, 19, 18, 'z');                                          // neck
   batterHead(s, 17, 10, 0);
