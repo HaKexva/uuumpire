@@ -915,11 +915,11 @@
     const bx = left ? POS.batterL[0] : POS.batterR[0] + IMG.batter[0].mid.R[0].width - bimg.width;
     const by = BATTER_FEET_Y - bimg.height + 2;
     ctx.drawImage(bimg, bx, by);
-    // jersey number on his back (sprite design units: torso centre x 18, number band y 24..34)
+    // jersey number on his back (sprite design units: chest centre x 18, number band y 27..37)
     if (G.pitch) {
       const sc = 1.4 * BATTER_H[G.pitch.batterSize];
       const ncx = left ? bx + bimg.width - 18 * sc : bx + 18 * sc;
-      drawNumber(G.pitch.number, ncx, by + 29 * sc, PAL[KITS[kit].num]);
+      drawNumber(G.pitch.number, ncx, by + 32 * sc, PAL[KITS[kit].num]);
     }
 
     // zone guide: only while learning (level 1), only if enabled
