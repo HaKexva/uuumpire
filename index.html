@@ -66,6 +66,7 @@
       <div id="abs-text" class="abs-text"></div>
       <div id="pause-text" class="pause-text"><span class="plate" data-i18n="paused">PAUSED</span></div>
       <button id="btn-replay" class="game-btn game-btn--sm replay-btn hidden" type="button" data-i18n="btn.replay">REPLAY</button>
+      <button id="btn-quit" class="game-btn game-btn--sm quit-btn" type="button" data-i18n="btn.quit">EXIT TO TITLE</button>
     </div>
     <div class="info-row">
       <span id="pitch-info" class="pitch-info">&nbsp;</span>
@@ -83,7 +84,7 @@
   <!-- GAME OVER -->
   <section id="screen-over" class="screen hidden">
     <h2 class="game-logo game-logo--sm" data-i18n="over.title">YOU'RE OUT!</h2>
-    <p class="over-sub game-shadow" data-i18n="over.sub">THE MANAGER HAD A WORD WITH THE LEAGUE.</p>
+    <p id="over-sub" class="over-sub game-shadow" data-i18n="over.sub">THE MANAGER CALLED THE LEAGUE.</p>
     <div class="game-panel result-panel">
       <div class="result-row"><span data-i18n="over.score">SCORE</span><b id="over-score">0</b></div>
       <div class="result-row"><span data-i18n="over.pitches">PITCHES</span><b id="over-pitches">0</b></div>
