@@ -98,7 +98,9 @@ Glove-side pitches (slider, cutter, curve, sweeper) break away from the arm; arm
 `https://api-production-c3f4.up.railway.app`. TODAY is the Asia/Taipei day. Scores are validated for
 plausibility (max 400 pts per pitch, 12 posts per minute per IP) and names are 12 characters.
 
-- `GET /api/scores?period=daily|all` top 20; `POST /api/scores` `{ name, score, pitches, accuracy, streak, reaction, lang }`.
+- `GET /api/scores?period=daily|all` top 20; rows outside both the all-time top 20 and today's top 20 are pruned after every
+  submit (and at startup), so the table never grows past what can be shown.
+- `POST /api/scores` `{ name, score, pitches, accuracy, streak, reaction, lang }`.
 - The game submits from the game-over screen (name is remembered) and shows TODAY / ALL TIME from the title menu.
   Each row shows pitches, accuracy and the average reaction time (rows posted before reaction was recorded show `-`).
 - `API_BASE` in `game.js` points at the server; `?api=http://localhost:8787` overrides it. Without a reachable
@@ -154,6 +156,8 @@ node tools/export-midi.js disco      # assets/uuumpire-disco.mid
 Edit the bars in `music.js` (8th-note steps, `.` = tie, `-` = rest) and re-run the export.
 
 ## Debug flags
+
+Local only: the page honours these on localhost / 127.0.0.1 and ignores them when served from GitHub Pages.
 
 - `?slow=4` — run game time at 1/4 speed.
 - `?debug` — exposes `window.__uu` (`G` core state, `V` view state, `game`, `core`, `pause`, `startWindup`, `render`,
