@@ -125,6 +125,17 @@ const server = http.createServer(async (req, res) => {
       const { day, rows } = await top(period);
       return send(res, 200, { period, day, scores: rows.map((r, i) => ({ rank: i + 1, ...r })) });
     }
+    // moderation: POST /api/admin/delete { name } with header x-admin-token (only when ADMIN_TOKEN is set)
+    if (url.pathname === '/api/admin/delete' && req.method === 'POST' && process.env.ADMIN_TOKEN) {
+      if (req.headers['x-admin-token'] !== process.env.ADMIN_TOKEN) return send(res, 403, { error: 'forbidden' });
+      const body = await readJson(req);
+      const name = String(body.name || '').trim();
+      if (!name) return send(res, 400, { error: 'name required' });
+      let removed = 0;
+      if (pool) removed = (await pool.query('DELETE FROM scores WHERE name = $1', [name])).rowCount;
+      else { const before = mem.length; for (let i = mem.length - 1; i >= 0; i--) if (mem[i].name === name) mem.splice(i, 1); removed = before - mem.length; }
+      return send(res, 200, { ok: true, removed });
+    }
     if (url.pathname === '/api/scores' && req.method === 'POST') {
       const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
       if (limited(ip)) return send(res, 429, { error: 'slow down' });
