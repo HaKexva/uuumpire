@@ -88,7 +88,7 @@ Glove-side pitches (slider, cutter, curve, sweeper) break away from the arm; arm
   Cheers, claps and boos follow your calls; a full meter gets the wave and a chant, an empty one gets
   heckled. The stadium music speeds up with it (+20% per cell, 2x at full). Atmosphere only: it never
   touches the call or the score.
-- **Languages**: English, 繁體中文, 日本語, 台語 (教育部推薦漢字) (`i18n.js`, picked from the browser language,
+- **Languages**: English, 繁體中文, 日本語, 台語 (教育部推薦漢字), Tâi-lô (台羅拼音; Cubic 11 ships the combining tone marks, so a̍/o͘/m̄ render in-font) (`i18n.js`, picked from the browser language,
   switchable in the menu). Cubic 11 covers the CJK text.
 
 ## Leaderboard

@@ -81,7 +81,7 @@ function validate(b) {
   if (score < 0 || score > 1000000 || pitches < 1 || pitches > 1000 || accuracy < 0 || accuracy > 100 || streak < 0 || streak > pitches) return null;
   if (score > pitches * MAX_PER_PITCH) return null;
   if (reaction !== null && (!Number.isFinite(reaction) || reaction < 0 || reaction > 10)) return null;
-  const lang = ['en', 'zh', 'ja', 'nan'].includes(b.lang) ? b.lang : null;
+  const lang = ['en', 'zh', 'ja', 'nan', 'tailo'].includes(b.lang) ? b.lang : null;
   return { name, score: Math.round(score), pitches: Math.round(pitches), accuracy: Math.round(accuracy), streak: Math.round(streak), reaction, lang };
 }
 
