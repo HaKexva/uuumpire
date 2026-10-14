@@ -66,7 +66,7 @@ window.UU_I18N = {
     'call.strike': '好球！', 'call.ball': '壞球', 'judge.late': '太慢了！', 'judge.ok': '判決正確！', 'judge.ng': '判決錯誤！',
     'tag.swing': '揮棒落空！', 'tag.check': '半揮棒・未揮棒', 'tag.framed': '偷好球！',
     'tag.fine': '精準判決 +50', 'tag.quick': '迅速 +30',
-    'tag.chant': '觀眾：好眼力！好眼力！', 'tag.heckle': '休息區：你是瞎了嗎？！',
+    'tag.chant': '觀眾：裁判水啦！', 'tag.heckle': '休息區：你是瞎了嗎？！',
     'abs.unit': 'cm', 'abs.strike': 'ABS：好球，進壘 {0} 公分', 'abs.ball': 'ABS：壞球，偏{1} {0} 公分',
     'high': '高', 'low': '低', 'inside': '內角', 'outside': '外角',
     'reaction': '反應 {0} 秒', 'sub': '下勾 ', 'kmh': 'km/h',
