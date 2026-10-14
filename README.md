@@ -37,11 +37,12 @@ Run `sh tools/install-hooks.sh` once; the pre-commit hook then stamps `version.j
   short batter's zone is about 11% shorter than a tall one's. Width is always 17 inches (33px).
   Every batter wears a different number (drawn at render time, not baked into the sprite) and one of
   six kits (home white, road gray, blue, red, gold, dark green), recoloured from the same sprites via `KITS`.
-- From level 2 the batter sometimes swings through (a strike wherever the ball went) or checks his swing
-  (held = no swing, judge the location). From level 2 the catcher also frames: after the catch the mitt
-  drags the ball toward the zone. On a near-miss ball (about 45% of them at level 2, 80% by level 9) that
-  makes it look like a strike; on edge strikes he just tidies it up. Framing is only there to mislead you:
-  the call is always judged on where the ball crossed, and the score does not change.
+- From level 4 the batter swings through about one pitch in five (a strike wherever the ball went) and
+  checks his swing on a few more (held = no swing, judge the location). From level 5 the catcher frames
+  every pitch he catches: after the catch the mitt drags the ball toward the zone. A near-miss ball is
+  pulled inside so it looks like a strike; a far ball gets a short tug that falls visibly short; a strike
+  is tidied toward the middle. Framing is only there to mislead you: the call is always judged on where
+  the ball crossed, and the score does not change.
 - Wrong call (or any edge pitch): the reveal adds an ABS-style readout, e.g. `ABS: BALL BY 1.2 IN (LOW)`,
   with a measuring tick from the ball to the nearest zone edge. Scale: the 33px zone is 17 inches wide.
 
@@ -88,7 +89,7 @@ Glove-side pitches (slider, cutter, curve, sweeper) break away from the arm; arm
   Cheers, claps and boos follow your calls; a full meter gets the wave and a chant, an empty one gets
   heckled. The stadium music speeds up with it (+20% per cell, 2x at full). Atmosphere only: it never
   touches the call or the score.
-- **Languages**: English, 繁體中文, 日本語, 台語 (教育部推薦漢字), Tâi-lô (台羅拼音; Cubic 11 ships the combining tone marks, so a̍/o͘/m̄ render in-font) (`i18n.js`, picked from the browser language,
+- **Languages**: English, 繁體中文, 日本語, Tâi-lô 台語 (台羅拼音; Cubic 11 ships the combining tone marks, so a̍/o͘/m̄ render in-font) (`i18n.js`, picked from the browser language,
   switchable in the menu). Cubic 11 covers the CJK text.
 
 ## Leaderboard

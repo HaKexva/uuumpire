@@ -30,10 +30,12 @@ for (let level = 1; level <= 12; level++) {
     if (level < C.RULES.swingLevel) ok(p.swing === 'none', 'no swings before level 4');
     if (level < C.RULES.framingLevel) ok(p.frame === null, 'no framing before level 5');
     if (level < C.RULES.submarineLevel) ok(p.form === 'OVERHAND', 'no submarine before level 3');
+    if (level >= C.RULES.framingLevel) ok((p.frame !== null) === (p.swing !== 'full'), 'from level 5 every caught pitch is framed');
     if (p.frame) {
       ok(p.swing !== 'full', 'no framing on a swing');
-      ok(p.frame.trap ? !p.located : p.located, 'trap frames only balls, tidy frames only strikes');
-      ok(p.edgeDist < 11, 'framing only on near pitches');
+      ok(p.frame.trap ? !p.located && p.edgeDist < 11 : p.located || p.edgeDist >= 11, 'trap = near ball; tidy = strike or far ball');
+      ok(Math.hypot(p.frame.dx, p.frame.dy) <= p.edgeDist + 2 * C.BALL_R + 1e-9, 'tug never longer than it takes to get inside');
+      if (!p.located && !p.frame.trap) ok(Math.hypot(p.frame.dx, p.frame.dy) <= 7 + 1e-9, 'far ball: short tug');
     }
     const lo = type.speed[0] + Math.min(level, 8) + Math.max(0, level - 9) * 3 - (p.form === 'SUBMARINE' ? 6 : 0);
     ok(p.speed >= lo - 0.5 && p.speed <= lo + (type.speed[1] - type.speed[0]) + 0.5, `${p.type} speed ${p.speed} in band at lv${level}`);

@@ -191,23 +191,26 @@
     let swing = 'none';
     if (level >= RULES.swingLevel) {
       const r = rng();
-      if (r < 0.14) swing = 'full';
-      else if (r < 0.22) swing = 'check';
+      if (r < 0.21) swing = 'full';
+      else if (r < 0.29) swing = 'check';
     }
-    // catcher framing: after the catch he pulls the mitt toward the zone. On a near-miss ball that is the
-    // trap (ball ends up looking inside); on an edge strike he just tidies it up toward the middle.
+    // catcher framing: from the framing level he works every pitch he catches. A near-miss ball is pulled
+    // inside the zone (the trap: it ends up looking like a strike); a far ball gets a short tug toward
+    // the zone that visibly falls short; a strike is tidied toward the middle.
     // Only ever a visual: the call is judged where the ball crossed.
     let frame = null;
-    if (swing !== 'full' && level >= RULES.framingLevel && edgeDist < 11) {
-      const pTrap = clamp(0.35 + level * 0.05, 0, 0.8);
-      if (!located && rng() < pTrap) {
+    if (swing !== 'full' && level >= RULES.framingLevel) {
+      if (!located) {
         const ix = clamp(x, zone.x0 - BALL_R + 3, zone.x1 + BALL_R - 3);
         const iy = clamp(y, zone.y0 - BALL_R + 3, zone.y1 + BALL_R - 3);
-        frame = { dx: ix - x, dy: iy - y, trap: true };
-      } else if (located && edgeDist < 4 && rng() < 0.5) {
+        let dx = ix - x, dy = iy - y;
+        const trap = edgeDist < 11, d = Math.hypot(dx, dy);
+        if (!trap && d > 7) { dx *= 7 / d; dy *= 7 / d; }
+        frame = { dx, dy, trap };
+      } else {
         const cx = (zone.x0 + zone.x1) / 2, cy = (zone.y0 + zone.y1) / 2;
-        const d = Math.hypot(cx - x, cy - y) || 1;
-        frame = { dx: (cx - x) / d * 5.5, dy: (cy - y) / d * 5.5, trap: false };
+        const d = Math.hypot(cx - x, cy - y) || 1, m = Math.min(5.5, d);
+        frame = { dx: (cx - x) / d * m, dy: (cy - y) / d * m, trap: false };
       }
     }
     // jersey numbers: a new one for every batter, never the same twice in a row
@@ -352,7 +355,7 @@
       const tags = [];
       if (p.swing === 'full') tags.push('swing');
       else if (p.swing === 'check') tags.push('check');
-      if (p.frame) tags.push('framed');
+      if (p.frame && p.frame.trap) tags.push('framed');
       // full stands chant (and do the wave); an empty meter after a miss gets you heckled
       const crowd = !correct && G.mood === 0 ? 'heckle' : correct && G.mood >= RULES.moodMax ? 'chant' : null;
       // ABS readout on a wrong call, or on any edge pitch (never on a swing: location did not matter)
