@@ -538,8 +538,8 @@
         x = rnd(ex0 + 3, ex1 - 3); y = rnd(ey0 + 3, ey1 - 3);
       }
     } else {
-      const d = edge ? rnd(1, 3.6) : rnd(4, 18);
-      const spread = edge ? 3 : 10;
+      const d = edge ? rnd(1, 3.6) : rnd(3, 10);   // clear balls still miss, but not by a mile
+      const spread = edge ? 3 : 7;
       if (side === 0) { x = ex0 - d; y = rnd(ey0 - spread, ey1 + spread); }
       else if (side === 1) { x = ex1 + d; y = rnd(ey0 - spread, ey1 + spread); }
       else if (side === 2) { y = ey0 - d; x = rnd(ex0 - spread, ex1 + spread); }
