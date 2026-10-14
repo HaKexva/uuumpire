@@ -106,19 +106,20 @@ function batterHead(s, cx, cy, turn) {
 // Torso in three-quarter front view: chest faces the plate (right), the far side (his left, the plate side)
 // rounds away. The number goes on the chest below the crossed forearms. lean: shoulders toward the plate.
 function batterTorso(s, lean) {
-  s.poly([[9 + lean, 19], [27 + lean, 19], [28, 26], [27, 37], [10, 37], [8, 28]], "J");
-  s.recolor(8, 19, 10, 37, "J", "j");                                   // back edge rounds off
+  s.poly([[9 + lean, 19], [27 + lean, 19], [28, 26], [27, 37], [8, 37], [7, 31], [8, 26]], "J");
+  s.recolor(7, 19, 9, 37, "J", "j");                                    // back edge rounds off
   s.recolor(26 + lean, 19, 28, 37, "J", "j");                           // and the far shoulder side
-  s.rect(10, 37, 27, 38, 'm'); s.rect(18, 37, 19, 38, 'G');             // belt + buckle
+  s.rect(8, 37, 27, 38, 'm'); s.rect(18, 37, 19, 38, 'G');              // belt the whole way round + buckle
 }
 
 // Stance legs: wide, knees bent in a little, weight back; both cleats point at the plate.
 function batterLegsStance(s) {
-  s.poly([[9, 39], [17, 39], [16, 50], [9, 50]], 'W');                  // back thigh (umpire's left)
+  s.ellipse(11.5, 42.5, 4.5, 4, 'W');                                   // hip: the butt rounds out behind him, under the belt
+  s.poly([[8, 39], [17, 39], [16, 50], [9, 50]], 'W');                  // back thigh (umpire's left)
   s.poly([[9, 50], [16, 50], [15, 60], [8, 60]], 'W');                  // back shin
   s.poly([[19, 39], [27, 39], [27, 50], [20, 50]], 'W');                // front thigh
   s.poly([[20, 50], [27, 50], [28, 60], [21, 60]], 'W');                // front shin, knee toward the plate
-  s.recolor(8, 39, 10, 60, 'W', 'w'); s.recolor(19, 39, 21, 60, 'W', 'w');
+  s.recolor(7, 39, 9, 60, 'W', 'w'); s.recolor(19, 39, 21, 60, 'W', 'w');
   s.line(12, 41, 11, 59, 'w'); s.line(24, 41, 25, 59, 'w');             // creases
   s.line(10, 50, 15, 50, 'w'); s.line(21, 50, 26, 50, 'w');             // knees
   s.rect(8, 58, 15, 62, 'B'); s.recolor(8, 58, 8, 62, 'B', 'l');        // stirrups
@@ -127,17 +128,20 @@ function batterLegsStance(s) {
   s.rect(20, 62, 32, 64, 'm'); s.rect(20, 63, 32, 63, 'g'); s.rect(31, 62, 32, 63, 'g'); // front cleat
 }
 
-function batterLegsOpen(s) {                                            // hips opened: front leg braced, back knee turned in, heel up
-  s.poly([[10, 39], [17, 39], [17, 50], [12, 50]], 'W');
-  s.poly([[12, 50], [17, 50], [17, 58], [12, 58]], 'W');
-  s.poly([[19, 39], [26, 39], [27, 50], [20, 50]], 'W');
-  s.poly([[20, 50], [27, 50], [29, 60], [22, 60]], 'W');
-  s.recolor(10, 39, 12, 58, 'W', 'w'); s.recolor(20, 39, 21, 60, 'W', 'w');
-  s.line(13, 50, 17, 50, 'w'); s.line(21, 50, 26, 50, 'w');
-  s.rect(12, 57, 17, 60, 'B'); s.recolor(12, 57, 12, 60, 'B', 'l');
-  s.rect(22, 58, 29, 62, 'B'); s.recolor(22, 58, 22, 62, 'B', 'l');
-  s.rect(10, 60, 18, 62, 'm'); s.rect(10, 61, 18, 61, 'g');             // back foot pivoted up on the toe
-  s.rect(22, 62, 32, 64, 'm'); s.rect(22, 63, 32, 63, 'g');
+// Swing legs: hips opened to the pitcher. Front leg braced straight toward the plate, back knee turned in
+// and the back heel up, pivoted on the toe.
+function batterLegsOpen(s) {
+  s.poly([[19, 39], [27, 39], [28, 50], [21, 50]], 'W');                // front thigh
+  s.poly([[21, 50], [28, 50], [29, 60], [22, 60]], 'W');                // front shin, straight
+  s.ellipse(11.5, 42.5, 4.5, 4, 'W');                                   // hip rounds out behind, under the belt
+  s.poly([[8, 39], [17, 39], [18, 49], [12, 49]], 'W');                 // back thigh, knee turned in toward the front leg
+  s.poly([[12, 49], [18, 49], [18, 56], [13, 56]], 'W');                // back shin, shorter: heel up
+  s.recolor(7, 39, 9, 56, 'W', 'w'); s.recolor(20, 39, 22, 60, 'W', 'w');
+  s.line(13, 49, 17, 49, 'w'); s.line(22, 50, 27, 50, 'w');             // knees
+  s.rect(13, 54, 18, 58, 'B'); s.recolor(13, 54, 13, 58, 'B', 'l');     // back stirrup
+  s.rect(22, 58, 29, 62, 'B'); s.recolor(22, 58, 22, 62, 'B', 'l');     // front stirrup
+  s.poly([[13, 58], [18, 58], [20, 63], [16, 63]], 'm'); s.line(17, 59, 19, 62, 'g'); // back foot up on its toe, heel high
+  s.rect(21, 62, 33, 64, 'm'); s.rect(21, 63, 33, 63, 'g'); s.rect(32, 62, 33, 63, 'g'); // front cleat planted, toe to the plate
 }
 
 // Bat + hands: the bat is drawn first, then two stacked fists on top of its handle so the grip reads
@@ -214,12 +218,12 @@ function batterCheck(sc = 1) {                                          // bat t
   return s.rows();
 }
 
-function batterSwing(sc = 1) {                                          // bat across the plate, arms extended
+function batterSwing(sc = 1) {                                          // contact: bat across the plate toward the pitcher, both arms extended
   const s = grid(BW, BH, NEAR * sc);
-  const g = batGrip(s, [28, 26], [46, 20]);
+  const g = batGrip(s, [33, 27], [47, 8]);                              // hands out past the front shoulder; the bat foreshortens toward the pitcher
   batterTorso(s, 2);
-  arm(s, [27, 21], [31, 21], g.fistB, { sleeve: 3.8, fore: 3 });        // front arm straight out
-  arm(s, [14, 22], [21, 27], g.fistA);                                  // back arm extended through the ball
+  arm(s, [12, 21], [22, 25], g.fistB);                                  // back arm: extended across the chest to the top hand
+  arm(s, [27, 20], [31, 25], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, out to the bottom hand
   g.bat();
   g.fists();
   s.rect(19, 15, 22, 18, 'z');
@@ -229,16 +233,16 @@ function batterSwing(sc = 1) {                                          // bat a
   return s.rows();
 }
 
-function batterFollow(sc = 1) {                                         // bat wrapped over the front shoulder, across the back
+function batterFollow(sc = 1) {                                         // follow-through: hands high at the front shoulder, bat wrapped up over it behind the head
   const s = grid(BW, BH, NEAR * sc);
-  const g = batGrip(s, [24, 21], [1, 32]);
-  batterTorso(s, 1);
-  arm(s, [26, 20], [29, 23], g.fistB, { sleeve: 3.8, fore: 3 });        // front arm folded up at the shoulder
-  arm(s, [13, 21], [16, 27], g.fistA);                                  // back arm wraps across the chest
-  g.bat();
-  g.fists();
+  const g = batGrip(s, [26, 19], [4, 4]);
+  g.bat();                                                              // behind the head: drawn first
+  batterTorso(s, 3);
+  arm(s, [12, 21], [17, 27], g.fistB);                                  // back arm: across and up to the top hand
+  arm(s, [28, 20], [31, 25], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: folded up to the bottom hand
   s.rect(19, 15, 22, 18, 'z');
   batterHead(s, 20, 10, 1);
+  g.fists();                                                            // hands finish in front of the chin
   batterLegsOpen(s);
   s.outline();
   return s.rows();
