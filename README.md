@@ -113,10 +113,6 @@ Edit the bars in `music.js` (8th-note steps, `.` = tie, `-` = rest) and re-run t
   `--write` splices them into `sprites.js`. Edit the shapes there, not the rows.
 - `music.js` — song data + chiptune player. `tools/export-midi.js` — MIDI exporter.
 - `assets/uuumpire-theme.mid`, `assets/uuumpire-entry.mid`, `assets/uuumpire-ballgame.mid` — exported songs.
-- `assets/voice-{strike,ball}-{ja,en}.wav` — the umpire's calls, played when you press STRIKE / BALL.
-  `ja` (default, NPB style: ストライーク / ボール) made with macOS `say -v "Reed (Japanese (Japan))"`,
-  `en` (Steeerike / Ball) with `say -v Alex`; 22 kHz mono. `Sfx.voiceLang` in `game.js` picks the set.
-  Replace them with real recordings any time (same names). If they are missing the game falls back to beeps.
 - `fonts/Cubic_11.woff2` — [Cubic 11](https://github.com/ACh-K/Cubic-11) pixel font, SIL Open Font License (see `fonts/OFL.txt`).
 
 Best scores are stored in `localStorage`.

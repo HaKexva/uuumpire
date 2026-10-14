@@ -281,32 +281,6 @@
       if (!AC) return;
       this.ctx = new AC();
       if (window.UUMusic) window.UUMusic.Player.attach(this.ctx);
-      this.loadVoices();
-    },
-    // umpire voice clips (assets/voice-<call>-<lang>.wav). 'ja' = NPB-style ストライーク / ボール,
-    // 'en' = Steeerike / Ball. If they fail to load, the calls fall back to the beeps.
-    voices: {},
-    voiceLang: 'ja',
-    loadVoices() {
-      for (const name of ['strike', 'ball']) {
-        fetch('assets/voice-' + name + '-' + this.voiceLang + '.wav')
-          .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
-          .then((buf) => this.ctx.decodeAudioData(buf))
-          .then((audio) => { this.voices[name] = audio; })
-          .catch(() => {});
-      }
-    },
-    voice(name) {
-      const buf = this.voices[name];
-      if (!this.enabled || !this.ctx || !buf) return false;
-      const src = this.ctx.createBufferSource();
-      src.buffer = buf;
-      src.playbackRate.value = 0.92;              // a touch lower and slower: more bark, less text-to-speech
-      const g = this.ctx.createGain();
-      g.gain.value = 1.0;
-      src.connect(g).connect(this.ctx.destination);
-      src.start();
-      return true;
     },
     resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
     tone(freq, dur, { type = 'square', vol = 0.06, slide = null, delay = 0 } = {}) {
@@ -744,8 +718,7 @@
     G.phase = 'reveal'; G.t = 0;
     el.timer.style.width = '0%';
 
-    if (call === 'strike') { if (!Sfx.voice('strike')) Sfx.strikeCall(); }
-    else if (call === 'ball') { if (!Sfx.voice('ball')) Sfx.ballCall(); }
+    if (call === 'strike') Sfx.strikeCall(); else if (call === 'ball') Sfx.ballCall();
 
     let bonusMsgs = [];
     if (correct) {
