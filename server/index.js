@@ -12,7 +12,7 @@ import pg from 'pg';
 
 const PORT = process.env.PORT || 8787;
 const TZ = process.env.BOARD_TZ || 'Asia/Taipei';
-const LIMIT = 20;
+const LIMIT = 20; // rows shown per board; anything outside both top-20s is pruned (see prune())
 
 // ---- storage -------------------------------------------------------------
 const pool = process.env.DATABASE_URL
@@ -37,6 +37,7 @@ async function init() {
   await pool.query('CREATE INDEX IF NOT EXISTS scores_day_score ON scores (day, score DESC)');
   await pool.query('CREATE INDEX IF NOT EXISTS scores_score ON scores (score DESC)');
   console.log('postgres ready');
+  await prune();
 }
 
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -54,18 +55,38 @@ async function top(period) {
   return { day, rows };
 }
 
+// Keep only what can ever be shown again: the all-time top LIMIT and today's top LIMIT. A row that is
+// in neither will never appear on either board (yesterday's board is gone), so it goes. Runs after every
+// insert and at startup. Ties break the same way top() orders them (earlier submission first).
+async function prune() {
+  const day = today();
+  if (!pool) {
+    const byScore = (a, b) => b.score - a.score || a.created_at - b.created_at;
+    const keep = new Set([...mem].sort(byScore).slice(0, LIMIT).concat(mem.filter((r) => r.day === day).sort(byScore).slice(0, LIMIT)));
+    for (let i = mem.length - 1; i >= 0; i--) if (!keep.has(mem[i])) mem.splice(i, 1);
+    return;
+  }
+  const { rowCount } = await pool.query(
+    `DELETE FROM scores WHERE id NOT IN (SELECT id FROM scores ORDER BY score DESC, created_at ASC LIMIT $1)
+       AND id NOT IN (SELECT id FROM scores WHERE day = $2 ORDER BY score DESC, created_at ASC LIMIT $1)`, [LIMIT, day]);
+  if (rowCount) console.log('pruned', rowCount, 'rows outside the top', LIMIT);
+}
+
 async function insert(rec) {
   const day = today();
   if (!pool) {
     mem.push({ ...rec, day, created_at: Date.now() });
     const rank = (filter) => mem.filter(filter).filter((r) => r.score > rec.score).length + 1;
-    return { rankDaily: rank((r) => r.day === day), rankAll: rank(() => true) };
+    const ranks = { rankDaily: rank((r) => r.day === day), rankAll: rank(() => true) };
+    await prune();
+    return ranks;
   }
   await pool.query(
     'INSERT INTO scores (name, score, pitches, accuracy, streak, reaction, lang, day) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
     [rec.name, rec.score, rec.pitches, rec.accuracy, rec.streak, rec.reaction, rec.lang, day]);
   const d = await pool.query('SELECT COUNT(*)::int AS n FROM scores WHERE day = $1 AND score > $2', [day, rec.score]);
   const a = await pool.query('SELECT COUNT(*)::int AS n FROM scores WHERE score > $1', [rec.score]);
+  await prune();
   return { rankDaily: d.rows[0].n + 1, rankAll: a.rows[0].n + 1 };
 }
 
