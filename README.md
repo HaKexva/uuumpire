@@ -86,8 +86,25 @@ WebAudio player with 2A03-like duty-cycle pulse waves:
 - `ballgame` — "Take Me Out to the Ball Game" (Norworth / Von Tilzer, 1908, public domain), chorus in 3/4
   with oom-pah-pah tuba.
 
-The title screen picks `entry` or `ballgame` at random each time the menus come up. Each song exports
-to a Standard MIDI File:
+On top of those, `assets/songs/*.json` holds ballpark standards imported from single-melody MIDI files
+(flutetunes.com), all public domain, with an auto-generated comp:
+
+| Key | Tune | Pool |
+| --- | --- | --- |
+| william-tell | William Tell Overture, finale (Rossini, 1829) | play |
+| hat-dance | Mexican Hat Dance / Jarabe Tapatio (trad.) | play |
+| gladiators | Entrance of the Gladiators (Fucik, 1897) | play |
+| saints | When the Saints Go Marching In (trad.) | play |
+| hava-nagila | Hava Nagila (trad.) | play |
+| camptown | Camptown Races (Foster, 1850) | play |
+| stars-and-stripes | The Stars and Stripes Forever (Sousa, 1896) | title |
+| liberty-bell | The Liberty Bell (Sousa, 1893) | title |
+
+`assets/songs/index.json` says which pool each belongs to. A loading bar fetches them (and the font) before
+the title. The title screen picks a random title-pool song each time the menus come up; each new game
+picks a random play-pool song. To add a tune: `node tools/import-midi.js in.mid assets/songs/key.json
+--title "..."` (quantises the melody to 8ths, guesses I/IV/V/vi per bar for bass + brass), then list the
+key in `index.json`. The three built-in songs export to Standard MIDI Files:
 
 ```sh
 node tools/export-midi.js theme      # assets/uuumpire-theme.mid
@@ -111,7 +128,8 @@ Edit the bars in `music.js` (8th-note steps, `.` = tie, `-` = rest) and re-run t
   and pitcher (set, kick, cocked, release, follow-through; overhand + submarine) frames. Plate-side sprites are
   rasterized at `NEAR` = 1.4x their design size (the umpire's eye is right behind the catcher); the pitcher is 1x.
   `--write` splices them into `sprites.js`. Edit the shapes there, not the rows.
-- `music.js` — song data + chiptune player. `tools/export-midi.js` — MIDI exporter.
+- `music.js` — song data + chiptune player. `tools/export-midi.js` — MIDI exporter. `tools/import-midi.js` — MIDI → song JSON importer.
+- `assets/songs/` — imported ballpark tunes (JSON) + `index.json` pools.
 - `assets/uuumpire-theme.mid`, `assets/uuumpire-entry.mid`, `assets/uuumpire-ballgame.mid` — exported songs.
 - `fonts/Cubic_11.woff2` — [Cubic 11](https://github.com/ACh-K/Cubic-11) pixel font, SIL Open Font License (see `fonts/OFL.txt`).
 

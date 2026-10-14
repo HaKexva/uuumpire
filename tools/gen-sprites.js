@@ -134,7 +134,7 @@ function batterStance(sc = 1) {
   const s = grid(BW, BH, NEAR * sc);
   batterTorso(s, 1);
   s.line(27, 22, 18, 17, "J", 4); s.recolor(22, 18, 28, 24, "J", "j"); // front arm across the chest
-  s.line(17, 21, 10, 24, "w", 4);                                       // back arm: sleeve out to the raised elbow
+  s.line(17, 21, 10, 24, "j", 4);                                       // back arm: sleeve out to the raised elbow
   s.line(10, 23, 13, 16, "s", 3);                                       // forearm up to the hands
   s.ellipse(14, 15, 2.8, 2.6, 's'); s.recolor(11, 16, 17, 17, 's', 'z'); // hands at the back ear
   s.rect(17, 15, 20, 18, 'z');                                          // neck
@@ -150,7 +150,7 @@ function batterCheck(sc = 1) {                                                //
   const s = grid(BW, BH, NEAR * sc);
   batterTorso(s, 2);
   s.line(28, 23, 22, 21, "J", 4);
-  s.line(17, 21, 10, 25, "w", 4);
+  s.line(17, 21, 10, 25, "j", 4);
   s.line(10, 24, 19, 21, "s", 3);
   s.ellipse(21, 21, 2.8, 2.6, 's'); s.recolor(18, 22, 24, 23, 's', 'z');
   s.rect(17, 15, 20, 18, 'z');

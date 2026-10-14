@@ -235,6 +235,21 @@
     return ctx.createPeriodicWave(real, imag);
   }
 
+  // step-indexed event maps for the scheduler
+  function buildSong(song) {
+    const s = { tracks: {}, totalSteps: 0, stepDur: 60 / song.bpm / 2 };
+    for (const name in song.tracks) {
+      const te = trackEvents(song.tracks[name]);
+      s.tracks[name] = { def: song.tracks[name], byStep: new Map(), total: te.totalSteps };
+      for (const e of te.events) {
+        if (!s.tracks[name].byStep.has(e.step)) s.tracks[name].byStep.set(e.step, []);
+        s.tracks[name].byStep.get(e.step).push(e);
+      }
+      s.totalSteps = Math.max(s.totalSteps, te.totalSteps);
+    }
+    return s;
+  }
+
   const Player = {
     ctx: null, master: null, enabled: true, playing: false,
     timer: null, step: 0, nextTime: 0, waves: {}, noiseBuf: null,
@@ -261,21 +276,15 @@
       this.noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
       const d = this.noiseBuf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-      for (const key in SONGS) {
-        const song = SONGS[key];
-        const s = { tracks: {}, totalSteps: 0, stepDur: 60 / song.bpm / 2 };
-        for (const name in song.tracks) {
-          const te = trackEvents(song.tracks[name]);
-          s.tracks[name] = { def: song.tracks[name], byStep: new Map(), total: te.totalSteps };
-          for (const e of te.events) {
-            if (!s.tracks[name].byStep.has(e.step)) s.tracks[name].byStep.set(e.step, []);
-            s.tracks[name].byStep.get(e.step).push(e);
-          }
-          s.totalSteps = Math.max(s.totalSteps, te.totalSteps);
-        }
-        this.songs[key] = s;
-      }
+      for (const key in SONGS) this.songs[key] = buildSong(SONGS[key]);
     },
+
+    // register an extra song (same JSON shape as SONG), e.g. one loaded from assets/songs/*.json
+    addSong(key, song) {
+      SONGS[key] = song;
+      if (this.ctx) this.songs[key] = buildSong(song);
+    },
+    has(key) { return !!SONGS[key]; },
 
     // start(name): play that song from the top (no-op if it is already the one playing)
     start(name) {

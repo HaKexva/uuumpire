@@ -14,8 +14,15 @@
 <body>
 <div id="app" class="game-root">
 
+  <!-- LOADING -->
+  <section id="screen-loading" class="screen">
+    <h1 class="game-logo">UUUMPIRE</h1>
+    <div class="loadbar"><div id="load-fill" class="loadbar-fill"></div></div>
+    <p id="load-text" class="hint load-text">LOADING...</p>
+  </section>
+
   <!-- TITLE -->
-  <section id="screen-title" class="screen">
+  <section id="screen-title" class="screen hidden">
     <h1 class="game-logo">UUUMPIRE</h1>
     <p class="tagline game-shadow">STRIKE? OR BALL? YOU CALL IT.</p>
     <ul class="menu" id="title-menu">

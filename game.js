@@ -331,9 +331,11 @@
   const saveSettings = () => store.save(settings);
 
   // Music wrapper (music.js). Starts only after a user gesture.
-  // 'title' = one of the two menu songs (entry fanfare / Take Me Out to the Ball Game), picked at random
-  // each time the menus come up; 'theme' = gameplay. start() with no name resumes the current song.
+  // 'title' = a random menu song (entry fanfare, Take Me Out to the Ball Game, plus the marches loaded
+  // from assets/songs), kept while you move around the menus; 'play' = a random game song (the original
+  // theme plus the loaded ballpark tunes), picked per game. start() with no name resumes the current song.
   const TITLE_SONGS = ['entry', 'ballgame'];
+  const PLAY_SONGS = ['theme'];
   const Music = {
     get player() { return window.UUMusic ? window.UUMusic.Player : null; },
     start(song) {
@@ -343,6 +345,8 @@
       if (song === 'title') {
         if (p.playing && TITLE_SONGS.includes(p.current)) return; // already on a menu song: keep it
         song = pick(TITLE_SONGS);
+      } else if (song === 'play') {
+        song = pick(PLAY_SONGS);
       }
       p.setEnabled(true); p.start(song);
     },
@@ -537,7 +541,7 @@
   // ------------------------------------------------------------
   const $ = (id) => document.getElementById(id);
   const screens = {
-    title: $('screen-title'), play: $('screen-play'), over: $('screen-over'),
+    loading: $('screen-loading'), title: $('screen-title'), play: $('screen-play'), over: $('screen-over'),
     howto: $('screen-howto'), records: $('screen-records'),
   };
   const canvas = $('game');
@@ -597,7 +601,7 @@
     updateHud();
     el.info.textContent = ' ';
     showScreen('play');
-    Music.start('theme');
+    Music.start('play');
     startWindup(0.9);
   }
 
@@ -694,7 +698,7 @@
     G.paused = on;
     el.pause.classList.toggle('show', on);
     el.btnPause.classList.toggle('pressed', on);
-    if (on) Music.stop(); else Music.start('theme');
+    if (on) Music.stop(); else Music.start();
     Sfx.init(); Sfx.select();
   }
 
@@ -1100,15 +1104,39 @@
   Sfx.enabled = settings.sound;
   if (!PALETTES[settings.palette]) settings.palette = 0;
   applyPalette(settings.palette);
-  showScreen('title');
+  showScreen('loading');
   fitCanvas();
   requestAnimationFrame(loop);
+
+  // Loading screen: the pixel font plus the ballpark tunes in assets/songs (index.json lists them and
+  // which pool, title or play, each belongs to). A tune that fails to load is simply left out.
+  async function boot() {
+    const fill = $('load-fill'), text = $('load-text');
+    const tasks = [];
+    let done = 0;
+    const tick = (label) => { done++; fill.style.width = Math.round(done / tasks.length * 100) + '%'; text.textContent = label; };
+    const addTask = (label, p) => tasks.push(p.catch(() => {}).then(() => tick(label)));
+    addTask('FONT', document.fonts ? document.fonts.ready : Promise.resolve());
+    let index = { play: [], title: [] };
+    try { index = await (await fetch('assets/songs/index.json')).json(); } catch (e) { /* no extra songs */ }
+    const loadSong = (key, pool) => fetch('assets/songs/' + key + '.json')
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((song) => { if (window.UUMusic) { window.UUMusic.Player.addSong(key, song); pool.push(key); } });
+    for (const key of index.play || []) addTask(key.toUpperCase(), loadSong(key, PLAY_SONGS));
+    for (const key of index.title || []) addTask(key.toUpperCase(), loadSong(key, TITLE_SONGS));
+    fill.style.width = '0%';
+    await Promise.all(tasks);
+    fill.style.width = '100%'; text.textContent = 'PLAY BALL!';
+    await new Promise((r) => setTimeout(r, 250));
+    showScreen('title');
+    armTitleMusic();
+  }
 
   // Title music: start right away when the browser lets audio run without a gesture (Chrome does once
   // it trusts the site), otherwise on the very first tap / click / key anywhere on the page.
   // The browser's autoplay policy decides whether that first attempt is allowed; nothing on the page
   // can force it. Until the audio context is running, the title shows a blinking "tap for music" line.
-  (function armTitleMusic() {
+  function armTitleMusic() {
     Sfx.init();
     const ctx = Sfx.ctx;
     const hint = $('music-hint');
@@ -1134,5 +1162,7 @@
     ctx.addEventListener('statechange', () => { if (ctx.state === 'running') go(); });
     tryNow();
     if (!done && settings.music) hint.classList.remove('hidden');
-  })();
+  }
+
+  boot();
 })();

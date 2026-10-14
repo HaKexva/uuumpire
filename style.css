@@ -126,6 +126,19 @@ button { font-family: inherit; }
   flex: 0 0 auto;
 }
 
+/* ---- loading ---- */
+.loadbar {
+  width: 100%;
+  max-width: 320px;
+  height: 18px;
+  margin-top: 24px;
+  border: 3px solid var(--g-ink);
+  outline: 2px solid var(--g-white);
+  background: var(--g-dim);
+}
+.loadbar-fill { height: 100%; width: 0%; background: var(--g-gold); transition: width .15s steps(4); }
+.load-text { color: var(--g-gray); font-size: 14px; }
+
 /* ---- title ---- */
 .tagline { margin: 4px 0 0; font-size: 15px; color: var(--g-gray); }
 
