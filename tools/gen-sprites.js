@@ -160,21 +160,26 @@ function batterLegsOpen(s) {
 
 // Bat + hands: the bat is drawn first, then two stacked fists on top of its handle so the grip reads
 // (fists along the bat, knob just below the lower one), and each forearm ends on a fist.
-function batGrip(s, knob, tip) {
+// one: only the bottom hand holds the bat (the follow-through lets the top hand go); fistB is still
+// computed so callers can place things along the bat.
+function batGrip(s, knob, tip, one = false) {
   const dx = tip[0] - knob[0], dy = tip[1] - knob[1], len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
   const fistA = [knob[0] + ux * 3.2, knob[1] + uy * 3.2], fistB = [knob[0] + ux * 7.2, knob[1] + uy * 7.2];
   const bat = () => { s.line(knob[0], knob[1], tip[0], tip[1], 'c', 3); s.line(knob[0] + 0.7, knob[1] - 0.7, tip[0] + 0.7, tip[1] - 0.7, 'b', 1); s.rect(Math.round(knob[0]) - 1, Math.round(knob[1]) - 1, Math.round(knob[0]) + 1, Math.round(knob[1]) + 1, 'b'); };
   const px = -uy, py = ux;                                             // across the bat
   const fists = () => {
     // batting gloves: dark with a knuckle highlight, so the hands never read as part of the jersey
-    s.ellipse(fistA[0], fistA[1], 2.2, 2.1, 'm'); s.ellipse(fistB[0], fistB[1], 2.2, 2.1, 'm');
-    s.put(Math.round(fistA[0] - px), Math.round(fistA[1] - py), 'g'); s.put(Math.round(fistB[0] - px), Math.round(fistB[1] - py), 'g');
-    const mx = (fistA[0] + fistB[0]) / 2, my = (fistA[1] + fistB[1]) / 2;
-    s.line(mx - px * 2.4, my - py * 2.4, mx + px * 2.4, my + py * 2.4, 'K', 1);   // gap between the two fists
+    const top = one ? fistA : fistB;
+    s.ellipse(fistA[0], fistA[1], 2.2, 2.1, 'm'); s.put(Math.round(fistA[0] - px), Math.round(fistA[1] - py), 'g');
+    if (!one) {
+      s.ellipse(fistB[0], fistB[1], 2.2, 2.1, 'm'); s.put(Math.round(fistB[0] - px), Math.round(fistB[1] - py), 'g');
+      const mx = (fistA[0] + fistB[0]) / 2, my = (fistA[1] + fistB[1]) / 2;
+      s.line(mx - px * 2.4, my - py * 2.4, mx + px * 2.4, my + py * 2.4, 'K', 1); // gap between the two fists
+    }
     const wx = fistA[0] - ux * 2.2, wy = fistA[1] - uy * 2.2;
     s.line(wx - px * 2.2, wy - py * 2.2, wx + px * 2.2, wy + py * 2.2, 'z', 1);   // wrist crease
-    s.line(fistB[0] + ux * 2.4, fistB[1] + uy * 2.4, tip[0], tip[1], 'c', 3);     // bat continues above the top fist
-    s.line(fistB[0] + ux * 2.4 + 0.7, fistB[1] + uy * 2.4 - 0.7, tip[0] + 0.7, tip[1] - 0.7, 'b', 1);
+    s.line(top[0] + ux * 2.4, top[1] + uy * 2.4, tip[0], tip[1], 'c', 3);         // bat continues above the top fist
+    s.line(top[0] + ux * 2.4 + 0.7, top[1] + uy * 2.4 - 0.7, tip[0] + 0.7, tip[1] - 0.7, 'b', 1);
   };
   return { fistA, fistB, bat, fists };
 }
@@ -200,6 +205,13 @@ function arm(s, sh, el, fi, o = {}) {
   }
   seg(el, fi, 's', 'z', fore);
   s.ellipse(el[0], el[1], fore / 2 + 0.2, fore / 2 + 0.2, 's');          // elbow
+}
+
+// The top hand after it lets go of the bat: an open batting glove, fingers toward the pitcher.
+function openHand(s, x, y) {
+  s.ellipse(x, y, 2.4, 2, 'm');
+  s.rect(x + 1, y - 2, x + 3, y - 1, 'm'); s.rect(x + 2, y, x + 4, y, 'm');        // fingers spread forward
+  s.put(x - 1, y - 1, 'g');
 }
 
 function batterStance(sc = 1) {
@@ -247,16 +259,21 @@ function batterSwing(sc = 1) {                                          // conta
   return s.rows();
 }
 
-function batterFollow(sc = 1) {                                         // follow-through: hands high at the front shoulder, bat wrapped up over it behind the head
+// Follow-through, the home-run finish: the top hand has let go and the back arm swings on through, out
+// past the chest toward the plate; the bottom hand alone carries the bat high over the front shoulder,
+// pointing up and away from the body (the opposite corner from the stance). Weight on the braced front
+// leg, back heel up, head up watching the ball go.
+function batterFollow(sc = 1) {
   const s = grid(BW, BH, NEAR * sc);
-  const g = batGrip(s, [26, 19], [4, 4]);
-  g.bat();                                                              // behind the head: drawn first
+  const g = batGrip(s, [33, 17], [47, 4], true);
   batterTorso(s, 3);
-  arm(s, [12, 21], [17, 27], g.fistB);                                  // back arm: across and up to the top hand
-  arm(s, [28, 20], [31, 25], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: folded up to the bottom hand
-  s.rect(19, 15, 22, 18, 'z');
-  batterHead(s, 20, 10, 1);
-  g.fists();                                                            // hands finish in front of the chin
+  arm(s, [12, 21], [23, 26], [34, 26]);                                 // back arm: off the bat, swept across the chest and out
+  openHand(s, 34, 26);
+  arm(s, [28, 20], [31, 18], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: extended up and out to the one hand still on the bat
+  g.bat();
+  g.fists();
+  s.rect(20, 14, 23, 17, 'z');
+  batterHead(s, 21, 9, 1);                                              // chin up, following the ball
   batterLegsOpen(s);
   s.outline();
   return s.rows();
