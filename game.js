@@ -706,10 +706,17 @@
     if (r.abs) setTimeout(() => only(() => showText(el.abs, absText(p), '')), 450);
   }
 
+  // One screen for both endings: a win (last pitch of the last level called) swaps the title and the
+  // subtitle for the congratulations, keeps the result panel and the leaderboard entry
   function onGameOver(s) {
     Music.stop();
-    Sfx.over();
-    $('over-sub').textContent = t('over.sub');
+    if (s.won) { Sfx.levelUp(); setTimeout(() => Sfx.crowd('cheer', 1), 200); } else Sfx.over();
+    $('screen-over').classList.toggle('won', !!s.won);
+    for (const [id, key] of [['over-title', 'title'], ['over-sub', 'sub']]) {
+      const n = $(id);
+      n.dataset.i18n = (s.won ? 'win.' : 'over.') + key;  // so a language switch on this screen keeps the right ending
+      n.textContent = t(n.dataset.i18n);
+    }
     $('over-score').textContent = s.score;
     $('over-pitches').textContent = s.pitches;
     $('over-acc').textContent = s.accuracy + '%';
