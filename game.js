@@ -489,12 +489,14 @@
     tempo(mult) { const p = this.player; if (p) p.setTempo(mult); },
     apply() { const p = this.player; if (!p) return; p.setEnabled(settings.music); if (settings.music) p.start(); },
   };
+  // don't lose a pitch to a tab switch, another window taking focus, or a system overlay
+  // (iOS Screen Distance "too close" warning fires no visibilitychange; it does take focus / stall frames)
+  function autoPause() { if (currentScreen === 'play' && G.phase !== 'idle' && G.phase !== 'over' && !G.paused) setPaused(true); }
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      Music.stop();
-      if (currentScreen === 'play' && G.phase !== 'idle' && G.phase !== 'over') setPaused(true); // don't lose a pitch to a tab switch
-    } else if (Sfx.ctx && currentScreen !== 'over' && !G.paused) Music.start();
+    if (document.hidden) { Music.stop(); autoPause(); }
+    else if (Sfx.ctx && currentScreen !== 'over' && !G.paused) Music.start();
   });
+  window.addEventListener('blur', autoPause);
 
   const rndInt = (n) => Math.floor(Math.random() * n);
   const pick = (arr) => arr[rndInt(arr.length)];
@@ -539,7 +541,7 @@
     canvas.style.width = Math.round(W * s) + 'px';
     canvas.style.height = Math.round(H * s) + 'px';
   }
-  window.addEventListener('resize', fitCanvas);
+  window.addEventListener('resize', () => { fitCanvas(); if (currentScreen === 'board') Board.fitNames(); });
 
   // ------------------------------------------------------------
   // Game state: the simulation is core.js; this layer keeps the view-only state and turns core
@@ -1004,6 +1006,7 @@
   function loop(now) {
     let dt = (now - last) / 1000;
     last = now;
+    if (dt > 1) autoPause(); // frames stopped for a second: the page was covered or frozen, hold the pitch
     if (dt > 0.1) dt = 0.1;
     dt /= SLOW;
     const paused = G.paused || (DEBUG && window.__uu.pause);
@@ -1097,15 +1100,28 @@
           const li = document.createElement('li');
           if (mine && s.name === mine && lastGame && s.score === lastGame.score) li.className = 'me';
           const who = document.createElement('span'); who.className = 'who';
-          const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = s.name;
+          // names are shown as typed: translate="no" keeps browser page translation off them
+          const nm = document.createElement('span'); nm.className = 'nm'; nm.translate = false;
+          const nmIn = document.createElement('span'); nmIn.className = 'nm-in'; nmIn.textContent = s.name; nm.appendChild(nmIn);
           const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy, s.reaction === null || s.reaction === undefined ? '-' : Number(s.reaction).toFixed(2));
           who.appendChild(nm); who.appendChild(meta);
           const b = document.createElement('b'); b.textContent = s.score;
           li.appendChild(who); li.appendChild(b);
           list.appendChild(li);
         }
+        this.fitNames();
       } catch (e) {
         if (this.period === period) status.textContent = t('board.offline');
+      }
+    },
+    // a name wider than its column (narrow phones) slides back and forth so the whole thing can be read
+    fitNames() {
+      for (const nm of document.querySelectorAll('#board-list .nm')) {
+        const over = nm.scrollWidth - nm.clientWidth;
+        const go = over > 3;
+        nm.classList.toggle('scroll', go);
+        nm.style.setProperty('--nm-dx', go ? -over + 'px' : '0px');
+        if (go) nm.style.setProperty('--nm-t', (2 + over / 20) + 's');
       }
     },
     resetSubmit() {

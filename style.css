@@ -436,8 +436,16 @@ button { font-family: inherit; }
 .board-panel { min-height: 120px; }
 .records.board li { gap: 8px; }
 .records.board li .who { flex: 1; display: flex; gap: 10px; min-width: 0; }
-.records.board li .who .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 11em; }
-.records.board li .who .meta { color: var(--g-gray); font-size: 13px; align-self: center; white-space: nowrap; }
+.records.board li .who .nm { overflow: hidden; white-space: nowrap; max-width: 11em; }
+.records.board li .who .nm-in { display: inline-block; }
+/* a name wider than its column slides left and back (--nm-dx / --nm-t set by Board.fitNames) */
+.records.board li .who .nm.scroll .nm-in { animation: nm-scroll var(--nm-t, 3s) ease-in-out infinite alternate; }
+@keyframes nm-scroll {
+  0%, 25% { transform: translateX(0); }
+  75%, 100% { transform: translateX(var(--nm-dx, 0)); }
+}
+@media (prefers-reduced-motion: reduce) { .records.board li .who .nm.scroll .nm-in { animation: none; } }
+.records.board li .who .meta { color: var(--g-gray); font-size: 13px; align-self: center; white-space: nowrap; flex-shrink: 0; }
 .records.board li.me { background: var(--g-hi-bg, var(--g-navy)); margin: 0 -8px; padding: 3px 8px; }
 .board-status { margin: 8px 0 0; }
 
