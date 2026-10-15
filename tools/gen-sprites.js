@@ -196,7 +196,7 @@ function arm(s, sh, el, fi, o = {}) {
     if (py < 0) { px = -px; py = -py; }                                  // shade goes on the lower side
     s.line(p[0], p[1], q[0], q[1], 'K', thick + 1.5);
     s.line(p[0], p[1], q[0], q[1], ch, thick);
-    const off = thick / 2 - 0.6;
+    const off = thick / 2 - 0.3;                                       // shade hugs the outline, not down the middle
     s.line(p[0] + px * off, p[1] + py * off, q[0] + px * off, q[1] + py * off, shade, 1);
   };
   if (!o.noSleeve) {
@@ -229,20 +229,22 @@ function batterStance(sc = 1) {
   return s.rows();
 }
 
-// Check swing: he started and held up. The hands have come forward, out past the front of the chest,
-// but the barrel never came round: the bat stands straight up in front of him, well clear of the head.
-// Legs and body still the closed stance.
+// Check swing, caught mid-swing: the hips have started to open and the hands are out in front of the
+// chest, barrel coming round toward us (the umpire). Seen end-on the bat is a short, fat stub that widens
+// to the round end face; the knob pokes out past the bottom hand on the far side.
 function batterCheck(sc = 1) {
-  const s = grid(BW, BH, NEAR * sc), u = shifted(s, CROUCH);
-  const g = batGrip(u, [33, 27], [37, 2]);                              // knob out in front at chest height, bat up
-  batterTorso(u, 1);
-  arm(u, [11, 21], [21, 27], g.fistB);                                  // back arm: reaches across the chest to the top hand
-  arm(u, [27, 20], [29, 27], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, forearm out to the bottom hand
-  g.bat();
-  g.fists();
-  u.rect(17, 15, 20, 18, 'z');
-  batterHead(u, 18, 10, 1);
-  batterLegsStance(s);
+  const s = grid(BW, BH, NEAR * sc);
+  batterTorso(s, 2);
+  const A = [30, 25], B = [32, 28];                                     // bottom hand (farther from us), top hand (nearer, so lower)
+  arm(s, [12, 21], [21, 27], B);                                        // back arm: across the chest to the top hand
+  arm(s, [27, 20], [29, 27], A, { sleeve: 3.8, fore: 3 });              // front arm: elbow down, forearm out to the bottom hand
+  s.line(A[0], A[1], 27.5, 22, 'c', 3); s.rect(27, 21, 28, 22, 'b');    // knob end, past the bottom hand
+  for (const f of [A, B]) { s.ellipse(f[0], f[1], 2.2, 2.1, 'm'); s.put(f[0] - 1, f[1] - 1, 'g'); }
+  s.line(B[0] + 1, B[1] + 1, 35, 31.5, 'c', 4); s.line(35, 31.5, 37, 33.5, 'c', 6);  // barrel, foreshortened: widens as it comes at us
+  s.ellipse(38, 34.5, 4.2, 3.8, 'b'); s.ellipse(38, 34.5, 2.6, 2.3, 'c'); s.put(37, 33, 'o'); // end face of the bat
+  s.rect(19, 15, 22, 18, 'z');
+  batterHead(s, 20, 10, 1);
+  batterLegsOpen(s);
   s.outline();
   return s.rows();
 }
