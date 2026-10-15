@@ -80,7 +80,7 @@
     { name: 'SINKER',   w: 2, speed: [134, 146], bx: [6, 10],  side: 'arm',   by: [11, 16],  fx: 'late',  fy: 'sharp',  spin: 9,  minLv: 3 }, // bowling-ball: runs in and dives late
     { name: 'SPLITTER', w: 2, speed: [130, 142], bx: [0, 2],   side: 'any',   by: [10, 14],  fx: 'std',   fy: 'sharp',  spin: 3,  minLv: 3 }, // straight, then a sudden drop
     { name: 'FORKBALL', w: 2, speed: [126, 138], bx: [0, 2],   side: 'any',   by: [12, 18],  fx: 'std',   fy: 'tumble', spin: 2,  minLv: 6 },
-    { name: 'SWEEPER',  w: 2, speed: [122, 136], bx: [16, 24], side: 'glove', by: [0, 3],    fx: 'std',   fy: 'std',    spin: 7,  minLv: 6 },
+    { name: 'SWEEPER',  w: 2, speed: [130, 142], bx: [16, 24], side: 'glove', by: [0, 3],    fx: 'std',   fy: 'std',    spin: 7,  minLv: 6 },
     { name: 'RISING',   w: 2, speed: [138, 150], bx: [0, 3],   side: 'any',   by: [-14, -10], fx: 'std',  fy: 'late',   spin: 16, minLv: 6 },
     { name: 'KNUCKLE',  w: 2, speed: [100, 114], bx: [0, 3],   side: 'any',   by: [2, 6],    fx: 'std',   fy: 'late',   spin: 0,  minLv: 6, wobble: [3, 5] },
   ];

@@ -65,7 +65,7 @@ Speeds creep up +1 km/h per level to level 8, then jump +3 km/h per level from l
 | SINKER | 134-146 | arm-side, drops late (3+) |
 | SPLITTER | 130-142 | straight, then a sudden drop (3+) |
 | FORKBALL | 126-138 | straight, then falls off the table (6+) |
-| SWEEPER | 122-136 | huge flat glove-side sweep, almost no drop (6+) |
+| SWEEPER | 130-142 | huge flat glove-side sweep, almost no drop (6+) |
 | RISING | 138-150 | fastball that hops up at the last moment (6+) |
 | KNUCKLE | 100-114 | no spin, flutters side to side all the way in (6+) |
 
