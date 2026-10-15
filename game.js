@@ -17,7 +17,7 @@
   const { BALL_R, BATTER_H, BATTER_FEET_Y, MITT_REST, UNLOCKS } = C;
   // where the jersey number sits on each batter frame (stance, start, mid-swing, finish), in sprite design
   // units: the stance and start torsos are crouched 3 units lower; the finish shows his back square on
-  const BATTER_NUM = [[17, 36], [17, 36], [17, 34], [18, 28]];
+  const BATTER_NUM = [[17, 36], [17, 36], [17, 33], [18, 28]];
   const POS = { pitcher: [68, 33], catcher: [53, 138], batterR: [23, 78], batterL: [78, 78] }; // batter body ~6px off the zone edge
   const PLATE_Y = 150;                                  // front edge of home plate
   const STORE_KEY = 'uuumpire.v1';
