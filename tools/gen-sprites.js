@@ -224,13 +224,13 @@ function batterStance(sc = 1) {
 }
 
 // Start of the swing: the bat has come off the shoulder. The hands drop from beside the helmet to in front
-// of the back shoulder and the bat stands nearly upright, still tilted back behind the helmet; the body
-// and legs are still the closed stance.
+// of the back shoulder and the bat tips back past the helmet, barrel still high behind him; the body and
+// legs are still the closed stance.
 function batterStart(sc = 1) {
   const s = grid(BW, BH, NEAR * sc), u = shifted(s, CROUCH);
-  const g = batGrip(u, [23, 25], [11, 3]);
-  g.bat();                                                              // behind the head: drawn first
+  const g = batGrip(u, [22, 25], [6, 4]);                               // knob in front of the chest, barrel back past the helmet
   batterTorso(u, 1);
+  g.bat();
   arm(u, [11, 21], [6, 27], g.fistB, { sleeve: 4.6 });                  // back arm: elbow dropped back, forearm up and across to the top hand
   arm(u, [26, 20], [27, 29], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, forearm back up to the bottom hand
   g.fists();
@@ -269,27 +269,42 @@ function batterTorsoBack(s) {
   s.recolor(7, 19, 9, 37, 'J', 'j'); s.recolor(28, 19, 30, 37, 'J', 'j');
   s.rect(8, 37, 29, 38, 'm');
 }
-function batterHeadBack(s, cx, cy) {
+function batterHeadBack(s, cx, cy, brimLeft) {
   s.ellipse(cx, cy, 5.6, 6.2, 'R');
   s.recolor(cx - 6, cy + 2, cx + 6, cy + 6, 'R', 'r');                 // shadow under the crown
   s.rect(cx - 3, cy - 4, cx - 2, cy - 4, 'o'); s.rect(cx - 4, cy - 3, cx - 3, cy - 3, 'o'); s.rect(cx - 4, cy - 2, cx - 4, cy - 1, 'o');
   s.rect(cx + 4, cy + 1, cx + 6, cy + 5, 'R'); s.rect(cx + 5, cy + 5, cx + 6, cy + 5, 'r'); // ear flap
+  if (brimLeft) { s.rect(cx - 8, cy - 1, cx - 5, cy, 'r'); s.rect(cx - 8, cy - 1, cx - 6, cy - 1, 'R'); } // brim out past our left: he looks over that shoulder
 }
 
-// Finish of a full swing: hips and shoulders all the way round, back square to us, head up watching the
-// ball. Both hands have finished at his front shoulder (on our right now) and the bat has wrapped round
-// behind him, so it lies across his back from the hands down to the far hip. Front leg braced, back heel up.
+// Same drawing API mirrored left-right about x = m/2: the finish uses the swing legs the other way round.
+function mirrored(s, m) {
+  return {
+    put: (x, y, ch) => s.put(m - x, y, ch),
+    rect: (x0, y0, x1, y1, ch) => s.rect(m - x1, y0, m - x0, y1, ch),
+    ellipse: (cx, cy, rx, ry, ch) => s.ellipse(m - cx, cy, rx, ry, ch),
+    line: (x0, y0, x1, y1, ch, t) => s.line(m - x0, y0, m - x1, y1, ch, t),
+    poly: (pts, ch) => s.poly(pts.map(([x, y]) => [m - x, y]), ch),
+    recolor: (x0, y0, x1, y1, a, b) => s.recolor(m - x1, y0, m - x0, y1, a, b),
+  };
+}
+
+// Finish of a full swing, after the classic from-behind photo: he has turned all the way round to the
+// pitcher, so we see his back. Both arms are extended up over his left shoulder (our left), the right
+// arm straight across the shoulders behind the helmet, hands high; the bat points up and away from him,
+// foreshortened. Head turned to watch the ball over that shoulder. Front (left) leg braced on our left,
+// back heel up on our right: the swing legs mirrored.
 function batterSwing(sc = 1) {
   const s = grid(BW, BH, NEAR * sc);
-  arm(s, [9, 20], [4, 26], [14, 28]);                                   // back arm: elbow out past his side; the forearm wraps round in front, hidden
   batterTorsoBack(s);
-  const g = batGrip(s, [30, 17], [8, 31]);                              // hands at the front shoulder, bat across the back
+  const g = batGrip(s, [10, 14], [1, 2]);
+  arm(s, [28, 20], [19, 15], g.fistB);                                  // right arm: straight across and up to the top hand
+  arm(s, [9, 20], [6, 17], g.fistA, { sleeve: 3.8, fore: 3 });          // left arm: straight up to the bottom hand
   g.bat();
-  arm(s, [29, 20], [34, 25], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: folded, elbow out, hand back up at the shoulder
   g.fists();
   s.rect(16, 15, 21, 18, 's'); s.rect(16, 18, 21, 18, 'z');             // back of the neck
-  batterHeadBack(s, 18, 10);
-  batterLegsOpen(s);
+  batterHeadBack(s, 18, 10, true);
+  batterLegsOpen(mirrored(s, 40));
   s.outline();
   return s.rows();
 }
