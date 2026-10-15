@@ -74,7 +74,8 @@ function grid(w0, h0, S = 1) {
 // Stands on the umpire's left in three-quarter front view (chest toward the plate and partly toward us,
 // number on the chest), head turned to the pitcher. Posed after the classic plate-umpire's-eye drawing:
 // both forearms cross the chest to the hands at the back shoulder, back elbow out behind, legs wide. Four frames:
-// stance, check swing (bat tipped forward, held), full swing (bat across the plate), follow-through.
+// stance, start (bat off the shoulder), mid-swing (barrel coming round at us; a check swing stops here),
+// finish (turned all the way round, bat wrapped across his back).
 // ------------------------------------------------------------
 const BW = 48, BH = 67;
 // Same drawing API, every y moved by dy: the crouched stance draws its upper body lower with the same shapes.
@@ -160,21 +161,26 @@ function batterLegsOpen(s) {
 
 // Bat + hands: the bat is drawn first, then two stacked fists on top of its handle so the grip reads
 // (fists along the bat, knob just below the lower one), and each forearm ends on a fist.
-function batGrip(s, knob, tip) {
+// one: only the bottom hand holds the bat (the follow-through lets the top hand go); fistB is still
+// computed so callers can place things along the bat.
+function batGrip(s, knob, tip, one = false) {
   const dx = tip[0] - knob[0], dy = tip[1] - knob[1], len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
   const fistA = [knob[0] + ux * 3.2, knob[1] + uy * 3.2], fistB = [knob[0] + ux * 7.2, knob[1] + uy * 7.2];
   const bat = () => { s.line(knob[0], knob[1], tip[0], tip[1], 'c', 3); s.line(knob[0] + 0.7, knob[1] - 0.7, tip[0] + 0.7, tip[1] - 0.7, 'b', 1); s.rect(Math.round(knob[0]) - 1, Math.round(knob[1]) - 1, Math.round(knob[0]) + 1, Math.round(knob[1]) + 1, 'b'); };
   const px = -uy, py = ux;                                             // across the bat
   const fists = () => {
     // batting gloves: dark with a knuckle highlight, so the hands never read as part of the jersey
-    s.ellipse(fistA[0], fistA[1], 2.2, 2.1, 'm'); s.ellipse(fistB[0], fistB[1], 2.2, 2.1, 'm');
-    s.put(Math.round(fistA[0] - px), Math.round(fistA[1] - py), 'g'); s.put(Math.round(fistB[0] - px), Math.round(fistB[1] - py), 'g');
-    const mx = (fistA[0] + fistB[0]) / 2, my = (fistA[1] + fistB[1]) / 2;
-    s.line(mx - px * 2.4, my - py * 2.4, mx + px * 2.4, my + py * 2.4, 'K', 1);   // gap between the two fists
+    const top = one ? fistA : fistB;
+    s.ellipse(fistA[0], fistA[1], 2.2, 2.1, 'm'); s.put(Math.round(fistA[0] - px), Math.round(fistA[1] - py), 'g');
+    if (!one) {
+      s.ellipse(fistB[0], fistB[1], 2.2, 2.1, 'm'); s.put(Math.round(fistB[0] - px), Math.round(fistB[1] - py), 'g');
+      const mx = (fistA[0] + fistB[0]) / 2, my = (fistA[1] + fistB[1]) / 2;
+      s.line(mx - px * 2.4, my - py * 2.4, mx + px * 2.4, my + py * 2.4, 'K', 1); // gap between the two fists
+    }
     const wx = fistA[0] - ux * 2.2, wy = fistA[1] - uy * 2.2;
     s.line(wx - px * 2.2, wy - py * 2.2, wx + px * 2.2, wy + py * 2.2, 'z', 1);   // wrist crease
-    s.line(fistB[0] + ux * 2.4, fistB[1] + uy * 2.4, tip[0], tip[1], 'c', 3);     // bat continues above the top fist
-    s.line(fistB[0] + ux * 2.4 + 0.7, fistB[1] + uy * 2.4 - 0.7, tip[0] + 0.7, tip[1] - 0.7, 'b', 1);
+    s.line(top[0] + ux * 2.4, top[1] + uy * 2.4, tip[0], tip[1], 'c', 3);         // bat continues above the top fist
+    s.line(top[0] + ux * 2.4 + 0.7, top[1] + uy * 2.4 - 0.7, tip[0] + 0.7, tip[1] - 0.7, 'b', 1);
   };
   return { fistA, fistB, bat, fists };
 }
@@ -191,7 +197,7 @@ function arm(s, sh, el, fi, o = {}) {
     if (py < 0) { px = -px; py = -py; }                                  // shade goes on the lower side
     s.line(p[0], p[1], q[0], q[1], 'K', thick + 1.5);
     s.line(p[0], p[1], q[0], q[1], ch, thick);
-    const off = thick / 2 - 0.6;
+    const off = thick / 2 - 0.3;                                       // shade hugs the outline, not down the middle
     s.line(p[0] + px * off, p[1] + py * off, q[0] + px * off, q[1] + py * off, shade, 1);
   };
   if (!o.noSleeve) {
@@ -217,13 +223,16 @@ function batterStance(sc = 1) {
   return s.rows();
 }
 
-function batterCheck(sc = 1) {                                          // bat tipped toward the pitcher, held
+// Start of the swing: the bat has come off the shoulder. The hands drop from beside the helmet to in front
+// of the back shoulder and the bat tips back past the helmet, barrel still high behind him; the body and
+// legs are still the closed stance.
+function batterStart(sc = 1) {
   const s = grid(BW, BH, NEAR * sc), u = shifted(s, CROUCH);
-  const g = batGrip(u, [20, 24], [40, 5]);
+  const g = batGrip(u, [22, 25], [6, 4]);                               // knob in front of the chest, barrel back past the helmet
   batterTorso(u, 1);
-  arm(u, [11, 21], [5, 28], g.fistB);                                   // back arm: elbow dropped behind, forearm across to the top hand
-  arm(u, [27, 20], [30, 29], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, short forearm up to the bottom hand
   g.bat();
+  arm(u, [11, 21], [6, 27], g.fistB, { sleeve: 4.6 });                  // back arm: elbow dropped back, forearm up and across to the top hand
+  arm(u, [26, 20], [27, 29], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, forearm back up to the bottom hand
   g.fists();
   u.rect(17, 15, 20, 18, 'z');
   batterHead(u, 18, 10, 1);
@@ -232,14 +241,19 @@ function batterCheck(sc = 1) {                                          // bat t
   return s.rows();
 }
 
-function batterSwing(sc = 1) {                                          // contact: bat across the plate toward the pitcher, both arms extended
+// Mid-swing (and where a check swing stops): the hips have opened and the hands are out past the front
+// of the chest, barrel coming round toward us (the umpire). Seen end-on the bat is a short, fat stub that
+// widens to the round end face; the knob is hidden behind the hands. The front arm is nearer us, so it
+// lies on top: straight out to the bottom hand, with the back arm's forearm running underneath it.
+function batterCheck(sc = 1) {
   const s = grid(BW, BH, NEAR * sc);
-  const g = batGrip(s, [33, 27], [47, 8]);                              // hands out past the front shoulder; the bat foreshortens toward the pitcher
   batterTorso(s, 2);
-  arm(s, [12, 21], [22, 25], g.fistB);                                  // back arm: extended across the chest to the top hand
-  arm(s, [27, 20], [31, 25], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, out to the bottom hand
-  g.bat();
-  g.fists();
+  const A = [33, 26], B = [35, 29];                                     // bottom hand (farther from us), top hand (nearer, so lower)
+  arm(s, [12, 21], [19, 25], B);                                        // back arm: elbow in at the chest, forearm out under the front arm (above the number band)
+  arm(s, [27, 20], [30, 22], A, { sleeve: 3.8, fore: 3 });              // front arm: straight out to the bottom hand
+  for (const f of [A, B]) { s.ellipse(f[0], f[1], 2.2, 2.1, 'm'); s.put(f[0] - 1, f[1] - 1, 'g'); }
+  s.line(B[0] + 1, B[1] + 1, 38, 32.5, 'c', 4); s.line(38, 32.5, 40, 34.5, 'c', 6);  // barrel, foreshortened: widens as it comes at us
+  s.ellipse(41, 35.5, 4.2, 3.8, 'b'); s.ellipse(41, 35.5, 2.6, 2.3, 'c'); s.put(40, 34, 'o'); // end face of the bat
   s.rect(19, 15, 22, 18, 'z');
   batterHead(s, 20, 10, 1);
   batterLegsOpen(s);
@@ -247,17 +261,53 @@ function batterSwing(sc = 1) {                                          // conta
   return s.rows();
 }
 
-function batterFollow(sc = 1) {                                         // follow-through: hands high at the front shoulder, bat wrapped up over it behind the head
+// Torso and helmet seen square from behind, for the finish: he has turned all the way round to the
+// pitcher, so we get his back (the number lands in the middle), the belt without its buckle, and the back
+// of the helmet with his left ear flap now on our right.
+function batterTorsoBack(s) {
+  s.poly([[8, 19], [29, 19], [30, 26], [29, 37], [8, 37], [7, 26]], 'J');
+  s.recolor(7, 19, 9, 37, 'J', 'j'); s.recolor(28, 19, 30, 37, 'J', 'j');
+  s.rect(8, 37, 29, 38, 'm');
+}
+function batterHeadBack(s, cx, cy, brimLeft) {
+  s.ellipse(cx, cy, 5.6, 6.2, 'R');
+  s.recolor(cx - 6, cy + 2, cx + 6, cy + 6, 'R', 'r');                 // shadow under the crown
+  s.rect(cx - 3, cy - 4, cx - 2, cy - 4, 'o'); s.rect(cx - 4, cy - 3, cx - 3, cy - 3, 'o'); s.rect(cx - 4, cy - 2, cx - 4, cy - 1, 'o');
+  s.rect(cx + 4, cy + 1, cx + 6, cy + 5, 'R'); s.rect(cx + 5, cy + 5, cx + 6, cy + 5, 'r'); // ear flap
+  if (brimLeft) { s.rect(cx - 8, cy - 1, cx - 5, cy, 'r'); s.rect(cx - 8, cy - 1, cx - 6, cy - 1, 'R'); } // brim out past our left: he looks over that shoulder
+}
+
+// Finish legs, from behind: hips square to us under the belt. The left leg (our left) braced straight
+// down to a planted cleat; the right leg turned in with the knee bent and the heel up, pivoted on the toe.
+function batterLegsFinish(s) {
+  s.poly([[8, 39], [17, 39], [16, 50], [8, 50]], 'W');                  // left thigh, straight down
+  s.poly([[8, 50], [16, 50], [15, 61], [8, 61]], 'W');                  // left shin
+  s.poly([[19, 39], [29, 39], [27, 49], [20, 49]], 'W');                // right thigh, knee turning in
+  s.poly([[20, 49], [27, 49], [25, 56], [19, 56]], 'W');                // right shin, shorter: heel up
+  s.recolor(7, 39, 9, 61, 'W', 'w'); s.recolor(26, 39, 29, 56, 'W', 'w'); // outer edges round off
+  s.line(9, 50, 15, 50, 'w'); s.line(20, 49, 26, 49, 'w');              // knees
+  s.rect(8, 59, 15, 63, 'B'); s.recolor(8, 59, 8, 63, 'B', 'l');        // left stirrup
+  s.rect(19, 54, 25, 58, 'B'); s.recolor(25, 54, 25, 58, 'B', 'l');     // right stirrup
+  s.rect(6, 62, 17, 64, 'm'); s.rect(6, 63, 17, 63, 'g');               // left cleat planted, heel to us
+  s.poly([[19, 56], [25, 56], [27, 63], [22, 63]], 'm'); s.line(23, 57, 25, 62, 'g'); // right foot up on its toe, heel high
+}
+
+// Finish of a full swing, after the classic from-behind photo: he has turned all the way round to the
+// pitcher, so we see his back. Both arms are extended up over his left shoulder (our left), the right
+// arm straight across the shoulders behind the helmet, hands high; the bat points up and away from him,
+// foreshortened. Head turned to watch the ball over that shoulder. Front (left) leg braced on our left,
+// back heel up on our right.
+function batterSwing(sc = 1) {
   const s = grid(BW, BH, NEAR * sc);
-  const g = batGrip(s, [26, 19], [4, 4]);
-  g.bat();                                                              // behind the head: drawn first
-  batterTorso(s, 3);
-  arm(s, [12, 21], [17, 27], g.fistB);                                  // back arm: across and up to the top hand
-  arm(s, [28, 20], [31, 25], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: folded up to the bottom hand
-  s.rect(19, 15, 22, 18, 'z');
-  batterHead(s, 20, 10, 1);
-  g.fists();                                                            // hands finish in front of the chin
-  batterLegsOpen(s);
+  batterTorsoBack(s);
+  const g = batGrip(s, [10, 14], [1, 2]);
+  arm(s, [28, 20], [19, 15], g.fistB);                                  // right arm: straight across and up to the top hand
+  arm(s, [9, 20], [6, 17], g.fistA, { sleeve: 3.8, fore: 3 });          // left arm: straight up to the bottom hand
+  g.bat();
+  g.fists();
+  s.rect(16, 15, 21, 18, 's'); s.rect(16, 18, 21, 18, 'z');             // back of the neck
+  batterHeadBack(s, 18, 10, true);
+  batterLegsFinish(s);
   s.outline();
   return s.rows();
 }
@@ -573,8 +623,8 @@ const OUT = {
   pitcherFollowUnder: pitcherFollowUnder(),
   // batter height variants (the strike zone follows: knees to mid-chest). Keys: batter_<size>, batterCheck_<size>...
   ...Object.fromEntries(Object.entries(BATTER_SIZES).flatMap(([size, sc]) => [
-    ["batter_" + size, batterStance(sc)], ["batterCheck_" + size, batterCheck(sc)],
-    ["batterSwing_" + size, batterSwing(sc)], ["batterFollow_" + size, batterFollow(sc)],
+    ["batter_" + size, batterStance(sc)], ["batterStart_" + size, batterStart(sc)],
+    ["batterCheck_" + size, batterCheck(sc)], ["batterSwing_" + size, batterSwing(sc)],
   ])),
 };
 
@@ -588,7 +638,7 @@ if (process.argv.includes('--write')) {
     else src = src.replace(/\n};\s*$/, `\n  ${name}: [\n${body}\n  ],\n};\n`); // append new sprite
   }
   // drop sprites this generator no longer produces
-  for (const old of ["batter", "batterCheck", "batterSwing", "batterFollow"]) {
+  for (const old of ["batter", "batterCheck", "batterSwing", "batterFollow", ...Object.keys(BATTER_SIZES).map((z) => "batterFollow_" + z)]) {
     src = src.replace(new RegExp(`  ${old}: \\[\\n[\\s\\S]*?\\n  \\],\\n`), "");
   }
   fs.writeFileSync(file, src);

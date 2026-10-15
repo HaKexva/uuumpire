@@ -15,6 +15,9 @@
   // (tools/gen-sprites.js: pitcher hand pixels, cleat line) and the rules agree on the same numbers.
   const C = window.UU_CORE;
   const { BALL_R, BATTER_H, BATTER_FEET_Y, MITT_REST, UNLOCKS } = C;
+  // where the jersey number sits on each batter frame (stance, start, mid-swing, finish), in sprite design
+  // units: the stance and start torsos are crouched 3 units lower; the finish shows his back square on
+  const BATTER_NUM = [[17, 36], [17, 36], [17, 33], [18, 28]];
   const POS = { pitcher: [68, 33], catcher: [53, 138], batterR: [23, 78], batterL: [78, 78] }; // batter body ~6px off the zone edge
   const PLATE_Y = 150;                                  // front edge of home plate
   const STORE_KEY = 'uuumpire.v1';
@@ -130,10 +133,11 @@
       catcher: makeSprite(SPR.catcher),
       mitt: makeSprite(SPR.mitt),
       umpHand: makeSprite(SPR.umpHand),
-      // batter frames: stance, check swing, full swing, follow-through
+      // batter frames: stance, start (bat off the shoulder), mid-swing (barrel coming round; a check swing
+      // stops here), finish (turned all the way round, bat across his back)
       // batter: [kit][size][hand][frame]
       batter: KITS.map((kit) => Object.fromEntries(Object.keys(BATTER_H).map((size) =>
-        [size, frames(['batter_' + size, 'batterCheck_' + size, 'batterSwing_' + size, 'batterFollow_' + size], kit)]))),
+        [size, frames(['batter_' + size, 'batterStart_' + size, 'batterCheck_' + size, 'batterSwing_' + size], kit)]))),
       // umpire call inset: ump[strike|ball][style] = frames (sprites.js ump_<call>_<style>_<n>)
       ump: (() => {
         const out = { strike: {}, ball: {} };
@@ -877,10 +881,12 @@
     if (!p || p.swing === 'none') return 0;
     const flying = G.phase === 'flight' || G.phase === 'replay';
     const tt = flying ? G.t / p.dur : G.phase === 'windup' ? 0 : 2;
-    if (p.swing === 'check') return tt >= 0.86 ? 1 : 0;
-    // full swing: straight from the stance to the bat through the zone as the ball arrives, then the
-    // follow-through. (It never shows the tipped-bat pose, so a held check swing is unmistakable.)
-    if (tt < 0.9) return 0;
+    // both swings begin the same way: the bat comes off the shoulder, then the barrel comes round toward
+    // us as the ball arrives. A check swing holds there; a full swing goes on round to the finish, back
+    // square to us with the bat across it, so the two are unmistakable once the call is up.
+    if (tt < 0.68) return 0;
+    if (tt < 0.82) return 1;
+    if (p.swing === 'check') return 2;
     if ((flying && tt < 1) || (G.phase === 'replay' && G.t < p.dur + 0.06) || (G.phase === 'call' && G.t < 0.12)) return 2;
     return 3;
   }
@@ -916,16 +922,17 @@
     // batter: stance, or a swing / check swing timed to the ball's arrival
     const left = !!(G.pitch && G.pitch.batterLeft);
     const kit = G.pitch ? G.pitch.kit : 0;
-    const bimg = IMG.batter[kit][G.pitch ? G.pitch.batterSize : 'mid'][left ? 'L' : 'R'][batterFrame()];
+    const bf = batterFrame();
+    const bimg = IMG.batter[kit][G.pitch ? G.pitch.batterSize : 'mid'][left ? 'L' : 'R'][bf];
     // cleats on the ground line; righty keeps his plate-side edge, lefty his (mirrored) plate-side edge
     const bx = left ? POS.batterL[0] : POS.batterR[0] + IMG.batter[0].mid.R[0].width - bimg.width;
     const by = BATTER_FEET_Y - bimg.height + 2;
     ctx.drawImage(bimg, bx, by);
-    // jersey number on his back (sprite design units: chest centre x 17, number band y 32..40 (crouched torso))
+    // jersey number on his back, centred on BATTER_NUM[frame] (sprite design units)
     if (G.pitch) {
-      const sc = 1.4 * BATTER_H[G.pitch.batterSize];
-      const ncx = left ? bx + bimg.width - 17 * sc : bx + 17 * sc;
-      drawNumber(G.pitch.number, ncx, by + 36 * sc, PAL[KITS[kit].num]);
+      const sc = 1.4 * BATTER_H[G.pitch.batterSize], [nx, ny] = BATTER_NUM[bf];
+      const ncx = left ? bx + bimg.width - nx * sc : bx + nx * sc;
+      drawNumber(G.pitch.number, ncx, by + ny * sc, PAL[KITS[kit].num]);
     }
 
     // zone guide: only while learning (level 1), only if enabled
