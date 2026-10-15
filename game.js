@@ -1237,8 +1237,9 @@
     const roll = setInterval(() => { drawLoadBall(bctx, frame++); ball.style.left = fill.style.width || '0%'; }, 90);
     drawLoadBall(bctx, 0);
     const tasks = [];
-    let done = 0;
-    const tick = (label) => { done++; fill.style.width = Math.round(done / tasks.length * 100) + '%'; text.textContent = label; };
+    let done = 0, total = 0; // total is set once every task is registered, so the bar never runs backwards
+    const show = () => { if (total) fill.style.width = Math.round(done / total * 100) + '%'; };
+    const tick = (label) => { done++; show(); text.textContent = label; };
     const addTask = (label, p) => tasks.push(p.catch(() => {}).then(() => tick(label)));
     // the page is hidden (html.fonts-loading) until the pixel font is really usable, so no text is
     // ever shown in a fallback font; a 3 s safety timeout reveals it regardless
@@ -1255,7 +1256,7 @@
       .then((song) => { if (window.UUMusic) { window.UUMusic.Player.addSong(key, song); pool.push(key); } });
     for (const key of index.play || []) addTask(key.toUpperCase(), loadSong(key, PLAY_SONGS));
     for (const key of index.title || []) addTask(key.toUpperCase(), loadSong(key, TITLE_SONGS));
-    fill.style.width = '0%';
+    total = tasks.length; show();
     await Promise.all(tasks);
     fill.style.width = '100%'; text.textContent = t('loading.done');
     await new Promise((r) => setTimeout(r, 350));
