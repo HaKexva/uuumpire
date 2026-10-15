@@ -277,23 +277,26 @@ function batterHeadBack(s, cx, cy, brimLeft) {
   if (brimLeft) { s.rect(cx - 8, cy - 1, cx - 5, cy, 'r'); s.rect(cx - 8, cy - 1, cx - 6, cy - 1, 'R'); } // brim out past our left: he looks over that shoulder
 }
 
-// Same drawing API mirrored left-right about x = m/2: the finish uses the swing legs the other way round.
-function mirrored(s, m) {
-  return {
-    put: (x, y, ch) => s.put(m - x, y, ch),
-    rect: (x0, y0, x1, y1, ch) => s.rect(m - x1, y0, m - x0, y1, ch),
-    ellipse: (cx, cy, rx, ry, ch) => s.ellipse(m - cx, cy, rx, ry, ch),
-    line: (x0, y0, x1, y1, ch, t) => s.line(m - x0, y0, m - x1, y1, ch, t),
-    poly: (pts, ch) => s.poly(pts.map(([x, y]) => [m - x, y]), ch),
-    recolor: (x0, y0, x1, y1, a, b) => s.recolor(m - x1, y0, m - x0, y1, a, b),
-  };
+// Finish legs, from behind: hips square to us under the belt. The left leg (our left) braced straight
+// down to a planted cleat; the right leg turned in with the knee bent and the heel up, pivoted on the toe.
+function batterLegsFinish(s) {
+  s.poly([[8, 39], [17, 39], [16, 50], [8, 50]], 'W');                  // left thigh, straight down
+  s.poly([[8, 50], [16, 50], [15, 61], [8, 61]], 'W');                  // left shin
+  s.poly([[19, 39], [29, 39], [27, 49], [20, 49]], 'W');                // right thigh, knee turning in
+  s.poly([[20, 49], [27, 49], [25, 56], [19, 56]], 'W');                // right shin, shorter: heel up
+  s.recolor(7, 39, 9, 61, 'W', 'w'); s.recolor(26, 39, 29, 56, 'W', 'w'); // outer edges round off
+  s.line(9, 50, 15, 50, 'w'); s.line(20, 49, 26, 49, 'w');              // knees
+  s.rect(8, 59, 15, 63, 'B'); s.recolor(8, 59, 8, 63, 'B', 'l');        // left stirrup
+  s.rect(19, 54, 25, 58, 'B'); s.recolor(25, 54, 25, 58, 'B', 'l');     // right stirrup
+  s.rect(6, 62, 17, 64, 'm'); s.rect(6, 63, 17, 63, 'g');               // left cleat planted, heel to us
+  s.poly([[19, 56], [25, 56], [27, 63], [22, 63]], 'm'); s.line(23, 57, 25, 62, 'g'); // right foot up on its toe, heel high
 }
 
 // Finish of a full swing, after the classic from-behind photo: he has turned all the way round to the
 // pitcher, so we see his back. Both arms are extended up over his left shoulder (our left), the right
 // arm straight across the shoulders behind the helmet, hands high; the bat points up and away from him,
 // foreshortened. Head turned to watch the ball over that shoulder. Front (left) leg braced on our left,
-// back heel up on our right: the swing legs mirrored.
+// back heel up on our right.
 function batterSwing(sc = 1) {
   const s = grid(BW, BH, NEAR * sc);
   batterTorsoBack(s);
@@ -304,7 +307,7 @@ function batterSwing(sc = 1) {
   g.fists();
   s.rect(16, 15, 21, 18, 's'); s.rect(16, 18, 21, 18, 'z');             // back of the neck
   batterHeadBack(s, 18, 10, true);
-  batterLegsOpen(mirrored(s, 40));
+  batterLegsFinish(s);
   s.outline();
   return s.rows();
 }
