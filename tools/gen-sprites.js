@@ -249,7 +249,7 @@ function batterCheck(sc = 1) {
   const s = grid(BW, BH, NEAR * sc);
   batterTorso(s, 2);
   const A = [33, 26], B = [35, 29];                                     // bottom hand (farther from us), top hand (nearer, so lower)
-  arm(s, [12, 21], [19, 27], B);                                        // back arm: elbow in at the chest, forearm out under the front arm (above the number band)
+  arm(s, [12, 21], [19, 25], B);                                        // back arm: elbow in at the chest, forearm out under the front arm (above the number band)
   arm(s, [27, 20], [30, 22], A, { sleeve: 3.8, fore: 3 });              // front arm: straight out to the bottom hand
   for (const f of [A, B]) { s.ellipse(f[0], f[1], 2.2, 2.1, 'm'); s.put(f[0] - 1, f[1] - 1, 'g'); }
   s.line(B[0] + 1, B[1] + 1, 38, 32.5, 'c', 4); s.line(38, 32.5, 40, 34.5, 'c', 6);  // barrel, foreshortened: widens as it comes at us
