@@ -15,6 +15,9 @@
   // (tools/gen-sprites.js: pitcher hand pixels, cleat line) and the rules agree on the same numbers.
   const C = window.UU_CORE;
   const { BALL_R, BATTER_H, BATTER_FEET_Y, MITT_REST, UNLOCKS } = C;
+  // where the jersey number sits on each batter frame (stance, start, mid-swing, finish), in sprite design
+  // units: the stance and start torsos are crouched 3 units lower; the finish shows his back square on
+  const BATTER_NUM = [[17, 36], [17, 36], [17, 33], [18, 32]];
   const POS = { pitcher: [68, 33], catcher: [53, 138], batterR: [23, 78], batterL: [78, 78] }; // batter body ~6px off the zone edge
   const PLATE_Y = 150;                                  // front edge of home plate
   const STORE_KEY = 'uuumpire.v1';
@@ -925,12 +928,11 @@
     const bx = left ? POS.batterL[0] : POS.batterR[0] + IMG.batter[0].mid.R[0].width - bimg.width;
     const by = BATTER_FEET_Y - bimg.height + 2;
     ctx.drawImage(bimg, bx, by);
-    // jersey number on his back (sprite design units: centre x 17, number band y 32..40 on the crouched
-    // torso of the stance and start frames; the mid-swing and finish torsos stand 3 units higher)
+    // jersey number on his back, centred on BATTER_NUM[frame] (sprite design units)
     if (G.pitch) {
-      const sc = 1.4 * BATTER_H[G.pitch.batterSize];
-      const ncx = left ? bx + bimg.width - 17 * sc : bx + 17 * sc;
-      drawNumber(G.pitch.number, ncx, by + (bf >= 2 ? 33 : 36) * sc, PAL[KITS[kit].num]);
+      const sc = 1.4 * BATTER_H[G.pitch.batterSize], [nx, ny] = BATTER_NUM[bf];
+      const ncx = left ? bx + bimg.width - nx * sc : bx + nx * sc;
+      drawNumber(G.pitch.number, ncx, by + ny * sc, PAL[KITS[kit].num]);
     }
 
     // zone guide: only while learning (level 1), only if enabled
