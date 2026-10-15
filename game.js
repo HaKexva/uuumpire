@@ -919,16 +919,18 @@
     // batter: stance, or a swing / check swing timed to the ball's arrival
     const left = !!(G.pitch && G.pitch.batterLeft);
     const kit = G.pitch ? G.pitch.kit : 0;
-    const bimg = IMG.batter[kit][G.pitch ? G.pitch.batterSize : 'mid'][left ? 'L' : 'R'][batterFrame()];
+    const bf = batterFrame();
+    const bimg = IMG.batter[kit][G.pitch ? G.pitch.batterSize : 'mid'][left ? 'L' : 'R'][bf];
     // cleats on the ground line; righty keeps his plate-side edge, lefty his (mirrored) plate-side edge
     const bx = left ? POS.batterL[0] : POS.batterR[0] + IMG.batter[0].mid.R[0].width - bimg.width;
     const by = BATTER_FEET_Y - bimg.height + 2;
     ctx.drawImage(bimg, bx, by);
-    // jersey number on his back (sprite design units: chest centre x 17, number band y 32..40 (crouched torso))
+    // jersey number on his back (sprite design units: centre x 17, number band y 32..40 on the crouched
+    // torso of the stance and start frames; the mid-swing and finish torsos stand 3 units higher)
     if (G.pitch) {
       const sc = 1.4 * BATTER_H[G.pitch.batterSize];
       const ncx = left ? bx + bimg.width - 17 * sc : bx + 17 * sc;
-      drawNumber(G.pitch.number, ncx, by + 36 * sc, PAL[KITS[kit].num]);
+      drawNumber(G.pitch.number, ncx, by + (bf >= 2 ? 33 : 36) * sc, PAL[KITS[kit].num]);
     }
 
     // zone guide: only while learning (level 1), only if enabled
