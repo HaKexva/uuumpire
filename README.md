@@ -30,6 +30,8 @@ Run `sh tools/install-hooks.sh` once; the pre-commit hook then stamps `version.j
 
 - Any part of the ball touching the zone is a strike.
 - Call before the timer runs out. Three wrong calls and you're out.
+- Eleven levels of five pitches. Call the last pitch of level 11 and the season is complete: a
+  congratulations screen with the same result panel, record and leaderboard entry as a loss.
 - Streaks multiply score (up to x2). Edge pitches (+50) and quick calls (+30) earn bonus.
 - The dotted zone guide shows during level 1 only (first 5 pitches); from level 2 you call it blind.
 - Pitch speed, break and edge frequency ramp up every 5 pitches.

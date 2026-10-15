@@ -392,6 +392,9 @@ button { font-family: inherit; }
 
 /* ---- game over ---- */
 .over-sub { font-size: 14px; color: var(--g-gray); margin: 0; text-align: center; }
+/* the win: same screen, gold title and subtitle */
+#screen-over.won .game-logo { color: var(--g-gold); }
+#screen-over.won .over-sub { color: var(--g-gold); }
 .result-panel { width: 100%; max-width: 340px; padding: 12px 16px; }
 .result-row {
   display: flex;

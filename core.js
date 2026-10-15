@@ -42,7 +42,7 @@
     firstPitch: 0.9, nextPitch: 0.35, levelUp: 2.4, congrats: 3.6, // delay before the next windup
   };
   const RULES = {
-    misses: 3, pitchesPerLevel: 5, maxLevel: 12, moodMax: 5,
+    misses: 3, pitchesPerLevel: 5, maxLevel: 11, moodMax: 5,
     base: 100, streakStep: 0.1, streakCap: 10,   // x1.0 .. x2.0
     fineEdge: 3.8, finePts: 50,                   // edge pitch bonus (px from the zone edge)
     quick: 0.6, quickPts: 30,                     // quick call bonus (s)
@@ -279,7 +279,8 @@
   //   catch    { x, y, early, replay }                                  the ball hits the mitt
   //   resolve  { call, correct, timeout, strike, reaction, pts, mult, bonus, tags, crowd, mood, abs }
   //   replay   {}  /  replayEnd {}                                      slow-motion replay start / back to the reveal
-  //   over     { score, pitches, accuracy, streak, reaction }           three misses
+  //   over     { score, pitches, accuracy, streak, reaction, won }      three misses, or (won) the last
+  //                                                                        pitch of level maxLevel called
   function createGame(opts) {
     opts = opts || {};
     const rng = opts.rng || Math.random;
@@ -421,6 +422,10 @@
             if (G.misses >= RULES.misses) {
               G.phase = 'over';
               emit('over', summary());
+            } else if (G.pitchIndex + 1 >= RULES.maxLevel * RULES.pitchesPerLevel) {
+              // the last pitch of the last level is in: the season is complete
+              G.phase = 'over';
+              emit('over', Object.assign(summary(), { won: true }));
             } else {
               G.pitchIndex++;
               const next = levelFor(G.pitchIndex), up = next > G.level;
