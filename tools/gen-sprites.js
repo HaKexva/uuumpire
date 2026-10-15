@@ -229,12 +229,15 @@ function batterStance(sc = 1) {
   return s.rows();
 }
 
-function batterCheck(sc = 1) {                                          // bat tipped toward the pitcher, held
+// Check swing: he started and held up. The hands have come forward, out past the front of the chest,
+// but the barrel never came round: the bat stands straight up in front of him, well clear of the head.
+// Legs and body still the closed stance.
+function batterCheck(sc = 1) {
   const s = grid(BW, BH, NEAR * sc), u = shifted(s, CROUCH);
-  const g = batGrip(u, [23, 27], [34, 6]);                              // hands pushed out in front of the chest; the bat points at the pitcher, foreshortened
+  const g = batGrip(u, [33, 27], [37, 2]);                              // knob out in front at chest height, bat up
   batterTorso(u, 1);
-  arm(u, [11, 21], [8, 29], g.fistB);                                   // back arm: elbow dropped behind, forearm across to the top hand
-  arm(u, [27, 20], [30, 30], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, short forearm up to the bottom hand
+  arm(u, [11, 21], [21, 27], g.fistB);                                  // back arm: reaches across the chest to the top hand
+  arm(u, [27, 20], [29, 27], g.fistA, { sleeve: 3.8, fore: 3 });        // front arm: elbow down, forearm out to the bottom hand
   g.bat();
   g.fists();
   u.rect(17, 15, 20, 18, 'z');
