@@ -39,7 +39,7 @@ for (let level = 1; level <= 12; level++) {
     }
     const lo = type.speed[0] + Math.min(level, 8) + Math.max(0, level - 9) * 3 - (p.form === 'SUBMARINE' ? 6 : 0);
     ok(p.speed >= lo - 0.5 && p.speed <= lo + (type.speed[1] - type.speed[0]) + 0.5, `${p.type} speed ${p.speed} in band at lv${level}`);
-    ok(p.dur > 0.3 && p.dur < 0.9, 'flight time sane');
+    ok(p.dur > (level >= C.RULES.hardLevel - 1 ? 0.2 : 0.3) && p.dur < 0.9, 'flight time sane'); // the 3D era runs the real flight time
     const end = C.ballPos(p, 1), start = C.ballPos(p, 0);
     ok(near(end.x, p.x) && near(end.y, p.y) && near(end.r, C.BALL_R), 'ball lands on the generated spot');
     ok(near(start.x, p.rel.x) && near(start.y, p.rel.y), 'ball leaves from the release point');
