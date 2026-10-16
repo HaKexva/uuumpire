@@ -691,6 +691,10 @@
         Sfx.pop();
         spawnDust(e.x, e.y);
         if (!e.replay) V.flash = 0.06;
+        else if (era3d && era3d.active && G.result) { // the ABS review has read the pitch: the verdict
+          showText(el.call, t(G.pitch.strike ? 'call.strike' : 'call.ball'), 'small' + (G.pitch.strike ? '' : ' ball'));
+          showText(el.judge, t(G.result.correct ? 'abs.stands' : 'abs.over'), G.result.correct ? 'ok' : 'ng');
+        }
         break;
       case 'resolve': onResolve(e); break;
       case 'replay': V.trail = []; hideText(); el.btnReplay.classList.add('hidden'); Sfx.select(); break;

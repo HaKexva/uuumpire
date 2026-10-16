@@ -58,8 +58,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   function setCam(mode) {
     camMode = mode;
     // the broadcast camera sits on the side away from the batter, or he would stand between it and the plate
-    if (mode === 'abs') { camera.position.set(camSide * Math.abs(ABS_CAM.pos.x), ABS_CAM.pos.y, ABS_CAM.pos.z); camera.lookAt(ABS_CAM.look); camera.fov = ABS_CAM.fov; }
-    else { camera.position.set(camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(0, CAM.lookY, -3); camera.fov = 78; }
+    { camera.position.set(camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(0, CAM.lookY, -3); camera.fov = 78; }
     camera.updateProjectionMatrix();
   }
   let camSide = 1;
@@ -101,10 +100,72 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   const absTick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xd82800 })); scene.add(absTick);
   let revealBall = null;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(C.BALL_R * M_LAT, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
-  // replay trail: ghost balls left along the flight so the break reads from the broadcast camera
-  const trail = []; const TRAIL_N = 14;
-  for (let i = 0; i < TRAIL_N; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.0369, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfcfcfc, transparent: true, opacity: 0.35 })); m.visible = false; scene.add(m); trail.push(m); }
-  let trailN = 0, trailLastT = -1;
+  // ------------------------------------------------------------
+  // ABS review (the replay): its own clean scene like the ballpark videoboard graphic. Dark field,
+  // the plate, the batter's zone as a translucent plane mid-plate, the tracked path as a trail, the
+  // ball frozen where it crossed, a tick to the nearest edge. The view sweeps in from behind the mound.
+  // ------------------------------------------------------------
+  const abs = new THREE.Scene();
+  abs.background = new THREE.Color(0x060b22);
+  abs.add(new THREE.HemisphereLight(0xc0d0ff, 0x101830, 1.6));
+  { const l = new THREE.DirectionalLight(0xffffff, 1.2); l.position.set(-4, 8, -6); abs.add(l); }
+  { const grid = new THREE.GridHelper(60, 60, 0x24387a, 0x14224a); grid.position.y = -0.002; abs.add(grid); }
+  { // the plate: 17 in wide pentagon, apex toward the catcher, like the field model
+    const w = 17 * 0.0254, sh = new THREE.Shape();
+    sh.moveTo(-w / 2, 0); sh.lineTo(w / 2, 0); sh.lineTo(w / 2, -w / 2); sh.lineTo(0, -w); sh.lineTo(-w / 2, -w / 2); sh.lineTo(-w / 2, 0);
+    const plate = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshBasicMaterial({ color: 0xe8ecff })); plate.rotation.x = -Math.PI / 2; plate.position.set(0, 0.002, -0.43); abs.add(plate);
+    const mound = new THREE.Mesh(new THREE.CircleGeometry(2.7, 32), new THREE.MeshBasicMaterial({ color: 0x1a2a5c })); mound.rotation.x = -Math.PI / 2; mound.position.set(0, 0.001, MOUND_Z + 0.4); abs.add(mound);
+  }
+  const absZone = new THREE.Group(); abs.add(absZone);
+  {
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false })); absZone.add(plane);
+    const fm = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    for (const [sx, sy, px, py] of [[1, 0.02, 0, 0.5], [1, 0.02, 0, -0.5], [0.02, 1, 0.5, 0], [0.02, 1, -0.5, 0]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.012), fm); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); absZone.add(m); }
+  }
+  const absPath = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })); abs.add(absPath);
+  const absBall = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT, 14, 10), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x404040 })); abs.add(absBall);
+  const absComet = []; for (let i = 0; i < 10; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT * (0.9 - i * 0.07), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 - i * 0.04 })); m.visible = false; abs.add(m); absComet.push(m); }
+  const absMark = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT, 14, 10), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); abs.add(absMark);
+  const absRing = new THREE.Mesh(new THREE.TorusGeometry(C.BALL_R * M_LAT * 1.6, 0.01, 8, 32), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); abs.add(absRing);
+  const absReviewTick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xd82800 })); abs.add(absReviewTick);
+  const absShadow = new THREE.Mesh(new THREE.CircleGeometry(C.BALL_R * M_LAT, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 })); absShadow.rotation.x = -Math.PI / 2; abs.add(absShadow);
+  // the flight is watched from a fixed high seat behind the mound (whole path in view); on arrival the
+  // view cuts in to a 3/4 close-up of the zone, aimed a little above it so it sits under the verdict texts
+  const ABS_FROM = new THREE.Vector3(1.4, 3.4, MOUND_Z - 3), ABS_FAR_LOOK = new THREE.Vector3(0, 0.9, -4);
+  const ABS_TO = new THREE.Vector3(1.6, 1.6, -2.4), ABS_LOOK = new THREE.Vector3(0, 1.25, PLATE_Z);
+  let absHold = false, absZoomT = 0;
+  const _look = new THREE.Vector3();
+  const absHist = [];
+  function buildAbsPath(p) {
+    const pts = []; for (let i = 0; i <= 60; i++) { const w = worldAt(p, i / 60); pts.push(new THREE.Vector3(w.x, w.y, w.z)); }
+    absPath.geometry.dispose(); absPath.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+    const z = p.zone;
+    absZone.scale.set((z.x1 - z.x0) * M_LAT, (z.y1 - z.y0) * M_VERT, 1); absZone.position.set(0, (hgtOf(z.y0) + hgtOf(z.y1)) / 2, PLATE_Z);
+    absHist.length = 0; for (const m of absComet) m.visible = false;
+  }
+  function renderAbs(p, dt) {
+    const tt = G.phase === 'replay' ? Math.min(1, G.t / p.dur) : 1;
+    const arrived = G.replayCaught || G.phase !== 'replay';
+    if (arrived) absZoomT += dt;
+    const k = Math.min(1, absZoomT / 0.35), e = k * k * (3 - 2 * k);
+    camera.position.lerpVectors(ABS_FROM, ABS_TO, e); camera.position.x *= camSide;
+    camera.lookAt(_look.lerpVectors(ABS_FAR_LOOK, ABS_LOOK, e)); camera.fov = 22 + 16 * e; camera.updateProjectionMatrix();
+    const w = worldAt(p, tt);
+    absBall.position.set(w.x, w.y, w.z); absBall.visible = !arrived;
+    absShadow.position.set(w.x, 0.003, w.z); absShadow.visible = !arrived;
+    if (!arrived) { absHist.unshift(new THREE.Vector3(w.x, w.y, w.z)); if (absHist.length > 40) absHist.pop(); }
+    absComet.forEach((m, i) => { const h = absHist[(i + 1) * 3]; if (h && !arrived) { m.visible = true; m.position.copy(h); } else m.visible = false; });
+    const cross = worldAt(p, 1);
+    absMark.visible = absRing.visible = arrived;
+    absMark.position.set(cross.x, cross.y, PLATE_Z); absRing.position.set(cross.x, cross.y, PLATE_Z + 0.02);
+    const on = Math.floor(G.t * 8) % 2 === 0; const col = p.strike ? 0xf8b800 : 0xfcfcfc;
+    absMark.material.color.set(p.strike ? 0xf8b800 : 0xfcfcfc); absRing.material.color.set(on ? col : 0x6c7490);
+    const n = nearestEdgePx(p.zone, p.x, p.y); const ex = latOf(n.x), ey = hgtOf(n.y);
+    const len = Math.hypot(ex - cross.x, ey - cross.y);
+    absReviewTick.visible = arrived && len > 0.005;
+    if (absReviewTick.visible) { absReviewTick.position.set((cross.x + ex) / 2, (cross.y + ey) / 2, PLATE_Z + 0.03); absReviewTick.scale.set(len, 0.014, 0.014); absReviewTick.rotation.z = Math.atan2(ey - cross.y, ex - cross.x); }
+    renderer.render(abs, camera);
+  }
 
   // glTF materials: shadows on, nothing metal (the skin and leather metalness textures render black)
   function prepTree(root) {
@@ -301,6 +362,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     pitcher.play('pitcher_rock', { loop: true, fade: 0.3 });
     catcher.play('catcher_crouch', { loop: true, fade: 0.3 });
     camSide = p.batterLeft ? -1 : 1; // the slot: the side away from the batter
+    absHold = false; absZoomT = 0;
     setCam('ump');
     catcher.root.position.x = p.batterLeft ? CATCHER_X : -CATCHER_X;
     const z = p.zone;
@@ -315,8 +377,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       case 'next': setupPitch(e.pitch); break;
       case 'windup': if (pitcher) pitcher.play(G.pitch.form === 'SUBMARINE' ? 'pitch_submarine_windup' : 'pitch_overhand_windup', { timeScale: PITCH_RELEASE / C.TIMING.windup, fade: 0.15 }); break;
       case 'pitch': cue.released = true; break;
-      case 'replay': cue.swing = cue.check = cue.catch = false; trailN = 0; trailLastT = -1; for (const m of trail) m.visible = false; setCam('abs'); break;
-      case 'replayEnd': setCam('ump'); break;
+      case 'replay': cue.swing = cue.check = cue.catch = false; buildAbsPath(G.pitch); camMode = 'abs'; absHold = true; absZoomT = 0; break;
+      case 'replayEnd': break; // the review stays up through the rest of the reveal
     }
   }
 
@@ -324,6 +386,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     if (!batter) return;
     const p = G.pitch;
     const ph = G.phase;
+    if (p && (ph === 'replay' || (ph === 'reveal' && absHold))) { renderAbs(p, dt); return; } // the ABS review has its own scene and camera
     const flying = (ph === 'flight' || ph === 'replay') && G.ball && !(ph === 'replay' && G.replayCaught);
     const reveal = ph === 'reveal';
     const tt = flying ? Math.min(1, G.t / p.dur) : 1;
@@ -341,7 +404,6 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     } else gloveK = 0;
     if (flying && b && (cue.released || ph === 'replay')) {
       ball.visible = true; ball.scale.setScalar(BALL_SCALE); ball.position.set(b.x, b.y, b.z); ball.rotation.x += dt * (p.spin + 2) * 2;
-      if (ph === 'replay' && tt - trailLastT >= 1 / TRAIL_N && trailN < TRAIL_N) { trail[trailN].position.set(b.x, b.y, b.z); trail[trailN].visible = true; trailN++; trailLastT = tt; }
       shadow.visible = true; shadow.position.set(b.x, 0.02, b.z); shadow.scale.setScalar(1 + b.y * 0.6);
     } else if (p && caught) {
       ballInGlove(ball.position); ball.scale.setScalar(1); ball.visible = true; shadow.visible = false; // real size: the rules' ball would not fit a mitt
@@ -349,9 +411,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     // level 12 keeps the zone up through the pitch as a guide; from 13 it only comes back at the reveal,
     // so the catcher's framing can sell a ball as a strike
     const guide = G.level === firstLevel && (ph === 'windup' || flying || ph === 'call');
-    zoneBox.visible = reveal || guide || ph === 'replay'; // the review always shows the zone
-    if (ph !== 'replay' && camMode === 'abs') setCam('ump');
-    if (ph !== 'replay') for (const m of trail) m.visible = false;
+    zoneBox.visible = reveal || guide;
+    if (camMode === 'abs') setCam('ump');
     bar.opacity = reveal ? 1 : 0.55;
     // reveal: the ball where it really crossed, a ring blinking gold (strike) / white (ball) like the pixel
     // scene, and the ABS tick from the ball to the nearest zone edge when the readout is on
