@@ -51,7 +51,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   const camera = new THREE.PerspectiveCamera(78, 168 / 192, 0.1, 400);
   // the umpire's eye: right above the catcher's helmet, a small step to the open side (the slot);
   // 1.85 m up and 1 m behind the plate is the lowest eye that still sees the bottom of the zone over the helmet
-  const CAM = { x: 0.12, y: 1.85, z: 1.0, lookY: 0.3 };
+  const CAM = { x: 0.3, y: 1.85, z: 1.0, lookY: 0.3 };
   // the ABS review: the centre-field broadcast camera, long lens, the zone frame face-on
   const ABS_CAM = { pos: new THREE.Vector3(1.6, 2.4, -11.0), look: new THREE.Vector3(0, 0.8, -0.2), fov: 24 };
   let camMode = 'ump';
@@ -291,7 +291,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
     const hb = C.BATTER_H[p.batterSize];
     batter.root.scale.set(p.batterLeft ? -hb : hb, hb, hb); // a lefty is the mirrored righty
-    batter.root.position.set(p.batterLeft ? 1.0 : -1.0, 0, PLATE_Z + 0.15);
+    // deep in the box (feet 1.2 m off the plate's centre line) and a step toward the mound, so from the
+    // umpire's eye he stands beside the plate instead of over it
+    batter.root.position.set(p.batterLeft ? 1.2 : -1.2, 0, PLATE_Z - 0.2);
     batter.root.rotation.y = p.batterLeft ? -Math.PI / 2 : Math.PI / 2;
     batter.recolor(KITS[p.kit % KITS.length]);
     batter.play('batting_stance', { loop: true, fade: 0.3 });
