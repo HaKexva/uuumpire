@@ -50,7 +50,7 @@
     hardLevel: 13, hardSpeed: [5, 10], hardBreak: 1.15, // 13-14: every pitch 5-10 km/h harder, breaking stuff moves 15% more
     showLevel: 15, showSpeed: [12, 18], showBreak: 1.3, showWindow: 0.7, showEdge: 0.9, showDur: 0.62, // 15: UNREAL
     eraStretch: 1.0, // 12+: no readability stretch on the flight, the real 18.44 m time
-    eraReviewExtra: 0.5, // 12+: the ABS review stays up this much longer after the replay
+    eraReviewExtra: 0.8, // 12+: the ABS review stays up this much longer after the replay
   };
   // What each level adds (the UI shows lvl.<level>). Levels not listed just get faster/tighter.
   const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro', 12: 'cam', 13: 'noguide', 14: 'heat', 15: 'show' };
