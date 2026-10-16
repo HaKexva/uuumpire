@@ -60,6 +60,17 @@ for (let level = 1; level <= 12; level++) {
 ok(C.levelFor(0) === 1 && C.levelFor(4) === 1 && C.levelFor(5) === 2 && C.levelFor(45) === 10 && C.levelFor(999) === 14, 'level ladder');
 ok(C.callWindowFor(1) > C.callWindowFor(12) && C.callWindowFor(12) >= 0.9, 'call window shrinks, floors at 0.9');
 
+// levels 13-14: 5-10 km/h on every pitch, 15% more break on anything but the four-seamer
+{
+  const avg = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+  const sample = (level, seed) => { const rng = mulberry32(seed); return Array.from({ length: 400 }, () => C.genPitch(level, { rng, kits: 6 })); };
+  const p12 = sample(12, 5), p14 = sample(14, 5);
+  ok(avg(p14.map((p) => p.speed)) - avg(p12.map((p) => p.speed)) >= 10, 'level 14 pitches average at least 10 km/h over level 12 (ladder +6, hard +7.5)');
+  const brk = (ps) => avg(ps.filter((p) => p.type !== 'FOURSEAM').map((p) => Math.abs(p.bx) + Math.abs(p.by)));
+  ok(brk(p14) / brk(p12) > 1.08 && brk(p14) / brk(p12) < 1.25, 'breaking balls move about 15% more at level 14');
+  ok(Math.abs(avg(p14.filter((p) => p.type === 'FOURSEAM').map((p) => Math.abs(p.by))) - avg(p12.filter((p) => p.type === 'FOURSEAM').map((p) => Math.abs(p.by)))) < 0.4, 'the four-seamer keeps its ride');
+}
+
 // ---------------------------------------------------------------- state machine
 console.log('state machine');
 const DT = 1 / 60;

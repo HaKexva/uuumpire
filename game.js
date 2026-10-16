@@ -562,6 +562,46 @@
     }).catch((e) => { console.error('3D era failed to load', e); era3d = null; });
     return era3dLoading;
   }
+  // Level 11 cleared: hold the game and run a "new ballpark" loading bar over the stage (at least a few
+  // seconds, longer if the models are still coming), then swap the stage to 3D and show the level banner.
+  // If the era never loads, the bar ends and the pixel game simply carries on.
+  function eraTransition(e) {
+    game.setPaused(true); // the core clock only; no PAUSED overlay
+    hideText();
+    const box = $('era-load'), text = $('era-load-text'), fill = $('era-load-fill');
+    const lines = [t('era.1'), t('era.2'), t('era.3'), t('era.4')];
+    box.classList.remove('hidden');
+    fill.style.width = '0%';
+    const started = performance.now(), MIN_MS = 3800, MAX_MS = 20000;
+    let ready = false;
+    loadEra3D().then(() => { ready = true; });
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      fill.style.width = '100%';
+      text.textContent = lines[lines.length - 1];
+      syncEra3D();
+      setTimeout(() => {
+        box.classList.add('hidden');
+        if (currentScreen === 'play') {
+          showText(el.call, t('level.n', e.level), '');
+          showText(el.bonus, t('lvl.' + e.level), '');
+          setTimeout(() => Sfx.crowd('cheer', 1), 150);
+        }
+        game.setPaused(false);
+      }, 400);
+    };
+    // a timer, not an animation frame: a tab in the background still finishes the bar
+    const timer = setInterval(() => {
+      if (currentScreen !== 'play') { box.classList.add('hidden'); done = true; clearInterval(timer); return; } // quit to title mid-bar
+      const ms = performance.now() - started;
+      const k = Math.min(1, ms / MIN_MS);
+      fill.style.width = Math.round((ready ? k : Math.min(k, 0.92)) * 100) + '%';
+      text.textContent = lines[Math.floor(ms / 950) % lines.length]; // keeps cycling while the models are still coming
+      if ((k >= 1 && ready) || ms > MAX_MS) { clearInterval(timer); finish(); }
+    }, 50);
+  }
   // show the 3D scene when its level is on and it is loaded (now, or as soon as the models land)
   function syncEra3D() {
     if (G.level < ERA3D_LEVEL || currentScreen !== 'play') { if (era3d) era3d.hide(); return; }
@@ -603,6 +643,7 @@
         el.btnReplay.classList.add('hidden');
         if (e.levelUp) Sfx.levelUp();
         if (e.levelUp && e.level >= C.RULES.discoLevel) Music.start('disco'); // level 10: the disco inning takes over the PA
+        if (e.levelUp && e.level === ERA3D_LEVEL) { eraTransition(e); updateHud(); break; } // level 11 cleared: the ballpark changes
         if (e.congrats) { // cleared the disco inning
           showText(el.call, t('congrats'), 'small', 'party');
           showText(el.bonus, t('congrats.sub'), '', 'wobble');

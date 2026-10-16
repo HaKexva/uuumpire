@@ -47,9 +47,10 @@
     fineEdge: 3.8, finePts: 50,                   // edge pitch bonus (px from the zone edge)
     quick: 0.6, quickPts: 30,                     // quick call bonus (s)
     swingLevel: 4, framingLevel: 5, submarineLevel: 3, discoLevel: 10,
+    hardLevel: 13, hardSpeed: [5, 10], hardBreak: 1.15, // 13-14: every pitch 5-10 km/h harder, breaking stuff moves 15% more
   };
   // What each level adds (the UI shows lvl.<level>). Levels not listed just get faster/tighter.
-  const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro' };
+  const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro', 12: 'cam', 13: 'noguide', 14: 'heat' };
 
   function levelFor(pitchIndex) { return Math.min(RULES.maxLevel, 1 + Math.floor(pitchIndex / RULES.pitchesPerLevel)); }
   function callWindowFor(level) { return Math.max(0.9, 2.2 - level * 0.12); }
@@ -167,9 +168,14 @@
     const dir = type.side === 'glove' ? hand : type.side === 'arm' ? -hand : sgn();
     let bx = rnd(type.bx[0], type.bx[1]) * dir;
     let by = rnd(type.by[0], type.by[1]);
-    const hump = type.hump ? rnd(type.hump[0], type.hump[1]) : 0;
+    let hump = type.hump ? rnd(type.hump[0], type.hump[1]) : 0;
     // speed creeps up with level, then jumps from level 10 on
     let speed = Math.round(rnd(type.speed[0], type.speed[1]) + Math.min(level, 8) + Math.max(0, level - 9) * 3);
+    // the back half of the 3D era: every pitch comes in 5-10 km/h harder and anything that moves, moves 15% more
+    if (level >= RULES.hardLevel) {
+      speed += Math.round(rnd(RULES.hardSpeed[0], RULES.hardSpeed[1]));
+      if (type.name !== 'FOURSEAM') { bx *= RULES.hardBreak; by *= RULES.hardBreak; hump *= RULES.hardBreak; }
+    }
     // knuckleball: no spin, flutters side to side on the way in (sin terms vanish at t=1, so it still lands on target)
     const wob = type.wobble ? {
       ax: rnd(type.wobble[0], type.wobble[1]) * sgn(), ay: rnd(type.wobble[0], type.wobble[1]) * 0.6 * sgn(),

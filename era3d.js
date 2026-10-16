@@ -85,7 +85,10 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   for (const [sx, sy, px, py] of [[1, 0.018, 0, 0.5], [1, 0.018, 0, -0.5], [0.018, 1, 0.5, 0], [0.018, 1, -0.5, 0]]) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.02), bar); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); zoneBox.add(m);
   }
-  const landing = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT, 10, 8), new THREE.MeshLambertMaterial({ color: 0xf8b800, emissive: 0x604000 })); scene.add(landing);
+  // the reveal: the ball back at the crossing point inside a blinking ring, and the ABS tick to the nearest edge
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(C.BALL_R * M_LAT * 1.5, 0.009, 8, 28), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); scene.add(ring);
+  const absTick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xd82800 })); scene.add(absTick);
+  let revealBall = null;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(C.BALL_R * M_LAT, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
 
   // glTF materials: shadows on, nothing metal (the skin and leather metalness textures render black)
@@ -160,6 +163,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     prepTree(field.scene); prepTree(stadium.scene); prepTree(ballG.scene); prepTree(batG.scene);
     world.add(field.scene); world.add(stadium.scene);
     ball = ballG.scene; ball.scale.setScalar(BALL_SCALE); scene.add(ball);
+    revealBall = ballG.scene.clone(); revealBall.scale.setScalar(BALL_SCALE); scene.add(revealBall);
     const home = { uniform_jersey: 0xfcfcfc, uniform_pants: 0xfcfcfc, uniform_socks: 0x01215b, cap: 0x01215b, helmet: 0x01215b, piping: 0x01215b, uniform_undershirt: 0x01215b, glove: 0xb8793c, glove_laces: 0xe0c090 };
     pitcher = new Puppet(gear.field, home);
     const catcherGear = gear.catcher.filter((n) => n !== 'Gear_Glove' && n !== 'Gear_Glove_Laces').concat(['Gear_Glove_Catcher', 'Gear_Glove_Catcher_Laces']);
@@ -176,6 +180,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     gloveForeArm = catcher.nodes.get('mixamorigLeftForeArm');
     gloveArm = catcher.nodes.get('mixamorigLeftArm');
     glovePocket = catcher.nodes.get('Glove_Pocket_Catcher') || gloveHand;
+    gloveMesh = catcher.nodes.get('Gear_Glove_Catcher') || null;
     if (pendingNext) setupPitch(pendingNext);
   }
 
@@ -218,8 +223,17 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     gloveHand.quaternion.premultiply(_pq.clone().invert().multiply(_rot).multiply(_pq));
     catcher.root.updateMatrixWorld(true);
   }
-  // where the ball sits once caught: in the pocket, pushed toward the palm so the mitt wraps it
+  // where the ball sits once caught: the centre of the mitt itself (the skinned mesh's posed bounds),
+  // nudged a hair toward the pitcher so the ball shows in the pocket opening
+  const _bb = new THREE.Box3();
+  let gloveMesh = null;
   function ballInGlove(out) {
+    if (gloveMesh && gloveMesh.isSkinnedMesh) {
+      gloveMesh.computeBoundingBox();
+      gloveMesh.boundingBox.getCenter(out).applyMatrix4(gloveMesh.matrixWorld);
+      out.z -= 0.03;
+      return out;
+    }
     gloveHand.getWorldPosition(_H); glovePocket.getWorldPosition(_P);
     return out.copy(_P).addScaledVector(_H.sub(_P).normalize(), 0.0369 * 0.8);
   }
@@ -246,6 +260,14 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   const SWING_TS = 2.0, SWING_CONTACT = 0.875 / SWING_TS, CHECK_HOLD = 0.24, CATCH_LEAD = 0.292;
   const PITCH_RELEASE = 0.583; // pitch_*_windup clips release at this time; scaled onto the rules' windup
   let cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
+  let gloveK = 0; // how far the glove is pinned to the ball (eases off at the reveal)
+  // nearest point of the zone rectangle (px) to the ball centre: inside, the nearest edge; outside, the clamp
+  function nearestEdgePx(z, x, y) {
+    const inside = x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1;
+    if (!inside) return { x: Math.min(Math.max(x, z.x0), z.x1), y: Math.min(Math.max(y, z.y0), z.y1) };
+    const d = [[x - z.x0, z.x0, y, 'x'], [z.x1 - x, z.x1, y, 'x'], [y - z.y0, x, z.y0, 'y'], [z.y1 - y, x, z.y1, 'y']].sort((a, b) => a[0] - b[0])[0];
+    return { x: d[1], y: d[2] };
+  }
   let pendingNext = null;
 
   function setupPitch(p) {
@@ -265,7 +287,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     camera.lookAt(0, CAM.lookY, -3);
     catcher.root.position.x = p.batterLeft ? CATCHER_X : -CATCHER_X;
     const z = p.zone;
-    zoneBox.scale.set((z.x1 - z.x0) * M_LAT + 2 * C.BALL_R * M_LAT, (z.y1 - z.y0) * M_VERT + 2 * C.BALL_R * M_VERT, 1);
+    // the batter's own zone (17 in wide, knees to mid-torso): a ball touching its edge is a strike, so the
+    // frame is the real zone, not the grown boundary the rules test against the ball's centre
+    zoneBox.scale.set((z.x1 - z.x0) * M_LAT, (z.y1 - z.y0) * M_VERT, 1);
     zoneBox.position.set(0, (hgtOf(z.y0) + hgtOf(z.y1)) / 2, PLATE_Z);
   }
 
@@ -289,13 +313,14 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     pitcher.update(dt); batter.update(dt); catcher.update(dt);
     // the glove goes to where the ball will cross (lead-in eases it there), then holds the ball through
     // the call window, drifting with the rules' framing tug; the ball sits in the pocket
-    const caught = ph === 'call' || reveal || (ph === 'replay' && G.replayCaught);
-    if (p && (cue.catch || caught)) {
-      const gx = caught && G.ball ? latOf(G.ball.x) : latOf(p.x), gy = caught && G.ball ? hgtOf(G.ball.y) : hgtOf(p.y);
-      const k = caught ? 1 : THREE.MathUtils.clamp(1 - (p.dur - G.t) / CATCH_LEAD, 0, 1);
-      if (cue.stepTo !== undefined) { const ease = k * k * (3 - 2 * k); catcher.root.position.x = cue.stepFrom + (cue.stepTo - cue.stepFrom) * ease; }
-      pinGlove(_t.set(gx, gy, PLATE_Z + 0.12), k * k);
-    }
+    const caught = ph === 'call' || (ph === 'replay' && G.replayCaught);
+    if (p && (cue.catch || caught || reveal)) {
+      const gx = G.ball ? latOf(G.ball.x) : latOf(p.x), gy = G.ball ? hgtOf(G.ball.y) : hgtOf(p.y);
+      const k = caught ? 1 : reveal ? 0 : THREE.MathUtils.clamp(1 - (p.dur - G.t) / CATCH_LEAD, 0, 1);
+      gloveK = reveal ? Math.max(0, gloveK - dt * 3) : k * k; // the catcher eases the mitt back once the call is in
+      if (cue.stepTo !== undefined && !reveal) { const ease = k * k * (3 - 2 * k); catcher.root.position.x = cue.stepFrom + (cue.stepTo - cue.stepFrom) * ease; }
+      pinGlove(_t.set(gx, gy, PLATE_Z + 0.12), gloveK);
+    } else gloveK = 0;
     if (flying && b && (cue.released || ph === 'replay')) {
       ball.visible = true; ball.scale.setScalar(BALL_SCALE); ball.position.set(b.x, b.y, b.z); ball.rotation.x += dt * (p.spin + 2) * 2;
       shadow.visible = true; shadow.position.set(b.x, 0.02, b.z); shadow.scale.setScalar(1 + b.y * 0.6);
@@ -307,8 +332,25 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     const guide = G.level === firstLevel && (ph === 'windup' || flying || ph === 'call');
     zoneBox.visible = reveal || guide;
     bar.opacity = reveal ? 1 : 0.55;
-    landing.visible = reveal;
-    if (reveal) { const w = worldAt(p, 1); landing.position.set(w.x, w.y, PLATE_Z); const on = Math.floor(G.t * 6) % 2 === 0; landing.material.color.set(on ? (p.strike ? 0xf8b800 : 0xfcfcfc) : 0xbcbcbc); }
+    // reveal: the ball where it really crossed, a ring blinking gold (strike) / white (ball) like the pixel
+    // scene, and the ABS tick from the ball to the nearest zone edge when the readout is on
+    revealBall.visible = reveal; ring.visible = reveal;
+    const showAbs = reveal && G.result && G.result.abs && G.t > 0.3;
+    absTick.visible = showAbs;
+    if (reveal) {
+      const w = worldAt(p, 1);
+      revealBall.position.set(w.x, w.y, PLATE_Z); revealBall.rotation.y += dt * 0.8;
+      ring.position.set(w.x, w.y, PLATE_Z + 0.02);
+      const on = Math.floor(G.t * 6) % 2 === 0; ring.material.color.set(on ? (p.strike ? 0xf8b800 : 0xfcfcfc) : 0x7c7c7c);
+      if (showAbs) {
+        const n = nearestEdgePx(p.zone, p.x, p.y);
+        const ex = latOf(n.x), ey = hgtOf(n.y);
+        const len = Math.max(0.01, Math.hypot(ex - w.x, ey - w.y));
+        absTick.position.set((w.x + ex) / 2, (w.y + ey) / 2, PLATE_Z + 0.03);
+        absTick.scale.set(len, 0.012, 0.012);
+        absTick.rotation.z = Math.atan2(ey - w.y, ex - w.x);
+      }
+    }
     // cues timed back from the catch: the catcher reaches (and side-steps on a wide one), the batter swings or checks
     if (flying) {
       const left = p.dur - G.t;
