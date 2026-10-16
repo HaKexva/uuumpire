@@ -29,7 +29,18 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   const hgtOf = (y) => (C.BATTER_FEET_Y - y) * M_VERT + H_OFF;
   const MOUND_Z = -18.44;        // rubber front edge (field.glb, rotated so centre field is -z)
   const PLATE_Z = -0.2;          // where the ball is judged: the middle of the plate (apex at 0)
-  const BALL_SCALE = (C.BALL_R * M_LAT) / 0.0369; // the rules' ball is bigger than a real one; keep them consistent
+  // The ball is drawn at its real size (36.9 mm radius). The rules judge a strike as "a 5 px ball touches the
+  // zone", and 5 px is 65 mm across and 94 mm up at this scale, so the drawn frame is the zone grown by the
+  // difference: a real ball touching the frame is exactly a strike.
+  const BALL_SCALE = 1, R_REAL = 0.0369;
+  const GROW_X = C.BALL_R * M_LAT - R_REAL, GROW_Y = C.BALL_R * M_VERT - R_REAL;
+  // nearest point of the drawn frame (metres) to a point on the plane: inside, the nearest edge; outside, the clamp
+  function nearestEdgeM(hw, cy, hh, x, y) {
+    const inside = x >= -hw && x <= hw && y >= cy - hh && y <= cy + hh;
+    if (!inside) return { x: Math.min(Math.max(x, -hw), hw), y: Math.min(Math.max(y, cy - hh), cy + hh) };
+    const d = [[x + hw, -hw, y], [hw - x, hw, y], [y - (cy - hh), x, cy - hh], [cy + hh - y, x, cy + hh]].sort((a, b) => a[0] - b[0])[0];
+    return { x: d[1], y: d[2] };
+  }
   const CATCHER_X = 0.12;        // the catcher sets up this far toward the batter
 
   // ------------------------------------------------------------
@@ -101,12 +112,12 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.02), bar); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); zoneBox.add(m);
   }
   // the reveal: the ball back at the crossing point inside a blinking ring, and the ABS tick to the nearest edge
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(C.BALL_R * M_LAT * 1.5, 0.009, 8, 28), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); scene.add(ring);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(R_REAL * 1.7, 0.008, 8, 28), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); scene.add(ring);
   const absTick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xd82800 })); scene.add(absTick);
   let revealBall = null;
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(C.BALL_R * M_LAT, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(R_REAL, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
   // speed trail: ghosts of the last few frames behind the ball (the eye reads velocity from the streak)
-  const ghosts = []; for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT * (0.85 - i * 0.12), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 - i * 0.07 })); m.visible = false; scene.add(m); ghosts.push(m); }
+  const ghosts = []; for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(R_REAL * (0.85 - i * 0.12), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 - i * 0.07 })); m.visible = false; scene.add(m); ghosts.push(m); }
   const ghostHist = [];
   // ------------------------------------------------------------
   // ABS review (the replay): its own clean scene like the ballpark videoboard graphic. Dark field,
@@ -131,13 +142,13 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     for (const [sx, sy, px, py] of [[1, 0.02, 0, 0.5], [1, 0.02, 0, -0.5], [0.02, 1, 0.5, 0], [0.02, 1, -0.5, 0]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.012), fm); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); absZone.add(m); }
   }
   const absPath = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })); abs.add(absPath);
-  const absBall = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT, 14, 10), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x404040 })); abs.add(absBall);
-  const absComet = []; for (let i = 0; i < 10; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT * (0.9 - i * 0.07), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 - i * 0.04 })); m.visible = false; abs.add(m); absComet.push(m); }
-  const absMark = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT, 14, 10), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); abs.add(absMark);
-  const absRing = new THREE.Mesh(new THREE.TorusGeometry(C.BALL_R * M_LAT * 1.6, 0.01, 8, 32), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); abs.add(absRing);
-  const absShown = new THREE.Mesh(new THREE.TorusGeometry(C.BALL_R * M_LAT, 0.006, 8, 32), new THREE.MeshBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.8 })); abs.add(absShown); // where the mitt showed it
+  const absBall = new THREE.Mesh(new THREE.SphereGeometry(R_REAL, 14, 10), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x404040 })); abs.add(absBall);
+  const absComet = []; for (let i = 0; i < 10; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(R_REAL * (0.9 - i * 0.07), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 - i * 0.04 })); m.visible = false; abs.add(m); absComet.push(m); }
+  const absMark = new THREE.Mesh(new THREE.SphereGeometry(R_REAL, 14, 10), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); abs.add(absMark);
+  const absRing = new THREE.Mesh(new THREE.TorusGeometry(R_REAL * 1.8, 0.009, 8, 32), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); abs.add(absRing);
+  const absShown = new THREE.Mesh(new THREE.TorusGeometry(R_REAL * 1.1, 0.006, 8, 32), new THREE.MeshBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.8 })); abs.add(absShown); // where the mitt showed it
   const absReviewTick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xd82800 })); abs.add(absReviewTick);
-  const absShadow = new THREE.Mesh(new THREE.CircleGeometry(C.BALL_R * M_LAT, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 })); absShadow.rotation.x = -Math.PI / 2; abs.add(absShadow);
+  const absShadow = new THREE.Mesh(new THREE.CircleGeometry(R_REAL, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 })); absShadow.rotation.x = -Math.PI / 2; abs.add(absShadow);
   // the flight is watched from a fixed high seat behind the mound (whole path in view); on arrival the
   // view cuts in to a 3/4 close-up of the zone, aimed a little above it so it sits under the verdict texts
   const ABS_FROM = new THREE.Vector3(1.4, 3.4, MOUND_Z - 3), ABS_FAR_LOOK = new THREE.Vector3(0, 0.9, -4);
@@ -149,7 +160,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     const pts = []; for (let i = 0; i <= 60; i++) { const w = worldAt(p, i / 60); pts.push(new THREE.Vector3(w.x, w.y, w.z)); }
     absPath.geometry.dispose(); absPath.geometry = new THREE.BufferGeometry().setFromPoints(pts);
     const z = p.zone;
-    absZone.scale.set((z.x1 - z.x0) * M_LAT, (z.y1 - z.y0) * M_VERT, 1); absZone.position.set(0, (hgtOf(z.y0) + hgtOf(z.y1)) / 2, PLATE_Z);
+    absZone.scale.set((z.x1 - z.x0) * M_LAT + 2 * GROW_X, (z.y1 - z.y0) * M_VERT + 2 * GROW_Y, 1); absZone.position.set(0, (hgtOf(z.y0) + hgtOf(z.y1)) / 2, PLATE_Z);
     absHist.length = 0; for (const m of absComet) m.visible = false;
   }
   function renderAbs(p, dt) {
@@ -172,7 +183,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     if (framed) absShown.position.set(latOf(p.x + p.frame.dx), hgtOf(p.y + p.frame.dy), PLATE_Z + 0.015);
     const on = Math.floor(G.t * 8) % 2 === 0; const col = p.strike ? 0xf8b800 : 0xfcfcfc;
     absMark.material.color.set(p.strike ? 0xf8b800 : 0xfcfcfc); absRing.material.color.set(on ? col : 0x6c7490);
-    const n = nearestEdgePx(p.zone, p.x, p.y); const ex = latOf(n.x), ey = hgtOf(n.y);
+    const n = nearestEdgeM(absZone.scale.x / 2, absZone.position.y, absZone.scale.y / 2, cross.x, cross.y); const ex = n.x, ey = n.y;
     const len = Math.hypot(ex - cross.x, ey - cross.y);
     absReviewTick.visible = arrived && len > 0.005;
     if (absReviewTick.visible) { absReviewTick.position.set((cross.x + ex) / 2, (cross.y + ey) / 2, PLATE_Z + 0.03); absReviewTick.scale.set(len, 0.014, 0.014); absReviewTick.rotation.z = Math.atan2(ey - cross.y, ex - cross.x); }
@@ -387,7 +398,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     const z = p.zone;
     // the batter's own zone (17 in wide, knees to mid-torso): a ball touching its edge is a strike, so the
     // frame is the real zone, not the grown boundary the rules test against the ball's centre
-    zoneBox.scale.set((z.x1 - z.x0) * M_LAT, (z.y1 - z.y0) * M_VERT, 1);
+    zoneBox.scale.set((z.x1 - z.x0) * M_LAT + 2 * GROW_X, (z.y1 - z.y0) * M_VERT + 2 * GROW_Y, 1);
     zoneBox.position.set(0, (hgtOf(z.y0) + hgtOf(z.y1)) / 2, PLATE_Z);
   }
 
@@ -426,8 +437,10 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       if (cue.stepTo !== undefined && !reveal) { const ease = k * k * (3 - 2 * k); catcher.root.position.x = cue.stepFrom + (cue.stepTo - cue.stepFrom) * ease; }
       // the mitt's centre, not the hand, goes to the crossing point on the zone plane: pin the hand, measure
       // where the mitt landed, pin again with the difference (no depth offset, so no parallax against the frame)
-      pinGlove(_t.set(gx, gy, PLATE_Z), gloveK);
-      if (gloveK > 0.5 && gloveMesh) { gloveHand.getWorldPosition(_H); ballInGlove(_v); _t.set(gx, gy, PLATE_Z).sub(_v).add(_H); pinGlove(_t, gloveK); }
+      // the mitt's centre sits a hand's depth beyond the plane (toward the mound), so the ball on the plane
+      // shows on the mitt's face to the umpire instead of inside the leather; 9 cm is too little to misread the frame
+      pinGlove(_t.set(gx, gy, PLATE_Z - 0.09), gloveK);
+      if (gloveK > 0.5 && gloveMesh) { gloveHand.getWorldPosition(_H); ballInGlove(_v); _t.set(gx, gy, PLATE_Z - 0.09).sub(_v).add(_H); pinGlove(_t, gloveK); }
     } else gloveK = 0;
     if (flying && b && (cue.released || ph === 'replay')) {
       ball.visible = true; ball.scale.setScalar(BALL_SCALE); ball.position.set(b.x, b.y, b.z); ball.rotation.x += dt * (p.spin + 2) * 2;
@@ -456,8 +469,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       ring.position.set(w.x, w.y, PLATE_Z + 0.02);
       const on = Math.floor(G.t * 6) % 2 === 0; ring.material.color.set(on ? (p.strike ? 0xf8b800 : 0xfcfcfc) : 0x7c7c7c);
       if (showAbs) {
-        const n = nearestEdgePx(p.zone, p.x, p.y);
-        const ex = latOf(n.x), ey = hgtOf(n.y);
+        const n = nearestEdgeM(zoneBox.scale.x / 2, zoneBox.position.y, zoneBox.scale.y / 2, w.x, w.y);
+        const ex = n.x, ey = n.y;
         const len = Math.max(0.01, Math.hypot(ex - w.x, ey - w.y));
         absTick.position.set((w.x + ex) / 2, (w.y + ey) / 2, PLATE_Z + 0.03);
         absTick.scale.set(len, 0.012, 0.012);

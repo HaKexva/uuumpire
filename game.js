@@ -492,7 +492,7 @@
   };
   // don't lose a pitch to a tab switch, another window taking focus, or a system overlay
   // (iOS Screen Distance "too close" warning fires no visibilitychange; it does take focus / stall frames)
-  function autoPause() { if (currentScreen === 'play' && G.phase !== 'idle' && G.phase !== 'over' && !G.paused) setPaused(true); }
+  function autoPause() { if (DEBUG && QS.has('nopause')) return; if (currentScreen === 'play' && G.phase !== 'idle' && G.phase !== 'over' && !G.paused) setPaused(true); } // ?nopause: debug captures from a background tab
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { Music.stop(); autoPause(); }
     else if (Sfx.ctx && currentScreen !== 'over' && !G.paused) Music.start();
