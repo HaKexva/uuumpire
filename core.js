@@ -48,8 +48,9 @@
     quick: 0.6, quickPts: 30,                     // quick call bonus (s)
     swingLevel: 4, framingLevel: 5, submarineLevel: 3, discoLevel: 10,
     hardLevel: 13, hardSpeed: [5, 10], hardBreak: 1.15, // 13-14: every pitch 5-10 km/h harder, breaking stuff moves 15% more
-    showLevel: 15, showSpeed: [12, 18], showBreak: 1.3, showWindow: 0.7, showEdge: 0.9, showDur: 0.62, // 15: the show. no mercy
+    showLevel: 15, showSpeed: [12, 18], showBreak: 1.3, showWindow: 0.7, showEdge: 0.9, showDur: 0.62, // 15: UNREAL
     eraStretch: 1.0, // 12+: no readability stretch on the flight, the real 18.44 m time
+    eraReviewExtra: 0.5, // 12+: the ABS review stays up this much longer after the replay
   };
   // What each level adds (the UI shows lvl.<level>). Levels not listed just get faster/tighter.
   const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro', 12: 'cam', 13: 'noguide', 14: 'heat', 15: 'show' };
@@ -403,7 +404,7 @@
             if (!G.replayCaught) { G.replayCaught = true; emit('catch', { x: p.x, y: p.y, early: false, replay: true }); }
             G.mitt.x = p.x; G.mitt.y = p.y;
             if (G.t >= p.dur + TIMING.replayHold) { // hold on the catch, then back to the reveal
-              G.phase = 'reveal'; G.t = TIMING.replayBack; G.ball = null;
+              G.phase = 'reveal'; G.t = TIMING.replayBack - (G.level >= RULES.hardLevel - 1 ? RULES.eraReviewExtra : 0); G.ball = null; // the 3D era's ABS review holds a little longer
               emit('replayEnd');
             }
           }

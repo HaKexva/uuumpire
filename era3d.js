@@ -176,11 +176,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     if (!arrived) { absHist.unshift(new THREE.Vector3(w.x, w.y, w.z)); if (absHist.length > 40) absHist.pop(); }
     absComet.forEach((m, i) => { const h = absHist[(i + 1) * 3]; if (h && !arrived) { m.visible = true; m.position.copy(h); } else m.visible = false; });
     const cross = worldAt(p, 1);
-    absMark.visible = absRing.visible = arrived;
+    absMark.visible = arrived; absRing.visible = false; absShown.visible = false;
     absMark.position.set(cross.x, cross.y, PLATE_Z); absRing.position.set(cross.x, cross.y, PLATE_Z + 0.02);
-    const framed = p.frame && (Math.abs(p.frame.dx) > 0.5 || Math.abs(p.frame.dy) > 0.5);
-    absShown.visible = arrived && !!framed;
-    if (framed) absShown.position.set(latOf(p.x + p.frame.dx), hgtOf(p.y + p.frame.dy), PLATE_Z + 0.015);
+
     const on = Math.floor(G.t * 8) % 2 === 0; const col = p.strike ? 0xf8b800 : 0xfcfcfc;
     absMark.material.color.set(p.strike ? 0xf8b800 : 0xfcfcfc); absRing.material.color.set(on ? col : 0x6c7490);
     const n = nearestEdgeM(absZone.scale.x / 2, absZone.position.y, absZone.scale.y / 2, cross.x, cross.y); const ex = n.x, ey = n.y;
