@@ -52,6 +52,16 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   // the umpire's eye: right above the catcher's helmet, a small step to the open side (the slot);
   // 1.85 m up and 1 m behind the plate is the lowest eye that still sees the bottom of the zone over the helmet
   const CAM = { x: 0.12, y: 1.85, z: 1.0, lookY: 0.3 };
+  // the ABS review: the centre-field broadcast camera, long lens, the zone frame face-on
+  const ABS_CAM = { pos: new THREE.Vector3(0.9, 2.1, -11.0), look: new THREE.Vector3(0.05, 0.8, -0.2), fov: 24 };
+  let camMode = 'ump';
+  function setCam(mode) {
+    camMode = mode;
+    if (mode === 'abs') { camera.position.copy(ABS_CAM.pos); camera.lookAt(ABS_CAM.look); camera.fov = ABS_CAM.fov; }
+    else { camera.position.set(camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(0, CAM.lookY, -3); camera.fov = 78; }
+    camera.updateProjectionMatrix();
+  }
+  let camSide = 1;
   camera.position.set(CAM.x, CAM.y, CAM.z);
   camera.lookAt(0, CAM.lookY, -3);
 
@@ -90,6 +100,10 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   const absTick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xd82800 })); scene.add(absTick);
   let revealBall = null;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(C.BALL_R * M_LAT, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
+  // replay trail: ghost balls left along the flight so the break reads from the broadcast camera
+  const trail = []; const TRAIL_N = 14;
+  for (let i = 0; i < TRAIL_N; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.0369, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfcfcfc, transparent: true, opacity: 0.35 })); m.visible = false; scene.add(m); trail.push(m); }
+  let trailN = 0, trailLastT = -1;
 
   // glTF materials: shadows on, nothing metal (the skin and leather metalness textures render black)
   function prepTree(root) {
@@ -283,8 +297,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     pitcher.root.scale.x = p.hand === 'R' ? 1 : -1;
     pitcher.play('pitcher_rock', { loop: true, fade: 0.3 });
     catcher.play('catcher_crouch', { loop: true, fade: 0.3 });
-    camera.position.x = p.batterLeft ? -CAM.x : CAM.x; // the slot: the side away from the batter
-    camera.lookAt(0, CAM.lookY, -3);
+    camSide = p.batterLeft ? -1 : 1; // the slot: the side away from the batter
+    setCam('ump');
     catcher.root.position.x = p.batterLeft ? CATCHER_X : -CATCHER_X;
     const z = p.zone;
     // the batter's own zone (17 in wide, knees to mid-torso): a ball touching its edge is a strike, so the
@@ -298,7 +312,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       case 'next': setupPitch(e.pitch); break;
       case 'windup': if (pitcher) pitcher.play(G.pitch.form === 'SUBMARINE' ? 'pitch_submarine_windup' : 'pitch_overhand_windup', { timeScale: PITCH_RELEASE / C.TIMING.windup, fade: 0.15 }); break;
       case 'pitch': cue.released = true; break;
-      case 'replay': cue.swing = cue.check = cue.catch = false; break;
+      case 'replay': cue.swing = cue.check = cue.catch = false; trailN = 0; trailLastT = -1; for (const m of trail) m.visible = false; setCam('abs'); break;
+      case 'replayEnd': setCam('ump'); break;
     }
   }
 
@@ -323,6 +338,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     } else gloveK = 0;
     if (flying && b && (cue.released || ph === 'replay')) {
       ball.visible = true; ball.scale.setScalar(BALL_SCALE); ball.position.set(b.x, b.y, b.z); ball.rotation.x += dt * (p.spin + 2) * 2;
+      if (ph === 'replay' && tt - trailLastT >= 1 / TRAIL_N && trailN < TRAIL_N) { trail[trailN].position.set(b.x, b.y, b.z); trail[trailN].visible = true; trailN++; trailLastT = tt; }
       shadow.visible = true; shadow.position.set(b.x, 0.02, b.z); shadow.scale.setScalar(1 + b.y * 0.6);
     } else if (p && caught) {
       ballInGlove(ball.position); ball.scale.setScalar(1); ball.visible = true; shadow.visible = false; // real size: the rules' ball would not fit a mitt
@@ -330,7 +346,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     // level 12 keeps the zone up through the pitch as a guide; from 13 it only comes back at the reveal,
     // so the catcher's framing can sell a ball as a strike
     const guide = G.level === firstLevel && (ph === 'windup' || flying || ph === 'call');
-    zoneBox.visible = reveal || guide;
+    zoneBox.visible = reveal || guide || ph === 'replay'; // the review always shows the zone
+    if (ph !== 'replay' && camMode === 'abs') setCam('ump');
+    if (ph !== 'replay') for (const m of trail) m.visible = false;
     bar.opacity = reveal ? 1 : 0.55;
     // reveal: the ball where it really crossed, a ring blinking gold (strike) / white (ball) like the pixel
     // scene, and the ABS tick from the ball to the nearest zone edge when the readout is on
