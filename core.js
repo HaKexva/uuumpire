@@ -49,6 +49,7 @@
     swingLevel: 4, framingLevel: 5, submarineLevel: 3, discoLevel: 10,
     hardLevel: 13, hardSpeed: [5, 10], hardBreak: 1.15, // 13-14: every pitch 5-10 km/h harder, breaking stuff moves 15% more
     showLevel: 15, showSpeed: [12, 18], showBreak: 1.3, showWindow: 0.7, showEdge: 0.9, showDur: 0.62, // 15: the show. no mercy
+    eraStretch: 1.0, // 12+: no readability stretch on the flight, the real 18.44 m time
   };
   // What each level adds (the UI shows lvl.<level>). Levels not listed just get faster/tighter.
   const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro', 12: 'cam', 13: 'noguide', 14: 'heat', 15: 'show' };
@@ -191,7 +192,7 @@
     }
     // flight time from the real distance (18.44 m) at the shown speed, stretched 1.3x so it stays
     // readable, then tightened a little per level. 137 km/h at level 1 ~ 0.62 s; 169 at level 12 ~ 0.41 s.
-    let dur = (18.44 / (speed / 3.6)) * 1.3;
+    let dur = (18.44 / (speed / 3.6)) * (level >= RULES.hardLevel - 1 ? RULES.eraStretch : 1.3); // the 3D era shows the real flight time
     dur *= clamp(1 - (level - 1) * 0.03, level >= RULES.showLevel ? RULES.showDur : 0.72, 1); // each level is a noticeable tick quicker; 15 is a blur
 
     const located = isStrikeAt(zone, x, y);

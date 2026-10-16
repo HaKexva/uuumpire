@@ -573,9 +573,10 @@
     hideText();
     const box = $('era-load'), text = $('era-load-text'), fill = $('era-load-fill');
     const lines = [t('era.1'), t('era.2'), t('era.3'), t('era.4')];
-    box.classList.remove('hidden');
+    const tease = [t('era.t1'), t('era.t2'), t('era.t3')], TEASE_MS = 1300; // three lines before the bar
+    box.classList.remove('hidden'); box.classList.add('tease'); box.classList.remove('hd');
     fill.style.width = '0%';
-    const started = performance.now(), MIN_MS = 3800, MAX_MS = 20000;
+    const started = performance.now(), MIN_MS = 3800, MAX_MS = 20000 + tease.length * TEASE_MS;
     let ready = false;
     Promise.all([loadEra3D(), loadHdBand()]).then(() => { ready = true; });
     let done = false;
@@ -599,7 +600,10 @@
     // a timer, not an animation frame: a tab in the background still finishes the bar
     const timer = setInterval(() => {
       if (currentScreen !== 'play') { box.classList.add('hidden'); done = true; clearInterval(timer); return; } // quit to title mid-bar
-      const ms = performance.now() - started;
+      const since = performance.now() - started;
+      if (since < tease.length * TEASE_MS) { text.textContent = tease[Math.floor(since / TEASE_MS)]; return; }
+      box.classList.remove('tease');
+      const ms = since - tease.length * TEASE_MS;
       const k = Math.min(1, ms / MIN_MS);
       fill.style.width = Math.round((ready ? k : Math.min(k, 0.92)) * 100) + '%';
       text.textContent = lines[Math.floor(ms / 950) % lines.length]; // keeps cycling while the models are still coming
@@ -766,7 +770,8 @@
   // the call is in: sound, crowd, the umpire's style for this reveal, the texts
   function onResolve(r) {
     // the 3D era reviews every missed call: the ABS replay starts by itself once the verdict is read
-    if (!r.correct && era3d && era3d.active) setTimeout(() => { if (G.phase === 'reveal' && era3d && era3d.active) startReplay(); }, 900);
+    // (a swing is a strike wherever the ball went: nothing to review)
+    if (!r.correct && era3d && era3d.active && G.pitch.swing !== 'full') setTimeout(() => { if (G.phase === 'reveal' && era3d && era3d.active) startReplay(); }, 900);
     const p = G.pitch;
     V.umpStyle = pickUmpStyle(p.strike);
     el.timer.style.width = '0%';

@@ -464,6 +464,8 @@ body.hd #screen-play .game-btn { border-radius: 6px; letter-spacing: .06em; }
 .era-load.hidden { display: none; }
 .era-load-text { color: var(--g-gold); font-size: 14px; text-align: center; padding: 0 12px; text-shadow: 2px 2px var(--g-ink); min-height: 2.6em; display: flex; align-items: flex-end; }
 .era-loadbar { width: 70%; max-width: 240px; margin-top: 0; }
+.era-load.tease .era-loadbar { visibility: hidden; }
+.era-load.tease .era-load-text { font-size: 20px; color: var(--g-white); }
 .era-load.hd .era-load-text { font-family: 'Oswald', 'Helvetica Neue', Arial, sans-serif; font-weight: 500; font-size: 17px; letter-spacing: .04em; text-shadow: 0 2px 2px rgba(0, 0, 0, .9), 0 0 12px rgba(0, 0, 0, .6); }
 .era-load.hd .era-loadbar { border-radius: 9px; overflow: hidden; border-color: #fcfcfc; outline: none; box-shadow: 0 0 12px rgba(248, 184, 0, .35); }
 .era-load.hd .loadbar-fill { transition: width .15s linear; background: linear-gradient(90deg, #f8b800, #ffd54a); }

@@ -105,6 +105,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   const absTick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xd82800 })); scene.add(absTick);
   let revealBall = null;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(C.BALL_R * M_LAT, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
+  // speed trail: ghosts of the last few frames behind the ball (the eye reads velocity from the streak)
+  const ghosts = []; for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT * (0.85 - i * 0.12), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 - i * 0.07 })); m.visible = false; scene.add(m); ghosts.push(m); }
+  const ghostHist = [];
   // ------------------------------------------------------------
   // ABS review (the replay): its own clean scene like the ballpark videoboard graphic. Dark field,
   // the plate, the batter's zone as a translucent plane mid-plate, the tracked path as a trail, the
@@ -132,6 +135,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   const absComet = []; for (let i = 0; i < 10; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT * (0.9 - i * 0.07), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 - i * 0.04 })); m.visible = false; abs.add(m); absComet.push(m); }
   const absMark = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT, 14, 10), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); abs.add(absMark);
   const absRing = new THREE.Mesh(new THREE.TorusGeometry(C.BALL_R * M_LAT * 1.6, 0.01, 8, 32), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); abs.add(absRing);
+  const absShown = new THREE.Mesh(new THREE.TorusGeometry(C.BALL_R * M_LAT, 0.006, 8, 32), new THREE.MeshBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.8 })); abs.add(absShown); // where the mitt showed it
   const absReviewTick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xd82800 })); abs.add(absReviewTick);
   const absShadow = new THREE.Mesh(new THREE.CircleGeometry(C.BALL_R * M_LAT, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 })); absShadow.rotation.x = -Math.PI / 2; abs.add(absShadow);
   // the flight is watched from a fixed high seat behind the mound (whole path in view); on arrival the
@@ -163,6 +167,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     const cross = worldAt(p, 1);
     absMark.visible = absRing.visible = arrived;
     absMark.position.set(cross.x, cross.y, PLATE_Z); absRing.position.set(cross.x, cross.y, PLATE_Z + 0.02);
+    const framed = p.frame && (Math.abs(p.frame.dx) > 0.5 || Math.abs(p.frame.dy) > 0.5);
+    absShown.visible = arrived && !!framed;
+    if (framed) absShown.position.set(latOf(p.x + p.frame.dx), hgtOf(p.y + p.frame.dy), PLATE_Z + 0.015);
     const on = Math.floor(G.t * 8) % 2 === 0; const col = p.strike ? 0xf8b800 : 0xfcfcfc;
     absMark.material.color.set(p.strike ? 0xf8b800 : 0xfcfcfc); absRing.material.color.set(on ? col : 0x6c7490);
     const n = nearestEdgePx(p.zone, p.x, p.y); const ex = latOf(n.x), ey = hgtOf(n.y);
@@ -225,10 +232,10 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
         }
       });
     }
-    play(name, { loop = false, timeScale = 1, fade = 0.12 } = {}) {
+    play(name, { loop = false, timeScale = 1, fade = 0.12, from = 0 } = {}) {
       const a = this.actions.get(name);
       if (!a) return null;
-      a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); a.clampWhenFinished = true; a.timeScale = timeScale; a.enabled = true; a.setEffectiveWeight(1);
+      a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); a.clampWhenFinished = true; a.timeScale = timeScale; a.time = from; a.enabled = true; a.setEffectiveWeight(1);
       if (this.current && this.current !== a) this.current.crossFadeTo(a, fade, false);
       a.play();
       this.current = a;
@@ -328,10 +335,13 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   function release(p) {
     return { lat: (p.hand === 'R' ? -1 : 1) * 0.55, h: p.form === 'SUBMARINE' ? 0.65 : 1.9, z: MOUND_Z + 1.9 };
   }
+  // gravity: a pitch is thrown a touch upward and falls through a parabola between its two fixed ends,
+  // so mid-flight it rides above the straight chord by (g/2)(T/2)^2 for its real flight time T
+  function sagOf(p) { const T = 18.44 / (p.speed / 3.6); return 0.5 * 9.81 * (T / 2) * (T / 2); }
   function worldAt(p, t) {
     const r = release(p);
     let l = r.lat + (latOf(p.x) - p.bx * M_LAT - r.lat) * t + p.bx * M_LAT * p.fx(t);
-    let h = r.h + (hgtOf(p.y) + p.by * M_VERT - r.h) * t - p.by * M_VERT * p.fy(t) + p.hump * M_VERT * Math.sin(Math.PI * t);
+    let h = r.h + (hgtOf(p.y) + p.by * M_VERT - r.h) * t - p.by * M_VERT * p.fy(t) + p.hump * M_VERT * Math.sin(Math.PI * t) + sagOf(p) * 4 * t * (1 - t);
     if (p.wob) { l += p.wob.ax * M_LAT * Math.sin(Math.PI * p.wob.nx * t) * t; h += p.wob.ay * M_VERT * Math.sin(Math.PI * p.wob.ny * t) * t; }
     return { x: l, y: h, z: r.z + (PLATE_Z - r.z) * t };
   }
@@ -340,7 +350,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   // Events and frames
   // ------------------------------------------------------------
   // animation cues (seconds before the catch): clip event frames from the claudeball asset notes
-  const SWING_TS = 2.0, SWING_CONTACT = 0.875 / SWING_TS, CHECK_HOLD = 0.24, CATCH_LEAD = 0.292;
+  // the swing clip makes contact 0.875 s in; at these flight times it starts at release, part-way into its
+  // load, at a touch over natural speed, so contact lands on the catch. A check swing freezes just short of it.
+  const SWING_TS = 1.25, SWING_CONTACT = 0.875, CHECK_STOP = 0.815, CATCH_LEAD = 0.292;
   const PITCH_RELEASE = 0.583; // pitch_*_windup clips release at this time; scaled onto the rules' windup
   let cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
   let gloveK = 0; // how far the glove is pinned to the ball (eases off at the reveal)
@@ -364,7 +376,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     batter.root.position.set(p.batterLeft ? 1.1 : -1.1, 0, PLATE_Z - 0.25);
     batter.root.rotation.y = p.batterLeft ? -Math.PI / 2 : Math.PI / 2;
     batter.recolor(KITS[p.kit % KITS.length]);
-    batter.play('batting_stance', { loop: true, fade: 0.3 });
+    batter.play('batting_stance', { loop: true, fade: 0.6 }); // a long blend back from a follow-through
     pitcher.root.scale.x = p.hand === 'R' ? 1 : -1;
     pitcher.play('pitcher_rock', { loop: true, fade: 0.3 });
     catcher.play('catcher_crouch', { loop: true, fade: 0.3 });
@@ -384,7 +396,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       case 'next': setupPitch(e.pitch); break;
       case 'windup': if (pitcher) pitcher.play(G.pitch.form === 'SUBMARINE' ? 'pitch_submarine_windup' : 'pitch_overhand_windup', { timeScale: PITCH_RELEASE / C.TIMING.windup, fade: 0.15 }); break;
       case 'pitch': cue.released = true; break;
-      case 'replay': cue.swing = cue.check = cue.catch = false; buildAbsPath(G.pitch); camMode = 'abs'; absHold = true; absZoomT = 0; break;
+      case 'replay': cue.catch = false; buildAbsPath(G.pitch); camMode = 'abs'; absHold = true; absZoomT = 0; break;
       case 'replayEnd': break; // the review stays up through the rest of the reveal
     }
   }
@@ -403,7 +415,12 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     // the call window, drifting with the rules' framing tug; the ball sits in the pocket
     const caught = ph === 'call' || (ph === 'replay' && G.replayCaught);
     if (p && (cue.catch || caught || reveal)) {
-      const gx = G.ball ? latOf(G.ball.x) : latOf(p.x), gy = G.ball ? hgtOf(G.ball.y) : hgtOf(p.y);
+      // framing is shown late and slow (0.2 s after the catch, over 0.4 s): the umpire gets a look at the
+      // true crossing before the mitt drags the ball toward the zone
+      const fk = ph === 'call' ? THREE.MathUtils.clamp((G.t - 0.2) / 0.4, 0, 1) : 1;
+      const fx = G.ball ? p.x + (G.ball.x - p.x) * fk : p.x, fy = G.ball ? p.y + (G.ball.y - p.y) * fk : p.y;
+      const gx = latOf(fx), gy = hgtOf(fy);
+      cue.shownX = gx; cue.shownY = gy;
       const k = caught ? 1 : reveal ? 0 : THREE.MathUtils.clamp(1 - (p.dur - G.t) / CATCH_LEAD, 0, 1);
       gloveK = reveal ? Math.max(0, gloveK - dt * 3) : k * k; // the catcher eases the mitt back once the call is in
       if (cue.stepTo !== undefined && !reveal) { const ease = k * k * (3 - 2 * k); catcher.root.position.x = cue.stepFrom + (cue.stepTo - cue.stepFrom) * ease; }
@@ -415,11 +432,13 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     if (flying && b && (cue.released || ph === 'replay')) {
       ball.visible = true; ball.scale.setScalar(BALL_SCALE); ball.position.set(b.x, b.y, b.z); ball.rotation.x += dt * (p.spin + 2) * 2;
       shadow.visible = true; shadow.position.set(b.x, 0.02, b.z); shadow.scale.setScalar(1 + b.y * 0.6);
+      ghostHist.unshift([b.x, b.y, b.z]); if (ghostHist.length > 12) ghostHist.pop();
+      ghosts.forEach((m, i) => { const h = ghostHist[(i + 1) * 2]; if (h) { m.visible = true; m.position.set(h[0], h[1], h[2]); } else m.visible = false; });
     } else if (p && caught) {
-      // through the call window the ball sits exactly where it crossed, on the zone plane, inside the mitt
-      const gx = G.ball ? latOf(G.ball.x) : latOf(p.x), gy = G.ball ? hgtOf(G.ball.y) : hgtOf(p.y);
-      ball.position.set(gx, gy, PLATE_Z); ball.scale.setScalar(BALL_SCALE); ball.visible = true; shadow.visible = false;
+      // through the call window the ball sits where the mitt shows it, on the zone plane
+      ball.position.set(cue.shownX, cue.shownY, PLATE_Z); ball.scale.setScalar(BALL_SCALE); ball.visible = true; shadow.visible = false;
     } else { ball.visible = false; shadow.visible = false; }
+    if (!flying) { ghostHist.length = 0; for (const m of ghosts) m.visible = false; }
     // level 12 keeps the zone up through the pitch as a guide; from 13 it only comes back at the reveal,
     // so the catcher's framing can sell a ball as a strike
     const guide = G.level === firstLevel && (ph === 'windup' || flying || ph === 'call');
@@ -456,8 +475,12 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
         cue.stepFrom = catcher.root.position.x;
         cue.stepTo = base + THREE.MathUtils.clamp(latOf(p.x) - base, -0.35, 0.35) * 0.85;
       }
-      if (p.swing === 'full' && !cue.swing && left <= SWING_CONTACT) { cue.swing = true; batter.play('swing', { timeScale: SWING_TS, fade: 0.05 }); }
-      if (p.swing === 'check' && !cue.check && left <= SWING_CONTACT) { cue.check = true; const a = batter.play('swing', { timeScale: SWING_TS, fade: 0.05 }); setTimeout(() => { if (a) a.paused = true; }, CHECK_HOLD * 1000); }
+      if ((p.swing === 'full' || p.swing === 'check') && !cue.swing) {
+        cue.swing = true;
+        const from = Math.max(0, SWING_CONTACT - left * SWING_TS);
+        cue.swingAction = batter.play('swing', { timeScale: SWING_TS, fade: 0.12, from });
+      }
+      if (p.swing === 'check' && cue.swingAction && !cue.swingAction.paused && cue.swingAction.time >= CHECK_STOP) cue.swingAction.paused = true;
     }
     renderer.render(scene, camera);
   }
