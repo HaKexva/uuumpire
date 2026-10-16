@@ -53,11 +53,12 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   // 1.85 m up and 1 m behind the plate is the lowest eye that still sees the bottom of the zone over the helmet
   const CAM = { x: 0.12, y: 1.85, z: 1.0, lookY: 0.3 };
   // the ABS review: the centre-field broadcast camera, long lens, the zone frame face-on
-  const ABS_CAM = { pos: new THREE.Vector3(0.9, 2.1, -11.0), look: new THREE.Vector3(0.05, 0.8, -0.2), fov: 24 };
+  const ABS_CAM = { pos: new THREE.Vector3(1.6, 2.4, -11.0), look: new THREE.Vector3(0, 0.8, -0.2), fov: 24 };
   let camMode = 'ump';
   function setCam(mode) {
     camMode = mode;
-    if (mode === 'abs') { camera.position.copy(ABS_CAM.pos); camera.lookAt(ABS_CAM.look); camera.fov = ABS_CAM.fov; }
+    // the broadcast camera sits on the side away from the batter, or he would stand between it and the plate
+    if (mode === 'abs') { camera.position.set(camSide * Math.abs(ABS_CAM.pos.x), ABS_CAM.pos.y, ABS_CAM.pos.z); camera.lookAt(ABS_CAM.look); camera.fov = ABS_CAM.fov; }
     else { camera.position.set(camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(0, CAM.lookY, -3); camera.fov = 78; }
     camera.updateProjectionMatrix();
   }

@@ -1092,7 +1092,8 @@
   // Main loop
   // ------------------------------------------------------------
   // debug flags work only on a local dev server; the deployed page ignores them
-  const LOCAL = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
+  // debug switches work on localhost and on a private LAN address (a phone on the same Wi-Fi)
+  const LOCAL = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname) || /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)\d/.test(location.hostname);
   const QS = new URLSearchParams(LOCAL ? location.search : '');
   const SLOW = parseFloat(QS.get('slow')) || 1; // debug: ?slow=4 slows game time
   const DEBUG = QS.has('debug');               // debug: ?debug exposes window.__uu to pose frames
