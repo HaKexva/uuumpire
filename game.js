@@ -549,6 +549,24 @@
   // ------------------------------------------------------------
   const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent });
   const G = game.state;      // phase, t, pitch, score, streak, misses, mood, ball, mitt, zone, result ...
+
+  // The 3D era (era3d.js): from ERA3D_LEVEL the scene is drawn in 3D over the same stage box. The module and
+  // its models load in the background two levels early; the pixel scene keeps drawing until it is ready.
+  const ERA3D_LEVEL = 12;
+  let era3d = null, era3dLoading = null;
+  function loadEra3D() {
+    if (era3dLoading) return era3dLoading;
+    era3dLoading = import('./era3d.js?v=' + (window.UU_V || '')).then((m) => {
+      era3d = m.createEra3D({ C, game, stage: el.stage, canvas2d: canvas, assetsBase: window.UU_ERA3D_ASSETS || '../uuumpire-3d/assets/', firstLevel: ERA3D_LEVEL });
+      return era3d.ready.then(() => era3d);
+    }).catch((e) => { console.error('3D era failed to load', e); era3d = null; });
+    return era3dLoading;
+  }
+  // show the 3D scene when its level is on and it is loaded (now, or as soon as the models land)
+  function syncEra3D() {
+    if (G.level < ERA3D_LEVEL || currentScreen !== 'play') { if (era3d) era3d.hide(); return; }
+    loadEra3D().then(() => { if (era3d && G.level >= ERA3D_LEVEL && currentScreen === 'play') era3d.show(); });
+  }
   const ZONE = G.zone;       // sized per batter by the core; same object for the whole game
   const V = {                // view state: nothing here changes a call or a point
     shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null,
@@ -564,12 +582,19 @@
     Music.tempo(1);
     Music.start('play');
     game.start();
+    // debug: ?level=N starts the run at that level (localhost only)
+    const startLevel = DEBUG ? parseInt(QS.get('level'), 10) : 0;
+    if (startLevel > 1 && startLevel <= C.RULES.maxLevel) { G.pitchIndex = (startLevel - 1) * C.RULES.pitchesPerLevel; game.startWindup(C.TIMING.firstPitch, true); }
+    syncEra3D();
     updateHud();
   }
 
   function onGameEvent(type, e) {
+    if (era3d) era3d.onEvent(type, e);
     switch (type) {
       case 'next': { // a pitch is set up; the windup starts after the delay the core chose
+        if (e.level >= ERA3D_LEVEL - 2) loadEra3D();
+        if (e.levelUp || e.pitchIndex === 0) syncEra3D();
         V.trail = [];
         el.count.textContent = t('pitch.n', e.pitchIndex + 1);
         el.timer.style.width = '0%';
@@ -662,7 +687,7 @@
   function makeCall(call) { game.call(call); }
 
   // leave a game in progress (Escape, or EXIT TO TITLE on the pause overlay); the run is not recorded
-  function quitToTitle() { setPaused(false); Sfx.select(); Music.start('title'); showScreen('title'); }
+  function quitToTitle() { setPaused(false); Sfx.select(); Music.start('title'); showScreen('title'); if (era3d) era3d.hide(); }
 
   // the call is in: sound, crowd, the umpire's style for this reveal, the texts
   function onResolve(r) {
@@ -1001,7 +1026,7 @@
   const QS = new URLSearchParams(LOCAL ? location.search : '');
   const SLOW = parseFloat(QS.get('slow')) || 1; // debug: ?slow=4 slows game time
   const DEBUG = QS.has('debug');               // debug: ?debug exposes window.__uu to pose frames
-  if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); render(); }, sfx: Sfx };
+  if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); if (era3d && era3d.active) era3d.frame(dt); else render(); }, era: () => era3d, sfx: Sfx };
   let last = performance.now();
   function loop(now) {
     let dt = (now - last) / 1000;
@@ -1011,7 +1036,7 @@
     dt /= SLOW;
     const paused = G.paused || (DEBUG && window.__uu.pause);
     if (!paused && currentScreen === 'play' && G.phase !== 'idle' && G.phase !== 'over') { game.update(dt); updateView(dt); }
-    if (currentScreen === 'play') render();
+    if (currentScreen === 'play') { if (era3d && era3d.active) era3d.frame(dt); else render(); }
     requestAnimationFrame(loop);
   }
 

@@ -1,0 +1,337 @@
+/* UUUMPIRE 3D era: from level 12 the same core.js game is drawn as a 3D ballpark from the umpire's
+   eye above the catcher, in the same stage box as the pixel canvas. game.js owns the game, the
+   HUD texts, the sounds and the loop; this module only draws the scene and animates the players.
+   Models: claudeball (MIT), loaded from `assetsBase` (field, stadium, ball, bat, one player rig).
+   three.js comes from the import map in index.html.
+   Usage (game.js):  const era = await import('./era3d.js'); const e3 = era.createEra3D({ C, game, stage, canvas2d, assetsBase });
+                     e3.onEvent(type, e) from the event dispatcher; e3.frame(dt) from the loop while e3.active; e3.show() / e3.hide(). */
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const CDN = 'https://cdn.jsdelivr.net/npm/three@0.170.0/';
+
+export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpire-3d/assets/', firstLevel = 12 }) {
+  const G = game.state;
+
+  // ---- px (168x192 scene) -> metres. Lateral: the 33 px plate is 17 in. Vertical: the mid batter's
+  // zone (52 px over the cleats .. 24 px) maps onto 1.00 m .. 0.46 m, which is where a real zone sits.
+  const M_LAT = C.IN_PER_PX * 0.0254;
+  const M_VERT = 1.0 / 52;
+  const PLATE_CX = (68 + 101) / 2;
+  const latOf = (x) => (x - PLATE_CX) * M_LAT;
+  const hgtOf = (y) => (C.BATTER_FEET_Y - y) * M_VERT;
+  const MOUND_Z = -18.44;        // rubber front edge (field.glb, rotated so centre field is -z)
+  const PLATE_Z = -0.2;          // where the ball is judged: the middle of the plate (apex at 0)
+  const BALL_SCALE = (C.BALL_R * M_LAT) / 0.0369; // the rules' ball is bigger than a real one; keep them consistent
+  const CATCHER_X = 0.12;        // the catcher sets up this far toward the batter
+
+  // ------------------------------------------------------------
+  // Canvas and renderer: a WebGL canvas laid over the pixel canvas, same CSS box, device resolution
+  // ------------------------------------------------------------
+  const canvas = document.createElement('canvas');
+  canvas.id = 'game3d';
+  canvas.style.cssText = 'position:absolute;left:0;top:0;display:none;';
+  canvas2d.insertAdjacentElement('afterend', canvas);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x06082a);
+  scene.fog = new THREE.Fog(0x06082a, 90, 220);
+  // the stage is portrait (168:192): a tall window on the same width of plate, aimed low so the
+  // horizon sits high like the pixel scene's
+  const camera = new THREE.PerspectiveCamera(78, 168 / 192, 0.1, 400);
+  // the umpire's eye: right above the catcher's helmet, a small step to the open side (the slot);
+  // 1.85 m up and 1 m behind the plate is the lowest eye that still sees the bottom of the zone over the helmet
+  const CAM = { x: 0.12, y: 1.85, z: 1.0, lookY: 0.3 };
+  camera.position.set(CAM.x, CAM.y, CAM.z);
+  camera.lookAt(0, CAM.lookY, -3);
+
+  function fit() {
+    const w = canvas2d.clientWidth, h = canvas2d.clientHeight;
+    if (!w || !h) return;
+    canvas.style.width = canvas2d.style.width; canvas.style.height = canvas2d.style.height;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(fit).observe(canvas2d);
+
+  // night game under the towers: an environment fill (PBR needs one), a cool sky fill and two warm lamp
+  // banks, the main one behind the plate so the batter, catcher and plate are lit toward the umpire
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.9;
+  scene.add(new THREE.HemisphereLight(0xd0dcff, 0x30401c, 1.2));
+  const sun = new THREE.DirectionalLight(0xfff0d0, 3.2); sun.position.set(-14, 30, 24); scene.add(sun);
+  const back = new THREE.DirectionalLight(0xa0b0ff, 1.6); back.position.set(10, 20, -40); scene.add(back);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  const sc = sun.shadow.camera; sc.near = 1; sc.far = 120; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -30;
+  sun.target.position.set(0, 0, -6); scene.add(sun.target);
+  const plateLight = new THREE.PointLight(0xfff4e0, 60, 25, 2); plateLight.position.set(1.5, 6, 6); scene.add(plateLight);
+
+  // the field and stadium share an origin at the plate apex with centre field at +z: turn them round
+  const world = new THREE.Group(); world.rotation.y = Math.PI; scene.add(world);
+
+  // zone frame (four bars, visible at any resolution), landing marker, ball shadow
+  const zoneBox = new THREE.Group(); scene.add(zoneBox);
+  const bar = new THREE.MeshBasicMaterial({ color: 0xf8b800, transparent: true, opacity: 1 });
+  for (const [sx, sy, px, py] of [[1, 0.018, 0, 0.5], [1, 0.018, 0, -0.5], [0.018, 1, 0.5, 0], [0.018, 1, -0.5, 0]]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.02), bar); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); zoneBox.add(m);
+  }
+  const landing = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R * M_LAT, 10, 8), new THREE.MeshLambertMaterial({ color: 0xf8b800, emissive: 0x604000 })); scene.add(landing);
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(C.BALL_R * M_LAT, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
+
+  // glTF materials: shadows on, nothing metal (the skin and leather metalness textures render black)
+  function prepTree(root) {
+    root.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = true; o.receiveShadow = true;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.isMeshStandardMaterial) { m.metalness = 0; m.metalnessMap = null; m.needsUpdate = true; }
+      o.frustumCulled = false; // skinned bounds drift with the clips
+    });
+  }
+
+  // ------------------------------------------------------------
+  // Assets (claudeball): players from one GLB, gear per role, clips by name
+  // ------------------------------------------------------------
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  loader.setKTX2Loader(new KTX2Loader().setTranscoderPath(CDN + 'examples/jsm/libs/basis/').detectSupport(renderer));
+  const gltf = (file) => new Promise((ok, fail) => loader.load(assetsBase + file, ok, undefined, fail));
+
+  const A = {};
+  let ball = null, pitcher = null, batter = null, catcher = null, gloveHand = null, glovePocket = null, gloveArm = null, gloveForeArm = null;
+  const KITS = [ // batter uniforms, six kits like the pixel game
+    { uniform_jersey: 0xf8b800, uniform_pants: 0xfcfcfc, helmet: 0x202060 }, { uniform_jersey: 0xd82800, uniform_pants: 0xd8d8d8, helmet: 0x202020 },
+    { uniform_jersey: 0x2038ec, uniform_pants: 0xfcfcfc, helmet: 0x2038ec }, { uniform_jersey: 0x00a800, uniform_pants: 0xe8e8d0, helmet: 0x004000 },
+    { uniform_jersey: 0x3c3c3c, uniform_pants: 0xbcbcbc, helmet: 0x3c3c3c }, { uniform_jersey: 0xfcfcfc, uniform_pants: 0x5c94fc, helmet: 0x01215b },
+  ];
+
+  class Puppet {
+    constructor(gear, colors) {
+      this.root = SkeletonUtils.clone(A.player.scene);
+      prepTree(this.root);
+      const keep = new Set(gear);
+      this.nodes = new Map();
+      const helper = /^(Elbow_Pole|Ball_Grip|Bat_Grip|Glove_Pocket)/; // rig helpers are meshes in the file: never drawn
+      this.root.traverse((o) => { this.nodes.set(o.name, o); if (o.isMesh) o.visible = keep.has(o.name) && !helper.test(o.name); });
+      this.recolor(colors);
+      this.mixer = new THREE.AnimationMixer(this.root);
+      this.actions = new Map();
+      for (const clip of A.player.animations) this.actions.set(clip.name, this.mixer.clipAction(clip));
+      this.current = null;
+      scene.add(this.root);
+    }
+    recolor(colors) {
+      this.root.traverse((o) => {
+        if (!o.isMesh) return;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (colors[m.name] === undefined) continue;
+          m.color.set(colors[m.name]);
+          if (m.name === 'glove' || m.name === 'glove_laces') { m.map = null; m.roughness = 0.9; m.needsUpdate = true; } // leather photo is near-black: flat tan
+        }
+      });
+    }
+    play(name, { loop = false, timeScale = 1, fade = 0.12 } = {}) {
+      const a = this.actions.get(name);
+      if (!a) return null;
+      a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); a.clampWhenFinished = true; a.timeScale = timeScale; a.enabled = true; a.setEffectiveWeight(1);
+      if (this.current && this.current !== a) this.current.crossFadeTo(a, fade, false);
+      a.play();
+      this.current = a;
+      return a;
+    }
+    update(dt) { this.mixer.update(dt); }
+  }
+
+  async function loadAll() {
+    const [player, field, stadium, ballG, batG, gear] = await Promise.all([
+      gltf('player_base.glb'), gltf('field.glb'), gltf('stadium.glb'), gltf('ball.glb'), gltf('bat.glb'),
+      fetch(assetsBase + 'gear_defaults.json').then((r) => r.json()),
+    ]);
+    A.player = player;
+    prepTree(field.scene); prepTree(stadium.scene); prepTree(ballG.scene); prepTree(batG.scene);
+    world.add(field.scene); world.add(stadium.scene);
+    ball = ballG.scene; ball.scale.setScalar(BALL_SCALE); scene.add(ball);
+    const home = { uniform_jersey: 0xfcfcfc, uniform_pants: 0xfcfcfc, uniform_socks: 0x01215b, cap: 0x01215b, helmet: 0x01215b, piping: 0x01215b, uniform_undershirt: 0x01215b, glove: 0xb8793c, glove_laces: 0xe0c090 };
+    pitcher = new Puppet(gear.field, home);
+    const catcherGear = gear.catcher.filter((n) => n !== 'Gear_Glove' && n !== 'Gear_Glove_Laces').concat(['Gear_Glove_Catcher', 'Gear_Glove_Catcher_Laces']);
+    catcher = new Puppet(catcherGear, home);
+    batter = new Puppet(gear.batter, KITS[0]);
+    const grip = batter.nodes.get('Bat_Grip') || batter.nodes.get('mixamorigRightHand');
+    if (grip) grip.add(batG.scene);
+    pitcher.root.position.set(0, 0.254, MOUND_Z - 0.05); // on the rubber (clip root = mound top), facing the plate
+    catcher.root.position.set(0, 0, 0.72); catcher.root.rotation.y = Math.PI;
+    pitcher.play('pitcher_rock', { loop: true });
+    catcher.play('catcher_crouch', { loop: true });
+    batter.play('batting_stance', { loop: true });
+    gloveHand = catcher.nodes.get('mixamorigLeftHand');
+    gloveForeArm = catcher.nodes.get('mixamorigLeftForeArm');
+    gloveArm = catcher.nodes.get('mixamorigLeftArm');
+    glovePocket = catcher.nodes.get('Glove_Pocket_Catcher') || gloveHand;
+    if (pendingNext) setupPitch(pendingNext);
+  }
+
+  // ------------------------------------------------------------
+  // Two-bone IK on the glove arm, run after the mixer has posed the catcher: the upper arm and the
+  // forearm rotate so the hand lands on `target` (world), blended by k from where the clip put it.
+  // Analytic (law of cosines), elbow kept on the side the clip had it; the wrist then turns the pocket
+  // toward the pitcher. Nothing stretches; beyond reach the arm points straight at the target.
+  // ------------------------------------------------------------
+  const _P = new THREE.Vector3(), _ident = new THREE.Quaternion(), _S = new THREE.Vector3(), _E = new THREE.Vector3(), _H = new THREE.Vector3(), _T = new THREE.Vector3(), _t = new THREE.Vector3(), _dir = new THREE.Vector3(), _pole = new THREE.Vector3(), _E2 = new THREE.Vector3(), _from = new THREE.Vector3(), _to = new THREE.Vector3(), _pq = new THREE.Quaternion(), _rot = new THREE.Quaternion();
+  function rotateBoneWorld(bone, from, to) {
+    _rot.setFromUnitVectors(from, to);
+    bone.parent.getWorldQuaternion(_pq);
+    bone.quaternion.premultiply(_pq.clone().invert().multiply(_rot).multiply(_pq));
+  }
+  function pinGlove(target, k) {
+    if (k <= 0) return;
+    catcher.root.updateMatrixWorld(true);
+    gloveArm.getWorldPosition(_S); gloveForeArm.getWorldPosition(_E); gloveHand.getWorldPosition(_H);
+    _T.copy(_H).lerp(target, k);
+    const a = _E.distanceTo(_S), b = _H.distanceTo(_E);
+    _dir.copy(_T).sub(_S);
+    const d = Math.min(_dir.length(), (a + b) * 0.999);
+    if (d < 1e-4) return;
+    _dir.normalize();
+    const cosA = THREE.MathUtils.clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), sinA = Math.sqrt(1 - cosA * cosA);
+    _pole.copy(_E).sub(_S); _pole.addScaledVector(_dir, -_pole.dot(_dir));
+    if (_pole.lengthSq() < 1e-6) _pole.set(0, -1, 0).addScaledVector(_dir, _dir.y);
+    _pole.normalize();
+    _E2.copy(_S).addScaledVector(_dir, a * cosA).addScaledVector(_pole, a * sinA);
+    rotateBoneWorld(gloveArm, _from.copy(_E).sub(_S).normalize(), _to.copy(_E2).sub(_S).normalize());
+    catcher.root.updateMatrixWorld(true);
+    gloveForeArm.getWorldPosition(_E); gloveHand.getWorldPosition(_H);
+    rotateBoneWorld(gloveForeArm, _from.copy(_H).sub(_E).normalize(), _to.copy(_T).sub(_E).normalize());
+    catcher.root.updateMatrixWorld(true);
+    gloveHand.getWorldPosition(_H); glovePocket.getWorldPosition(_P);
+    _from.copy(_P).sub(_H).normalize(); _to.set(0, 0.25, -1).normalize();
+    _rot.setFromUnitVectors(_from, _to); _rot.slerp(_ident, 1 - k);
+    gloveHand.parent.getWorldQuaternion(_pq);
+    gloveHand.quaternion.premultiply(_pq.clone().invert().multiply(_rot).multiply(_pq));
+    catcher.root.updateMatrixWorld(true);
+  }
+  // where the ball sits once caught: in the pocket, pushed toward the palm so the mitt wraps it
+  function ballInGlove(out) {
+    gloveHand.getWorldPosition(_H); glovePocket.getWorldPosition(_P);
+    return out.copy(_P).addScaledVector(_H.sub(_P).normalize(), 0.0369 * 0.8);
+  }
+
+  // ------------------------------------------------------------
+  // Flight in 3D: core.js ballPos's shape (linear + break profile + hump + wobble) in metres, from the
+  // pitcher's hand to the exact plate point the rules judged. z runs straight, mound to plate.
+  // ------------------------------------------------------------
+  function release(p) {
+    return { lat: (p.hand === 'R' ? -1 : 1) * 0.55, h: p.form === 'SUBMARINE' ? 0.65 : 1.9, z: MOUND_Z + 1.9 };
+  }
+  function worldAt(p, t) {
+    const r = release(p);
+    let l = r.lat + (latOf(p.x) - p.bx * M_LAT - r.lat) * t + p.bx * M_LAT * p.fx(t);
+    let h = r.h + (hgtOf(p.y) + p.by * M_VERT - r.h) * t - p.by * M_VERT * p.fy(t) + p.hump * M_VERT * Math.sin(Math.PI * t);
+    if (p.wob) { l += p.wob.ax * M_LAT * Math.sin(Math.PI * p.wob.nx * t) * t; h += p.wob.ay * M_VERT * Math.sin(Math.PI * p.wob.ny * t) * t; }
+    return { x: l, y: h, z: r.z + (PLATE_Z - r.z) * t };
+  }
+
+  // ------------------------------------------------------------
+  // Events and frames
+  // ------------------------------------------------------------
+  // animation cues (seconds before the catch): clip event frames from the claudeball asset notes
+  const SWING_TS = 2.0, SWING_CONTACT = 0.875 / SWING_TS, CHECK_HOLD = 0.24, CATCH_LEAD = 0.292;
+  const PITCH_RELEASE = 0.583; // pitch_*_windup clips release at this time; scaled onto the rules' windup
+  let cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
+  let pendingNext = null;
+
+  function setupPitch(p) {
+    if (!batter) { pendingNext = p; return; }
+    pendingNext = null;
+    cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
+    const hb = C.BATTER_H[p.batterSize];
+    batter.root.scale.set(p.batterLeft ? -hb : hb, hb, hb); // a lefty is the mirrored righty
+    batter.root.position.set(p.batterLeft ? 1.0 : -1.0, 0, PLATE_Z + 0.15);
+    batter.root.rotation.y = p.batterLeft ? -Math.PI / 2 : Math.PI / 2;
+    batter.recolor(KITS[p.kit % KITS.length]);
+    batter.play('batting_stance', { loop: true, fade: 0.3 });
+    pitcher.root.scale.x = p.hand === 'R' ? 1 : -1;
+    pitcher.play('pitcher_rock', { loop: true, fade: 0.3 });
+    catcher.play('catcher_crouch', { loop: true, fade: 0.3 });
+    camera.position.x = p.batterLeft ? -CAM.x : CAM.x; // the slot: the side away from the batter
+    camera.lookAt(0, CAM.lookY, -3);
+    catcher.root.position.x = p.batterLeft ? CATCHER_X : -CATCHER_X;
+    const z = p.zone;
+    zoneBox.scale.set((z.x1 - z.x0) * M_LAT + 2 * C.BALL_R * M_LAT, (z.y1 - z.y0) * M_VERT + 2 * C.BALL_R * M_VERT, 1);
+    zoneBox.position.set(0, (hgtOf(z.y0) + hgtOf(z.y1)) / 2, PLATE_Z);
+  }
+
+  function onEvent(type, e) {
+    switch (type) {
+      case 'next': setupPitch(e.pitch); break;
+      case 'windup': if (pitcher) pitcher.play(G.pitch.form === 'SUBMARINE' ? 'pitch_submarine_windup' : 'pitch_overhand_windup', { timeScale: PITCH_RELEASE / C.TIMING.windup, fade: 0.15 }); break;
+      case 'pitch': cue.released = true; break;
+      case 'replay': cue.swing = cue.check = cue.catch = false; break;
+    }
+  }
+
+  function frame(dt) {
+    if (!batter) return;
+    const p = G.pitch;
+    const ph = G.phase;
+    const flying = (ph === 'flight' || ph === 'replay') && G.ball && !(ph === 'replay' && G.replayCaught);
+    const reveal = ph === 'reveal';
+    const tt = flying ? Math.min(1, G.t / p.dur) : 1;
+    const b = flying ? worldAt(p, tt) : null;
+    pitcher.update(dt); batter.update(dt); catcher.update(dt);
+    // the glove goes to where the ball will cross (lead-in eases it there), then holds the ball through
+    // the call window, drifting with the rules' framing tug; the ball sits in the pocket
+    const caught = ph === 'call' || reveal || (ph === 'replay' && G.replayCaught);
+    if (p && (cue.catch || caught)) {
+      const gx = caught && G.ball ? latOf(G.ball.x) : latOf(p.x), gy = caught && G.ball ? hgtOf(G.ball.y) : hgtOf(p.y);
+      const k = caught ? 1 : THREE.MathUtils.clamp(1 - (p.dur - G.t) / CATCH_LEAD, 0, 1);
+      if (cue.stepTo !== undefined) { const ease = k * k * (3 - 2 * k); catcher.root.position.x = cue.stepFrom + (cue.stepTo - cue.stepFrom) * ease; }
+      pinGlove(_t.set(gx, gy, PLATE_Z + 0.12), k * k);
+    }
+    if (flying && b && (cue.released || ph === 'replay')) {
+      ball.visible = true; ball.scale.setScalar(BALL_SCALE); ball.position.set(b.x, b.y, b.z); ball.rotation.x += dt * (p.spin + 2) * 2;
+      shadow.visible = true; shadow.position.set(b.x, 0.02, b.z); shadow.scale.setScalar(1 + b.y * 0.6);
+    } else if (p && caught) {
+      ballInGlove(ball.position); ball.scale.setScalar(1); ball.visible = true; shadow.visible = false; // real size: the rules' ball would not fit a mitt
+    } else { ball.visible = false; shadow.visible = false; }
+    // level 12 keeps the zone up through the pitch as a guide; from 13 it only comes back at the reveal,
+    // so the catcher's framing can sell a ball as a strike
+    const guide = G.level === firstLevel && (ph === 'windup' || flying || ph === 'call');
+    zoneBox.visible = reveal || guide;
+    bar.opacity = reveal ? 1 : 0.55;
+    landing.visible = reveal;
+    if (reveal) { const w = worldAt(p, 1); landing.position.set(w.x, w.y, PLATE_Z); const on = Math.floor(G.t * 6) % 2 === 0; landing.material.color.set(on ? (p.strike ? 0xf8b800 : 0xfcfcfc) : 0xbcbcbc); }
+    // cues timed back from the catch: the catcher reaches (and side-steps on a wide one), the batter swings or checks
+    if (flying) {
+      const left = p.dur - G.t;
+      if (!cue.catch && left <= CATCH_LEAD) {
+        cue.catch = true;
+        const h = hgtOf(p.y);
+        catcher.play(h > 1.05 ? 'catch_pitch_high' : h < 0.55 ? 'catch_pitch_low' : 'catch_pitch', { fade: 0.08 });
+        const base = p.batterLeft ? CATCHER_X : -CATCHER_X;
+        cue.stepFrom = catcher.root.position.x;
+        cue.stepTo = base + THREE.MathUtils.clamp(latOf(p.x) - base, -0.35, 0.35) * 0.85;
+      }
+      if (p.swing === 'full' && !cue.swing && left <= SWING_CONTACT) { cue.swing = true; batter.play('swing', { timeScale: SWING_TS, fade: 0.05 }); }
+      if (p.swing === 'check' && !cue.check && left <= SWING_CONTACT) { cue.check = true; const a = batter.play('swing', { timeScale: SWING_TS, fade: 0.05 }); setTimeout(() => { if (a) a.paused = true; }, CHECK_HOLD * 1000); }
+    }
+    renderer.render(scene, camera);
+  }
+
+  const api = {
+    active: false,
+    ready: loadAll(),
+    onEvent, frame,
+    show() { if (api.active) return; api.active = true; fit(); canvas.style.display = 'block'; canvas2d.style.visibility = 'hidden'; },
+    hide() { if (!api.active) return; api.active = false; canvas.style.display = 'none'; canvas2d.style.visibility = ''; },
+  };
+  return api;
+}

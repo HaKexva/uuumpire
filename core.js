@@ -42,7 +42,7 @@
     firstPitch: 0.9, nextPitch: 0.35, levelUp: 2.4, congrats: 3.6, // delay before the next windup
   };
   const RULES = {
-    misses: 3, pitchesPerLevel: 5, maxLevel: 11, moodMax: 5,
+    misses: 3, pitchesPerLevel: 5, maxLevel: 14, moodMax: 5,   // 12-14: the 3D era (era3d.js)
     base: 100, streakStep: 0.1, streakCap: 10,   // x1.0 .. x2.0
     fineEdge: 3.8, finePts: 50,                   // edge pitch bonus (px from the zone edge)
     quick: 0.6, quickPts: 30,                     // quick call bonus (s)

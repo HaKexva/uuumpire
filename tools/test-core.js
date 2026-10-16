@@ -57,7 +57,7 @@ for (let level = 1; level <= 12; level++) {
   console.log(`  ${String(level).padStart(2)}  ${pc(strikes)}   ${pc(edges)}  ${pc(subs)}   ${pc(swings)}   ${pc(frames)}   ${(speedSum / N).toFixed(0)}`);
   ok(strikes / N > 0.42 && strikes / N < 0.62, `lv${level}: about half strikes (${(strikes / N * 100).toFixed(0)}%)`);
 }
-ok(C.levelFor(0) === 1 && C.levelFor(4) === 1 && C.levelFor(5) === 2 && C.levelFor(45) === 10 && C.levelFor(999) === 11, 'level ladder');
+ok(C.levelFor(0) === 1 && C.levelFor(4) === 1 && C.levelFor(5) === 2 && C.levelFor(45) === 10 && C.levelFor(999) === 14, 'level ladder');
 ok(C.callWindowFor(1) > C.callWindowFor(12) && C.callWindowFor(12) >= 0.9, 'call window shrinks, floors at 0.9');
 
 // ---------------------------------------------------------------- state machine
@@ -81,12 +81,12 @@ const count = (log, type) => log.filter((l) => l.type === type).length;
 
 // perfect umpire, calls 0.3 s after the catch
 {
-  const { G, log } = play((g) => { if (g.state.phase === 'call' && g.state.t >= 0.3) g.call(g.state.pitch.strike ? 'strike' : 'ball'); }, { maxPitches: 60, seed: 7 });
-  ok(G.phase === 'over' && G.misses === 0 && G.correct === 55, `perfect umpire: no misses (${G.misses}), 55 correct (${G.correct})`);
-  ok(G.level === 11 && G.pitchIndex === 54, `run complete on the last pitch of level 11 (lv ${G.level}, pitch ${G.pitchIndex + 1})`);
+  const { G, log } = play((g) => { if (g.state.phase === 'call' && g.state.t >= 0.3) g.call(g.state.pitch.strike ? 'strike' : 'ball'); }, { maxPitches: 75, seed: 7 });
+  ok(G.phase === 'over' && G.misses === 0 && G.correct === 70, `perfect umpire: no misses (${G.misses}), 70 correct (${G.correct})`);
+  ok(G.level === 14 && G.pitchIndex === 69, `run complete on the last pitch of level 14 (lv ${G.level}, pitch ${G.pitchIndex + 1})`);
   const over = log.find((l) => l.type === 'over');
-  ok(over && over.e.won === true && over.e.pitches === 55, 'over event marks the win after 55 pitches');
-  ok(G.streak === 55 && G.bestStreak === 55, 'streak counts every call');
+  ok(over && over.e.won === true && over.e.pitches === 70, 'over event marks the win after 70 pitches');
+  ok(G.streak === 70 && G.bestStreak === 70, 'streak counts every call');
   ok(G.mood === 5, 'crowd meter full');
   const resolves = log.filter((l) => l.type === 'resolve').map((l) => l.e);
   ok(resolves.every((r) => r.correct && !r.timeout && r.pts >= 100), 'every resolve correct and paid');
@@ -94,19 +94,19 @@ const count = (log, type) => log.filter((l) => l.type === type).length;
   ok(resolves.every((r) => r.bonus.includes('quick')), 'a 0.3 s call is quick');
   ok(resolves.slice(4).every((r) => r.crowd === 'chant' && r.mood === 5), 'full stands chant on every call from the fifth');
   ok(G.score === resolves.reduce((a, r) => a + r.pts, 0), 'score is the sum of the points paid');
-  ok(G.score <= 60 * 400, 'never beyond the server plausibility cap');
+  ok(G.score <= 75 * 400, 'never beyond the server plausibility cap');
   // event order per pitch
   const seq = types(log).filter((t) => ['next', 'windup', 'pitch', 'catch', 'resolve'].includes(t));
   let good = true;
-  for (let i = 0; i < 55; i++) { const s = seq.slice(i * 5, i * 5 + 5).join(','); if (s !== 'next,windup,pitch,catch,resolve') { good = false; break; } }
-  ok(good && seq.length === 5 * 55, 'next > windup > pitch > catch > resolve for every pitch, no next after the last');
+  for (let i = 0; i < 70; i++) { const s = seq.slice(i * 5, i * 5 + 5).join(','); if (s !== 'next,windup,pitch,catch,resolve') { good = false; break; } }
+  ok(good && seq.length === 5 * 70, 'next > windup > pitch > catch > resolve for every pitch, no next after the last');
   const nexts = log.filter((l) => l.type === 'next').map((l) => l.e);
-  ok(nexts.filter((n) => n.levelUp).map((n) => n.level).join(',') === '2,3,4,5,6,7,8,9,10,11', 'level-up flags on every fifth pitch');
-  ok(nexts.filter((n) => n.banner).length === 10 && nexts.filter((n) => n.congrats).length === 1 && nexts.find((n) => n.congrats).level === 11, 'banners each level, one congratulation at level 11');
-  ok(G.reactN === 55 && near(G.reactSum / G.reactN, 0.3, 0.02), 'reaction times averaged');
+  ok(nexts.filter((n) => n.levelUp).map((n) => n.level).join(',') === '2,3,4,5,6,7,8,9,10,11,12,13,14', 'level-up flags on every fifth pitch');
+  ok(nexts.filter((n) => n.banner).length === 13 && nexts.filter((n) => n.congrats).length === 1 && nexts.find((n) => n.congrats).level === 11, 'banners each level, one congratulation at level 11');
+  ok(G.reactN === 70 && near(G.reactSum / G.reactN, 0.3, 0.02), 'reaction times averaged');
   const s = log[0] && G; // summary shape
   const sum = { score: G.score, pitches: G.pitchIndex + 1 };
-  ok(sum.pitches === 55, 'summary counts every pitch of the season');
+  ok(sum.pitches === 70, 'summary counts every pitch of the season');
 }
 
 // always wrong: out after three pitches
