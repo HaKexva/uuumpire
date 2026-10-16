@@ -449,11 +449,24 @@ button { font-family: inherit; }
 .records.board li.me { background: var(--g-hi-bg, var(--g-navy)); margin: 0 -8px; padding: 3px 8px; }
 .board-status { margin: 8px 0 0; }
 
+/* ---- the 3D era (body.hd): the play screen's text goes HD too, a broadcast typeface with soft shadows ---- */
+body.hd #screen-play, body.hd #screen-play .game-btn { font-family: 'Oswald', 'Helvetica Neue', Arial, sans-serif; }
+body.hd #screen-play .call-text, body.hd #screen-play .judge-text, body.hd #screen-play .bonus-text, body.hd #screen-play .abs-text,
+body.hd #screen-play .react-text, body.hd #screen-play .style-text, body.hd #screen-play .pause-text { text-shadow: 0 2px 2px rgba(0, 0, 0, .9), 0 0 14px rgba(0, 0, 0, .6); letter-spacing: .02em; }
+body.hd #screen-play .call-text { font-weight: 700; letter-spacing: .04em; }
+body.hd #screen-play .judge-text, body.hd #screen-play .game-btn--big { font-weight: 700; }
+body.hd #screen-play .bonus-text, body.hd #screen-play .abs-text, body.hd #screen-play .react-text, body.hd #screen-play .style-text { font-weight: 500; }
+body.hd #screen-play .hud-cell, body.hd #screen-play .pitch-info, body.hd #screen-play .pitch-count, body.hd #screen-play .key-hint { font-weight: 500; letter-spacing: .03em; }
+body.hd #screen-play .game-btn { border-radius: 6px; letter-spacing: .06em; }
+
 /* ---- level 11 cleared: the "new ballpark" loading bar over the stage before the 3D era ---- */
 .era-load { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(0, 0, 0, .92); line-height: 1.3; z-index: 3; }
 .era-load.hidden { display: none; }
 .era-load-text { color: var(--g-gold); font-size: 14px; text-align: center; padding: 0 12px; text-shadow: 2px 2px var(--g-ink); min-height: 2.6em; display: flex; align-items: flex-end; }
 .era-loadbar { width: 70%; max-width: 240px; margin-top: 0; }
+.era-load.hd .era-load-text { font-family: 'Oswald', 'Helvetica Neue', Arial, sans-serif; font-weight: 500; font-size: 17px; letter-spacing: .04em; text-shadow: 0 2px 2px rgba(0, 0, 0, .9), 0 0 12px rgba(0, 0, 0, .6); }
+.era-load.hd .era-loadbar { border-radius: 9px; overflow: hidden; border-color: #fcfcfc; outline: none; box-shadow: 0 0 12px rgba(248, 184, 0, .35); }
+.era-load.hd .loadbar-fill { transition: width .15s linear; background: linear-gradient(90deg, #f8b800, #ffd54a); }
 
 /* ---- howto / records ---- */
 .section-title { margin: 16px 0 0; font-size: 28px; color: var(--g-gold); text-shadow: var(--g-text-shadow, 3px 3px var(--g-ink)); font-weight: normal; }

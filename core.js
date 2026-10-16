@@ -42,18 +42,19 @@
     firstPitch: 0.9, nextPitch: 0.35, levelUp: 2.4, congrats: 3.6, // delay before the next windup
   };
   const RULES = {
-    misses: 3, pitchesPerLevel: 5, maxLevel: 14, moodMax: 5,   // 12-14: the 3D era (era3d.js)
+    misses: 3, pitchesPerLevel: 5, maxLevel: 15, moodMax: 5,   // 12-15: the 3D era (era3d.js)
     base: 100, streakStep: 0.1, streakCap: 10,   // x1.0 .. x2.0
     fineEdge: 3.8, finePts: 50,                   // edge pitch bonus (px from the zone edge)
     quick: 0.6, quickPts: 30,                     // quick call bonus (s)
     swingLevel: 4, framingLevel: 5, submarineLevel: 3, discoLevel: 10,
     hardLevel: 13, hardSpeed: [5, 10], hardBreak: 1.15, // 13-14: every pitch 5-10 km/h harder, breaking stuff moves 15% more
+    showLevel: 15, showSpeed: [12, 18], showBreak: 1.3, showWindow: 0.7, showEdge: 0.9, showDur: 0.62, // 15: the show. no mercy
   };
   // What each level adds (the UI shows lvl.<level>). Levels not listed just get faster/tighter.
-  const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro', 12: 'cam', 13: 'noguide', 14: 'heat' };
+  const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro', 12: 'cam', 13: 'noguide', 14: 'heat', 15: 'show' };
 
   function levelFor(pitchIndex) { return Math.min(RULES.maxLevel, 1 + Math.floor(pitchIndex / RULES.pitchesPerLevel)); }
-  function callWindowFor(level) { return Math.max(0.9, 2.2 - level * 0.12); }
+  function callWindowFor(level) { return level >= RULES.showLevel ? RULES.showWindow : Math.max(0.9, 2.2 - level * 0.12); }
 
   // ------------------------------------------------------------
   // Pitches
@@ -137,7 +138,7 @@
     const ex0 = zone.x0 - BALL_R, ex1 = zone.x1 + BALL_R;
     const ey0 = zone.y0 - BALL_R, ey1 = zone.y1 + BALL_R;
     const isStrike = rng() < 0.5;
-    const edgeProb = clamp(0.2 + level * 0.07, 0.2, 0.8);
+    const edgeProb = clamp(0.2 + level * 0.07, 0.2, level >= RULES.showLevel ? RULES.showEdge : 0.8); // 15 lives on the corners
     const edge = rng() < edgeProb;
     let x, y;
     const side = rndInt(4); // 0 left, 1 right, 2 top, 3 bottom
@@ -173,8 +174,10 @@
     let speed = Math.round(rnd(type.speed[0], type.speed[1]) + Math.min(level, 8) + Math.max(0, level - 9) * 3);
     // the back half of the 3D era: every pitch comes in 5-10 km/h harder and anything that moves, moves 15% more
     if (level >= RULES.hardLevel) {
-      speed += Math.round(rnd(RULES.hardSpeed[0], RULES.hardSpeed[1]));
-      if (type.name !== 'FOURSEAM') { bx *= RULES.hardBreak; by *= RULES.hardBreak; hump *= RULES.hardBreak; }
+      const show = level >= RULES.showLevel; // 15: everything the ladder has, turned up
+      speed += Math.round(show ? rnd(RULES.showSpeed[0], RULES.showSpeed[1]) : rnd(RULES.hardSpeed[0], RULES.hardSpeed[1]));
+      const brk = show ? RULES.showBreak : RULES.hardBreak;
+      if (type.name !== 'FOURSEAM') { bx *= brk; by *= brk; hump *= brk; }
     }
     // knuckleball: no spin, flutters side to side on the way in (sin terms vanish at t=1, so it still lands on target)
     const wob = type.wobble ? {
@@ -189,7 +192,7 @@
     // flight time from the real distance (18.44 m) at the shown speed, stretched 1.3x so it stays
     // readable, then tightened a little per level. 137 km/h at level 1 ~ 0.62 s; 169 at level 12 ~ 0.41 s.
     let dur = (18.44 / (speed / 3.6)) * 1.3;
-    dur *= clamp(1 - (level - 1) * 0.03, 0.72, 1); // each level is a noticeable tick quicker
+    dur *= clamp(1 - (level - 1) * 0.03, level >= RULES.showLevel ? RULES.showDur : 0.72, 1); // each level is a noticeable tick quicker; 15 is a blur
 
     const located = isStrikeAt(zone, x, y);
     const edgeDist = edgeDistance(zone, x, y);

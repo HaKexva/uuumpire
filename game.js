@@ -603,6 +603,7 @@
       const k = Math.min(1, ms / MIN_MS);
       fill.style.width = Math.round((ready ? k : Math.min(k, 0.92)) * 100) + '%';
       text.textContent = lines[Math.floor(ms / 950) % lines.length]; // keeps cycling while the models are still coming
+      box.classList.toggle('hd', ms >= MIN_MS / 2); // half way the bar itself turns HD: pixel font first, broadcast type after
       if ((k >= 1 && ready) || ms > MAX_MS) { clearInterval(timer); finish(); }
     }, 50);
   }

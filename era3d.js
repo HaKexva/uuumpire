@@ -17,13 +17,16 @@ const CDN = 'https://cdn.jsdelivr.net/npm/three@0.170.0/';
 export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpire-3d/assets/', firstLevel = 12 }) {
   const G = game.state;
 
-  // ---- px (168x192 scene) -> metres. Lateral: the 33 px plate is 17 in. Vertical: the mid batter's
-  // zone (52 px over the cleats .. 24 px) maps onto 1.00 m .. 0.46 m, which is where a real zone sits.
+  // ---- px (168x192 scene) -> metres. Lateral: the 33 px plate is 17 in. Vertical: the mid batter's zone
+  // (52 px over the cleats .. 24 px) maps onto 1.045 m .. 0.518 m, the KBO ABS proportions (56.35% / 27.64%
+  // of a 1.85 m batter); the taller and shorter batters scale with their zones. A linear map with an offset,
+  // so both the top and the bottom land where a real zone sits on the model's stance.
   const M_LAT = C.IN_PER_PX * 0.0254;
-  const M_VERT = 1.0 / 52;
+  const M_VERT = (1.045 - 0.518) / (52 - 24);
+  const H_OFF = 0.518 - 24 * M_VERT;
   const PLATE_CX = (68 + 101) / 2;
   const latOf = (x) => (x - PLATE_CX) * M_LAT;
-  const hgtOf = (y) => (C.BATTER_FEET_Y - y) * M_VERT;
+  const hgtOf = (y) => (C.BATTER_FEET_Y - y) * M_VERT + H_OFF;
   const MOUND_Z = -18.44;        // rubber front edge (field.glb, rotated so centre field is -z)
   const PLATE_Z = -0.2;          // where the ball is judged: the middle of the plate (apex at 0)
   const BALL_SCALE = (C.BALL_R * M_LAT) / 0.0369; // the rules' ball is bigger than a real one; keep them consistent
@@ -48,22 +51,24 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   scene.fog = new THREE.Fog(0x06082a, 90, 220);
   // the stage is portrait (168:192): a tall window on the same width of plate, aimed low so the
   // horizon sits high like the pixel scene's
-  const camera = new THREE.PerspectiveCamera(78, 168 / 192, 0.1, 400);
+  const camera = new THREE.PerspectiveCamera(84, 168 / 192, 0.1, 400);
   // the umpire's eye: right above the catcher's helmet, a small step to the open side (the slot);
   // 1.85 m up and 1 m behind the plate is the lowest eye that still sees the bottom of the zone over the helmet
-  const CAM = { x: 0.3, y: 1.85, z: 1.0, lookY: 0.3 };
+  // a step further back and a wider view than a real umpire's, and aimed a little toward the batter's box,
+  // so the batter stays in the picture while the zone keeps the centre
+  const CAM = { x: 0.3, y: 2.1, z: 1.2, lookY: 0.3, lookX: 0.35 };
   // the ABS review: the centre-field broadcast camera, long lens, the zone frame face-on
   const ABS_CAM = { pos: new THREE.Vector3(1.6, 2.4, -11.0), look: new THREE.Vector3(0, 0.8, -0.2), fov: 24 };
   let camMode = 'ump';
   function setCam(mode) {
     camMode = mode;
     // the broadcast camera sits on the side away from the batter, or he would stand between it and the plate
-    { camera.position.set(camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(0, CAM.lookY, -3); camera.fov = 78; }
+    { camera.position.set(camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(-camSide * CAM.lookX, CAM.lookY, -3); camera.fov = 84; }
     camera.updateProjectionMatrix();
   }
   let camSide = 1;
   camera.position.set(CAM.x, CAM.y, CAM.z);
-  camera.lookAt(0, CAM.lookY, -3);
+  camera.lookAt(-CAM.lookX, CAM.lookY, -3);
 
   function fit() {
     const w = canvas2d.clientWidth, h = canvas2d.clientHeight;
@@ -196,6 +201,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   class Puppet {
     constructor(gear, colors) {
       this.root = SkeletonUtils.clone(A.player.scene);
+      // the clone shares materials with the source: give this puppet its own so kit colours stay his
+      this.root.traverse((o) => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone(); });
       prepTree(this.root);
       const keep = new Set(gear);
       this.nodes = new Map();
@@ -248,7 +255,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     const grip = batter.nodes.get('Bat_Grip') || batter.nodes.get('mixamorigRightHand');
     if (grip) grip.add(batG.scene);
     pitcher.root.position.set(0, 0.254, MOUND_Z - 0.05); // on the rubber (clip root = mound top), facing the plate
-    catcher.root.position.set(0, 0, 0.72); catcher.root.rotation.y = Math.PI;
+    catcher.root.position.set(0, 0, 0.6); catcher.root.rotation.y = Math.PI;
     pitcher.play('pitcher_rock', { loop: true });
     catcher.play('catcher_crouch', { loop: true });
     batter.play('batting_stance', { loop: true });
@@ -266,7 +273,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   // Analytic (law of cosines), elbow kept on the side the clip had it; the wrist then turns the pocket
   // toward the pitcher. Nothing stretches; beyond reach the arm points straight at the target.
   // ------------------------------------------------------------
-  const _P = new THREE.Vector3(), _ident = new THREE.Quaternion(), _S = new THREE.Vector3(), _E = new THREE.Vector3(), _H = new THREE.Vector3(), _T = new THREE.Vector3(), _t = new THREE.Vector3(), _dir = new THREE.Vector3(), _pole = new THREE.Vector3(), _E2 = new THREE.Vector3(), _from = new THREE.Vector3(), _to = new THREE.Vector3(), _pq = new THREE.Quaternion(), _rot = new THREE.Quaternion();
+  const _v = new THREE.Vector3(), _P = new THREE.Vector3(), _ident = new THREE.Quaternion(), _S = new THREE.Vector3(), _E = new THREE.Vector3(), _H = new THREE.Vector3(), _T = new THREE.Vector3(), _t = new THREE.Vector3(), _dir = new THREE.Vector3(), _pole = new THREE.Vector3(), _E2 = new THREE.Vector3(), _from = new THREE.Vector3(), _to = new THREE.Vector3(), _pq = new THREE.Quaternion(), _rot = new THREE.Quaternion();
   function rotateBoneWorld(bone, from, to) {
     _rot.setFromUnitVectors(from, to);
     bone.parent.getWorldQuaternion(_pq);
@@ -354,7 +361,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     batter.root.scale.set(p.batterLeft ? -hb : hb, hb, hb); // a lefty is the mirrored righty
     // deep in the box (feet 1.2 m off the plate's centre line) and a step toward the mound, so from the
     // umpire's eye he stands beside the plate instead of over it
-    batter.root.position.set(p.batterLeft ? 1.2 : -1.2, 0, PLATE_Z - 0.2);
+    batter.root.position.set(p.batterLeft ? 1.1 : -1.1, 0, PLATE_Z - 0.25);
     batter.root.rotation.y = p.batterLeft ? -Math.PI / 2 : Math.PI / 2;
     batter.recolor(KITS[p.kit % KITS.length]);
     batter.play('batting_stance', { loop: true, fade: 0.3 });
@@ -400,13 +407,18 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       const k = caught ? 1 : reveal ? 0 : THREE.MathUtils.clamp(1 - (p.dur - G.t) / CATCH_LEAD, 0, 1);
       gloveK = reveal ? Math.max(0, gloveK - dt * 3) : k * k; // the catcher eases the mitt back once the call is in
       if (cue.stepTo !== undefined && !reveal) { const ease = k * k * (3 - 2 * k); catcher.root.position.x = cue.stepFrom + (cue.stepTo - cue.stepFrom) * ease; }
-      pinGlove(_t.set(gx, gy, PLATE_Z + 0.12), gloveK);
+      // the mitt's centre, not the hand, goes to the crossing point on the zone plane: pin the hand, measure
+      // where the mitt landed, pin again with the difference (no depth offset, so no parallax against the frame)
+      pinGlove(_t.set(gx, gy, PLATE_Z), gloveK);
+      if (gloveK > 0.5 && gloveMesh) { gloveHand.getWorldPosition(_H); ballInGlove(_v); _t.set(gx, gy, PLATE_Z).sub(_v).add(_H); pinGlove(_t, gloveK); }
     } else gloveK = 0;
     if (flying && b && (cue.released || ph === 'replay')) {
       ball.visible = true; ball.scale.setScalar(BALL_SCALE); ball.position.set(b.x, b.y, b.z); ball.rotation.x += dt * (p.spin + 2) * 2;
       shadow.visible = true; shadow.position.set(b.x, 0.02, b.z); shadow.scale.setScalar(1 + b.y * 0.6);
     } else if (p && caught) {
-      ballInGlove(ball.position); ball.scale.setScalar(1); ball.visible = true; shadow.visible = false; // real size: the rules' ball would not fit a mitt
+      // through the call window the ball sits exactly where it crossed, on the zone plane, inside the mitt
+      const gx = G.ball ? latOf(G.ball.x) : latOf(p.x), gy = G.ball ? hgtOf(G.ball.y) : hgtOf(p.y);
+      ball.position.set(gx, gy, PLATE_Z); ball.scale.setScalar(BALL_SCALE); ball.visible = true; shadow.visible = false;
     } else { ball.visible = false; shadow.visible = false; }
     // level 12 keeps the zone up through the pitch as a guide; from 13 it only comes back at the reveal,
     // so the catcher's framing can sell a ball as a strike
@@ -455,8 +467,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     ready: loadAll(),
     onEvent, frame,
     debug() { return { batter, catcher, pitcher, camera, scene, ball }; },
-    show() { if (api.active) return; api.active = true; fit(); canvas.style.display = 'block'; canvas2d.style.visibility = 'hidden'; },
-    hide() { if (!api.active) return; api.active = false; canvas.style.display = 'none'; canvas2d.style.visibility = ''; },
+    show() { if (api.active) return; api.active = true; fit(); canvas.style.display = 'block'; canvas2d.style.visibility = 'hidden'; document.body.classList.add('hd'); },
+    hide() { if (!api.active) return; api.active = false; canvas.style.display = 'none'; canvas2d.style.visibility = ''; document.body.classList.remove('hd'); },
   };
   return api;
 }
