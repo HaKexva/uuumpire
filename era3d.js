@@ -393,6 +393,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     active: false,
     ready: loadAll(),
     onEvent, frame,
+    debug() { return { batter, catcher, pitcher, camera, scene, ball }; },
     show() { if (api.active) return; api.active = true; fit(); canvas.style.display = 'block'; canvas2d.style.visibility = 'hidden'; },
     hide() { if (!api.active) return; api.active = false; canvas.style.display = 'none'; canvas2d.style.visibility = ''; },
   };

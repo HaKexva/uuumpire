@@ -560,6 +560,7 @@
     loadHdBand();
     era3dLoading = import('./era3d.js?v=' + (window.UU_V || '')).then((m) => {
       era3d = m.createEra3D({ C, game, stage: el.stage, canvas2d: canvas, assetsBase: window.UU_ERA3D_ASSETS || '../uuumpire-3d/assets/', firstLevel: ERA3D_LEVEL });
+      if (G.pitch) era3d.onEvent('next', { pitch: G.pitch, level: G.level, pitchIndex: G.pitchIndex, levelUp: false }); // the pitch already set up before the module arrived
       return era3d.ready.then(() => era3d);
     }).catch((e) => { console.error('3D era failed to load', e); era3d = null; });
     return era3dLoading;
