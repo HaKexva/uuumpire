@@ -436,6 +436,10 @@ button { font-family: inherit; }
 .board-panel { min-height: 120px; }
 .records.board li { gap: 8px; }
 .records.board li .who { flex: 1; display: flex; gap: 10px; min-width: 0; }
+.records.board li .who .rk { color: var(--g-gold); flex-shrink: 0; min-width: 2.4em; }
+.records.board li:nth-child(n+4) .who .rk { color: var(--g-gray); }
+.plays { margin: 4px 0 0; }
+.plays.hidden { display: none; }
 .records.board li .who .nm { overflow: hidden; white-space: nowrap; max-width: 11em; }
 .records.board li .who .nm-in { display: inline-block; }
 /* a name wider than its column slides left and back (--nm-dx / --nm-t set by Board.fitNames) */

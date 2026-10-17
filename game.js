@@ -527,7 +527,7 @@
   function showScreen(name) {
     for (const k in screens) screens[k].classList.toggle('hidden', k !== name);
     currentScreen = name;
-    if (name === 'title') refreshTitle();
+    if (name === 'title') { refreshTitle(); Board.loadPlays(); }
     if (name === 'records') renderRecords();
     if (name === 'play') fitCanvas();
   }
@@ -1036,7 +1036,7 @@
     Sfx.init(); Sfx.resume();
     Music.start('title');
     switch (action) {
-      case 'start': Sfx.select(); newGame(); break;
+      case 'start': Sfx.select(); Board.countPlay(); newGame(); break;
       case 'sound': settings.sound = !settings.sound; Sfx.enabled = settings.sound; saveSettings(); Sfx.select(); refreshTitle(); break;
       case 'music': settings.music = !settings.music; saveSettings(); Music.apply(); Sfx.select(); refreshTitle(); break;
       case 'palette': settings.palette = (settings.palette + 1) % PALETTES.length; saveSettings(); applyPalette(settings.palette); Sfx.select(); refreshTitle(); break;
@@ -1101,10 +1101,11 @@
           if (mine && s.name === mine && lastGame && s.score === lastGame.score) li.className = 'me';
           const who = document.createElement('span'); who.className = 'who';
           // names are shown as typed: translate="no" keeps browser page translation off them
+          const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = ordinal(s.rank);
           const nm = document.createElement('span'); nm.className = 'nm'; nm.translate = false;
           const nmIn = document.createElement('span'); nmIn.className = 'nm-in'; nmIn.textContent = s.name; nm.appendChild(nmIn);
           const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy, s.reaction === null || s.reaction === undefined ? '-' : Number(s.reaction).toFixed(2));
-          who.appendChild(nm); who.appendChild(meta);
+          who.appendChild(rk); who.appendChild(nm); who.appendChild(meta);
           const b = document.createElement('b'); b.textContent = s.score;
           li.appendChild(who); li.appendChild(b);
           list.appendChild(li);
@@ -1123,6 +1124,23 @@
         nm.style.setProperty('--nm-dx', go ? -over + 'px' : '0px');
         if (go) nm.style.setProperty('--nm-t', (2 + over / 20) + 's');
       }
+    },
+    // games started today, on the title screen (the server counts PLAY BALL clicks from the launch day on)
+    playsAt: -1e9,
+    async loadPlays() {
+      const n = $('title-plays');
+      if (!this.enabled) return;
+      if (performance.now() - this.playsAt < 20000) return; // the title comes and goes; one fetch per 20 s is plenty
+      this.playsAt = performance.now();
+      try {
+        const d = await this.fetchJson('/api/plays');
+        n.textContent = t('plays.today', d.today);
+        n.classList.toggle('hidden', !(d.today > 0));
+      } catch (e) { n.classList.add('hidden'); }
+    },
+    countPlay() {
+      if (!this.enabled || LOCAL) return; // local test runs stay out of the live count
+      try { fetch(API_BASE + '/api/plays', { method: 'POST', keepalive: true }).catch(() => {}); } catch (e) { /* offline */ }
     },
     resetSubmit() {
       const row = $('submit-row'), st = $('submit-status'), input = $('name-input'), btn = $('btn-submit');
@@ -1152,6 +1170,11 @@
       }
     },
   };
+  // 1st 2nd 3rd 4th... (English); the other languages take a prefix or suffix from the table
+  function ordinal(n) {
+    const m = n % 100, sfx = m >= 11 && m <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th';
+    return t('board.rank', n, sfx);
+  }
   $('btn-submit').addEventListener('click', () => Board.submit());
   $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); Board.submit(); } e.stopPropagation(); });
   document.querySelectorAll('#screen-board .tab').forEach((b) => b.addEventListener('click', () => { Sfx.select(); Board.show(b.dataset.period); }));
