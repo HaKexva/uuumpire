@@ -440,7 +440,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   // animation cues (seconds before the catch): clip event frames from the claudeball asset notes
   // the swing clip makes contact 0.875 s in; at these flight times it starts at release, part-way into its
   // load, at a touch over natural speed, so contact lands on the catch. A check swing freezes just short of it.
-  const SWING_TS = 1.25, SWING_CONTACT = 0.875, CHECK_STOP = 0.815, SWING_HOLD = 1.0, CATCH_LEAD = 0.292; // hold just past contact: later the hips turn so far the pants skin slips and the arms wrap behind the head
+  const SWING_TS = 1.25, SWING_CONTACT = 0.875, CHECK_STOP = 0.815, SWING_HOLD = 0.9, CATCH_LEAD = 0.292; // hold at contact: later the hips open and the belt skin folds
   const PITCH_RELEASE = 0.583; // pitch_*_windup clips release at this time; scaled onto the rules' windup
   let cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
   let gloveK = 0; // how far the glove is pinned to the ball (eases off at the reveal)
@@ -579,7 +579,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       }
     }
     // the swing runs on past the catch: a check swing freezes short of contact, a full swing at extension
-    if (p && cue.swingAction && !cue.swingAction.paused && cue.swingAction.time >= (p.swing === 'check' ? CHECK_STOP : SWING_HOLD)) cue.swingAction.paused = true;
+    if (p && cue.swingAction && !cue.swingAction.paused && cue.swingAction.time >= (p.swing === 'check' ? CHECK_STOP : SWING_HOLD)) { cue.swingAction.paused = true; cue.holdT = 0; }
+    // a short hold, then the batter settles back into his stance (the frozen pose is the model's worst angle)
+    if (p && cue.swingAction && cue.swingAction.paused && cue.holdT !== undefined) { cue.holdT += dt; if (cue.holdT > 0.5) { cue.holdT = undefined; batter.play('batting_stance', { loop: true, fade: 0.5 }); } }
     // after contact the front foot plants pointing at the mound (the clip leaves it square to the plate)
     if (p && p.swing === 'full' && cue.swingAction && cue.swingAction.time > 0.95) aimFrontFoot(THREE.MathUtils.clamp((cue.swingAction.time - 0.95) / 0.15, 0, 1));
     // the umpire breathes: a slow sway of a few millimetres, so the picture is never dead still
