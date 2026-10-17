@@ -849,6 +849,7 @@
     el.score.textContent = G.score;
     el.streak.textContent = G.streak;
     el.level.textContent = G.level;
+    el.miss.classList.toggle('four', C.missesAllowed(G.level) > 3); // the 3D era allows one more miss
     const dots = el.miss.querySelectorAll('i');
     dots.forEach((d, i) => d.classList.toggle('on', i < G.misses));
     // crowd meter: one cell per correct call, two lost per miss

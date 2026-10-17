@@ -62,24 +62,25 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   scene.fog = new THREE.Fog(0x06082a, 90, 220);
   // the stage is portrait (168:192): a tall window on the same width of plate, aimed low so the
   // horizon sits high like the pixel scene's
-  const camera = new THREE.PerspectiveCamera(84, 168 / 192, 0.1, 400);
+  const camera = new THREE.PerspectiveCamera(78, 168 / 192, 0.1, 400);
   // the umpire's eye: right above the catcher's helmet, a small step to the open side (the slot);
   // 1.85 m up and 1 m behind the plate is the lowest eye that still sees the bottom of the zone over the helmet
-  // a step further back and a wider view than a real umpire's, and aimed a little toward the batter's box,
-  // so the batter stays in the picture while the zone keeps the centre
-  const CAM = { x: 0.3, y: 2.1, z: 1.2, lookY: 0.3, lookX: 0.35 };
+  // the umpire-cam, as on the broadcast: the eye in the slot (the gap between catcher and batter, on the
+  // batter's side of the catcher's head), chin at the crown of the helmet, a very wide lens, the horizon a
+  // third of the way down. Same picture for both batters, mirrored.
+  const CAM = { x: 0.35, y: 1.58, z: 0.85, look: new THREE.Vector3(0, 0.3, -6) }; // just above and behind the helmet: only mask and mitt in the near corner
   // the ABS review: the centre-field broadcast camera, long lens, the zone frame face-on
   const ABS_CAM = { pos: new THREE.Vector3(1.6, 2.4, -11.0), look: new THREE.Vector3(0, 0.8, -0.2), fov: 24 };
   let camMode = 'ump';
   function setCam(mode) {
     camMode = mode;
     // the broadcast camera sits on the side away from the batter, or he would stand between it and the plate
-    { camera.position.set(camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(-camSide * CAM.lookX, CAM.lookY, -3); camera.fov = 84; }
+    { camera.position.set(-camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(CAM.look); camera.fov = 78; }
     camera.updateProjectionMatrix();
   }
   let camSide = 1;
   camera.position.set(CAM.x, CAM.y, CAM.z);
-  camera.lookAt(-CAM.lookX, CAM.lookY, -3);
+  camera.lookAt(CAM.look);
 
   function fit() {
     const w = canvas2d.clientWidth, h = canvas2d.clientHeight;
@@ -141,6 +142,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     const fm = new THREE.MeshBasicMaterial({ color: 0xffffff });
     for (const [sx, sy, px, py] of [[1, 0.02, 0, 0.5], [1, 0.02, 0, -0.5], [0.02, 1, 0.5, 0], [0.02, 1, -0.5, 0]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.012), fm); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); absZone.add(m); }
   }
+  const absOuter = new THREE.Group(); abs.add(absOuter); // the ball's centre inside this faint line is still a strike (frame + one ball radius)
+  { const om = new THREE.MeshBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.45 });
+    for (const [sx, sy, px, py] of [[1, 0.008, 0, 0.5], [1, 0.008, 0, -0.5], [0.008, 1, 0.5, 0], [0.008, 1, -0.5, 0]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.01), om); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); absOuter.add(m); } }
   const absPath = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })); abs.add(absPath);
   const absBall = new THREE.Mesh(new THREE.SphereGeometry(R_REAL, 14, 10), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x404040 })); abs.add(absBall);
   const absComet = []; for (let i = 0; i < 10; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(R_REAL * (0.9 - i * 0.07), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 - i * 0.04 })); m.visible = false; abs.add(m); absComet.push(m); }
@@ -161,6 +165,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     absPath.geometry.dispose(); absPath.geometry = new THREE.BufferGeometry().setFromPoints(pts);
     const z = p.zone;
     absZone.scale.set((z.x1 - z.x0) * M_LAT + 2 * GROW_X, (z.y1 - z.y0) * M_VERT + 2 * GROW_Y, 1); absZone.position.set(0, (hgtOf(z.y0) + hgtOf(z.y1)) / 2, PLATE_Z);
+    absOuter.scale.set(absZone.scale.x + 2 * R_REAL, absZone.scale.y + 2 * R_REAL, 1); absOuter.position.set(0, absZone.position.y, PLATE_Z - 0.005);
     absHist.length = 0; for (const m of absComet) m.visible = false;
   }
   function renderAbs(p, dt) {
@@ -322,6 +327,19 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     gloveHand.quaternion.premultiply(_pq.clone().invert().multiply(_rot).multiply(_pq));
     catcher.root.updateMatrixWorld(true);
   }
+  // turn the batter's front foot (the model's left) so its toes point down the mound line, blended by k;
+  // tried in world space and checked, because a mirrored lefty flips the sign of a bone rotation
+  const _fa = new THREE.Vector3(), _fb = new THREE.Vector3(), _fq = new THREE.Quaternion(), _fpq = new THREE.Quaternion();
+  function aimFrontFoot(k) {
+    const foot = batter.nodes.get('mixamorigLeftFoot'), toe = batter.nodes.get('mixamorigLeftToeBase');
+    if (!foot || !toe || k <= 0) return;
+    const dir = () => { batter.root.updateMatrixWorld(true); toe.getWorldPosition(_fb); foot.getWorldPosition(_fa); _fb.sub(_fa); _fb.y = 0; return _fb.normalize(); };
+    const want = new THREE.Vector3(0, 0, -1);
+    const apply = (sign) => { _fq.setFromUnitVectors(dir(), want); _fq.slerp(_ident, 1 - k); if (sign < 0) _fq.invert(); foot.parent.getWorldQuaternion(_fpq); foot.quaternion.premultiply(_fpq.clone().invert().multiply(_fq).multiply(_fpq)); };
+    const before = dir().dot(want);
+    apply(1);
+    if (dir().dot(want) < before) { apply(-1); apply(-1); }
+  }
   // where the ball sits once caught: the centre of the mitt itself (the skinned mesh's posed bounds),
   // nudged a hair toward the pitcher so the ball shows in the pocket opening
   const _bb = new THREE.Box3();
@@ -377,7 +395,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   function setupPitch(p) {
     if (!batter) { pendingNext = p; return; }
     pendingNext = null;
+    const oldSwing = cue.swingAction;
     cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
+    if (oldSwing) oldSwing.stop();
     const hb = C.BATTER_H[p.batterSize];
     batter.root.scale.set(p.batterLeft ? -hb : hb, hb, hb); // a lefty is the mirrored righty
     // deep in the box (feet 1.2 m off the plate's centre line) and a step toward the mound, so from the
@@ -385,14 +405,18 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     batter.root.position.set(p.batterLeft ? 1.1 : -1.1, 0, PLATE_Z - 0.25);
     batter.root.rotation.y = p.batterLeft ? -Math.PI / 2 : Math.PI / 2;
     batter.recolor(KITS[p.kit % KITS.length]);
-    batter.play('batting_stance', { loop: true, fade: 0.6 }); // a long blend back from a follow-through
+    batter.play('batting_stance', { loop: true, fade: 0.05 }); // a new batter steps in: no blend out of the old swing
     pitcher.root.scale.x = p.hand === 'R' ? 1 : -1;
     pitcher.play('pitcher_rock', { loop: true, fade: 0.3 });
     catcher.play('catcher_crouch', { loop: true, fade: 0.3 });
     camSide = p.batterLeft ? -1 : 1; // the slot: the side away from the batter
     absHold = false; absZoomT = 0;
     setCam('ump');
-    catcher.root.position.x = p.batterLeft ? CATCHER_X : -CATCHER_X;
+    // from level 15 the catcher sets up off-centre like a real target (inside or outside, at random): the
+    // umpire's eye has to find the ball, not the mitt
+    const decoy = G.level >= C.RULES.decoyLevel ? (Math.random() < 0.5 ? -1 : 1) * (0.15 + Math.random() * 0.25) : 0;
+    cue.catcherBase = decoy; // the catcher sits on the plate's centre line: the slot is the umpire's move
+    catcher.root.position.x = cue.catcherBase;
     const z = p.zone;
     // the batter's own zone (17 in wide, knees to mid-torso): a ball touching its edge is a strike, so the
     // frame is the real zone, not the grown boundary the rules test against the ball's centre
@@ -482,9 +506,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
         cue.catch = true;
         const h = hgtOf(p.y);
         catcher.play(h > 1.05 ? 'catch_pitch_high' : h < 0.55 ? 'catch_pitch_low' : 'catch_pitch', { fade: 0.08 });
-        const base = p.batterLeft ? CATCHER_X : -CATCHER_X;
+        const base = cue.catcherBase !== undefined ? cue.catcherBase : 0;
         cue.stepFrom = catcher.root.position.x;
-        cue.stepTo = base + THREE.MathUtils.clamp(latOf(p.x) - base, -0.35, 0.35) * 0.85;
+        cue.stepTo = base + THREE.MathUtils.clamp(latOf(p.x) - base, -0.25, 0.25) * 0.85;
       }
       if ((p.swing === 'full' || p.swing === 'check') && !cue.swing) {
         cue.swing = true;
@@ -494,6 +518,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     }
     // the swing runs on past the catch: a check swing freezes short of contact, a full swing at extension
     if (p && cue.swingAction && !cue.swingAction.paused && cue.swingAction.time >= (p.swing === 'check' ? CHECK_STOP : SWING_HOLD)) cue.swingAction.paused = true;
+    // after contact the front foot plants pointing at the mound (the clip leaves it square to the plate)
+    if (p && p.swing === 'full' && cue.swingAction && cue.swingAction.time > 0.95) aimFrontFoot(THREE.MathUtils.clamp((cue.swingAction.time - 0.95) / 0.15, 0, 1));
     renderer.render(scene, camera);
   }
 
