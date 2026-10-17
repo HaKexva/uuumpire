@@ -724,8 +724,10 @@
     $('over-acc').textContent = s.accuracy + '%';
     $('over-streak').textContent = s.streak;
     $('over-react').textContent = s.reaction === null ? '-' : s.reaction.toFixed(2) + 's';
+    s.level = G.level; // the level the run ended on (the feedback box opens from the 3D era)
     lastGame = s;
     Board.resetSubmit();
+    Feedback.reset();
     const prevBest = settings.records.length ? settings.records[0].score : 0;
     const isBest = s.score > prevBest && s.score > 0;
     $('over-newbest').classList.toggle('hidden', !isBest);
@@ -1152,6 +1154,39 @@
       }
     },
   };
+  // Feedback from players who reached the 3D era: one free-text box on the game-over screen, sent with
+  // the run's score and level; the dev reads it with the admin token (README). Entirely optional:
+  // NO THANKS closes it, and it is only shown when the board API is reachable in the first place.
+  const FEEDBACK_LEVEL = 12;
+  const Feedback = {
+    busy: false,
+    reset() {
+      const show = Board.enabled && lastGame && (lastGame.level >= FEEDBACK_LEVEL || (DEBUG && QS.has('fb')));
+      $('fb-box').classList.toggle('hidden', !show);
+      $('fb-text').value = ''; $('fb-status').textContent = ''; $('btn-fb-send').disabled = false; this.busy = false;
+    },
+    async send() {
+      if (this.busy || !lastGame) return;
+      const message = $('fb-text').value.trim().slice(0, 500);
+      if (!message) { $('fb-text').focus(); return; }
+      this.busy = true; $('btn-fb-send').disabled = true; $('fb-status').textContent = t('submit.sending');
+      try {
+        await Board.fetchJson('/api/feedback', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, name: settings.name || '', lang: settings.lang, score: lastGame.score, level: lastGame.level, pitches: lastGame.pitches, accuracy: lastGame.accuracy }),
+        });
+        $('fb-status').textContent = t('fb.sent'); Sfx.good();
+        setTimeout(() => { if (this.busy) $('fb-box').classList.add('hidden'); }, 1500);
+      } catch (e) {
+        $('fb-status').textContent = t('fb.fail');
+        this.busy = false; $('btn-fb-send').disabled = false;
+      }
+    },
+    skip() { Sfx.select(); $('fb-box').classList.add('hidden'); },
+  };
+  $('btn-fb-send').addEventListener('click', () => Feedback.send());
+  $('btn-fb-skip').addEventListener('click', () => Feedback.skip());
+  $('fb-text').addEventListener('keydown', (e) => e.stopPropagation()); // typing must not call pitches or restart
   $('btn-submit').addEventListener('click', () => Board.submit());
   $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); Board.submit(); } e.stopPropagation(); });
   document.querySelectorAll('#screen-board .tab').forEach((b) => b.addEventListener('click', () => { Sfx.select(); Board.show(b.dataset.period); }));

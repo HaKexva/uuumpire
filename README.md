@@ -107,6 +107,10 @@ plausibility (max 400 pts per pitch, 12 posts per minute per IP) and names are 1
   Each row shows pitches, accuracy and the average reaction time (rows posted before reaction was recorded show `-`).
 - `API_BASE` in `game.js` points at the server; `?api=http://localhost:8787` overrides it. Without a reachable
   API the board says offline and the submit row stays hidden.
+- Feedback: a player whose run reached level 12 gets an optional box on the game-over screen (one message;
+  score, level, pitches, accuracy, name, language and user agent go with it) via `POST /api/feedback`.
+  Read it, newest first, with the admin token: `curl -H "x-admin-token: $ADMIN_TOKEN" https://api-production-c3f4.up.railway.app/api/feedback?limit=100`
+  (`ADMIN_TOKEN` must be set on the Railway service; the route is off without it).
 - Run locally: `cd server && npm install && node index.js` (in-memory without `DATABASE_URL`).
   Deploy: `railway up --service api` from `server/` (project `uuumpire`, Postgres linked via `DATABASE_URL`).
 
