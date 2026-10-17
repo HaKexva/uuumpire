@@ -76,7 +76,9 @@
              call: '#9bbc0f', 'call-ball': '#9bbc0f', overlay: '#9bbc0f', 'overlay-accent': '#9bbc0f', ok: '#9bbc0f', ng: '#9bbc0f',
              'call-shadow': '3px 3px 0 #0f380f', 'overlay-shadow': '2px 0 0 #0f380f, -2px 0 0 #0f380f, 0 2px 0 #0f380f, 0 -2px 0 #0f380f',
              // menu highlight bar: dark bar, light text (the page's "white" is the dark shade here)
-             'hi-bg': '#0f380f', 'hi-fg': '#9bbc0f', 'hi-val': '#8bac0f' },
+             'hi-bg': '#0f380f', 'hi-fg': '#9bbc0f', 'hi-val': '#8bac0f',
+             // medals in shades: dark star, mid star, hollow star
+             medal1: '#0f380f', medal2: '#306230', medal3: '#0f380f', 'medal-fill': 'none', 'medal-hollow': 'inline-block' },
       shades: ['#0f380f', '#306230', '#8bac0f', '#9bbc0f'] },
   ];
 
@@ -89,7 +91,7 @@
     const rs = document.documentElement.style;
     rs.setProperty('--g-btn-accent', p.css.gold);
     // optional per-palette overrides: clear them first so the CSS fallbacks apply again
-    for (const k of ['logo-shadow', 'call-shadow', 'text-shadow', 'overlay-shadow', 'call', 'call-ball', 'overlay', 'overlay-accent', 'ok', 'ng', 'hi-bg', 'hi-fg', 'hi-val']) rs.removeProperty('--g-' + k);
+    for (const k of ['logo-shadow', 'call-shadow', 'text-shadow', 'overlay-shadow', 'call', 'call-ball', 'overlay', 'overlay-accent', 'ok', 'ng', 'hi-bg', 'hi-fg', 'hi-val', 'medal1', 'medal2', 'medal3', 'medal-fill', 'medal-hollow']) rs.removeProperty('--g-' + k);
     for (const k in p.css) rs.setProperty('--g-' + k, p.css[k]);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', p.css.night);
@@ -527,7 +529,7 @@
   function showScreen(name) {
     for (const k in screens) screens[k].classList.toggle('hidden', k !== name);
     currentScreen = name;
-    if (name === 'title') refreshTitle();
+    if (name === 'title') { refreshTitle(); Board.loadPlays(); }
     if (name === 'records') renderRecords();
     if (name === 'play') fitCanvas();
   }
@@ -1036,7 +1038,7 @@
     Sfx.init(); Sfx.resume();
     Music.start('title');
     switch (action) {
-      case 'start': Sfx.select(); newGame(); break;
+      case 'start': Sfx.select(); Board.countPlay(); newGame(); break;
       case 'sound': settings.sound = !settings.sound; Sfx.enabled = settings.sound; saveSettings(); Sfx.select(); refreshTitle(); break;
       case 'music': settings.music = !settings.music; saveSettings(); Music.apply(); Sfx.select(); refreshTitle(); break;
       case 'palette': settings.palette = (settings.palette + 1) % PALETTES.length; saveSettings(); applyPalette(settings.palette); Sfx.select(); refreshTitle(); break;
@@ -1101,10 +1103,13 @@
           if (mine && s.name === mine && lastGame && s.score === lastGame.score) li.className = 'me';
           const who = document.createElement('span'); who.className = 'who';
           // names are shown as typed: translate="no" keeps browser page translation off them
+          const rk = document.createElement('span'); rk.className = 'rk' + (s.rank <= 3 ? ' m' + s.rank : '');
+          if (s.rank <= 3) rk.innerHTML = MEDAL_FILL + MEDAL_HOLLOW; // one of the two shows, per palette
+          rk.appendChild(document.createTextNode(ordinal(s.rank)));
           const nm = document.createElement('span'); nm.className = 'nm'; nm.translate = false;
           const nmIn = document.createElement('span'); nmIn.className = 'nm-in'; nmIn.textContent = s.name; nm.appendChild(nmIn);
           const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy, s.reaction === null || s.reaction === undefined ? '-' : Number(s.reaction).toFixed(2));
-          who.appendChild(nm); who.appendChild(meta);
+          who.appendChild(rk); who.appendChild(nm); who.appendChild(meta);
           const b = document.createElement('b'); b.textContent = s.score;
           li.appendChild(who); li.appendChild(b);
           list.appendChild(li);
@@ -1123,6 +1128,23 @@
         nm.style.setProperty('--nm-dx', go ? -over + 'px' : '0px');
         if (go) nm.style.setProperty('--nm-t', (2 + over / 20) + 's');
       }
+    },
+    // games started today, on the title screen (the server counts PLAY BALL clicks from the launch day on)
+    playsAt: -1e9,
+    async loadPlays() {
+      const n = $('title-plays');
+      if (!this.enabled) return;
+      if (performance.now() - this.playsAt < 20000) return; // the title comes and goes; one fetch per 20 s is plenty
+      this.playsAt = performance.now();
+      try {
+        const d = await this.fetchJson('/api/plays');
+        n.textContent = t('plays.today', d.today);
+        n.classList.toggle('hidden', !(d.today > 0));
+      } catch (e) { n.classList.add('hidden'); }
+    },
+    countPlay() {
+      if (!this.enabled || LOCAL) return; // local test runs stay out of the live count
+      try { fetch(API_BASE + '/api/plays', { method: 'POST', keepalive: true }).catch(() => {}); } catch (e) { /* offline */ }
     },
     resetSubmit() {
       const row = $('submit-row'), st = $('submit-status'), input = $('name-input'), btn = $('btn-submit');
@@ -1152,6 +1174,12 @@
       }
     },
   };
+  // 7x7 pixel stars for the top three: filled (gold / silver / bronze) or hollow (Game Boy's bronze, where
+  // three shades are not enough for three medals). CSS picks which one shows.
+  const MEDAL_FILL = '<svg class="medal fill" viewBox="0 0 7 7" aria-hidden="true"><path d="M3 0h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM0 6h1v1h-1zM6 6h1v1h-1z"/></svg>';
+  const MEDAL_HOLLOW = '<svg class="medal hollow" viewBox="0 0 7 7" aria-hidden="true"><path d="M3 0h1v1h-1zM2 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM5 3h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM5 5h1v1h-1zM0 6h1v1h-1zM6 6h1v1h-1z"/></svg>';
+  // the rank before each name: a plain number in every language
+  function ordinal(n) { return t('board.rank', n); }
   $('btn-submit').addEventListener('click', () => Board.submit());
   $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); Board.submit(); } e.stopPropagation(); });
   document.querySelectorAll('#screen-board .tab').forEach((b) => b.addEventListener('click', () => { Sfx.select(); Board.show(b.dataset.period); }));

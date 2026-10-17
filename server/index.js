@@ -4,6 +4,8 @@
    GET  /api/scores?period=daily|all      -> { period, day, scores: [{ rank, name, score, pitches, accuracy, streak, reaction, day }] }
    POST /api/scores { name, score, pitches, accuracy, streak, reaction, lang }
                                           -> { ok, rankDaily, rankAll }
+   POST /api/plays                        -> { ok, counted }   one more game started today (PLAY BALL clicked)
+   GET  /api/plays                        -> { day, today, total, from }
 
    "Today" is the Asia/Taipei calendar day (the players are mostly in TW/JP). CORS is open: the game is a
    static page on another origin and nothing here is sensitive. */
@@ -13,12 +15,14 @@ import pg from 'pg';
 const PORT = process.env.PORT || 8787;
 const TZ = process.env.BOARD_TZ || 'Asia/Taipei';
 const LIMIT = 20; // rows shown per board; anything outside both top-20s is pruned (see prune())
+const PLAYS_FROM = process.env.PLAYS_FROM || '2026-10-18'; // the play counter starts on this Taipei day; earlier starts are not counted
 
 // ---- storage -------------------------------------------------------------
 const pool = process.env.DATABASE_URL
   ? new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.PGSSL === 'disable' ? false : { rejectUnauthorized: false } })
   : null;
 const mem = []; // fallback when no database is configured (dev)
+const memPlays = new Map(); // day -> games started (dev fallback)
 
 async function init() {
   if (!pool) { console.log('no DATABASE_URL: using in-memory scores'); return; }
@@ -36,6 +40,7 @@ async function init() {
   )`);
   await pool.query('CREATE INDEX IF NOT EXISTS scores_day_score ON scores (day, score DESC)');
   await pool.query('CREATE INDEX IF NOT EXISTS scores_score ON scores (score DESC)');
+  await pool.query('CREATE TABLE IF NOT EXISTS plays (day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)');
   console.log('postgres ready');
   await prune();
 }
@@ -88,6 +93,22 @@ async function insert(rec) {
   const a = await pool.query('SELECT COUNT(*)::int AS n FROM scores WHERE score > $1', [rec.score]);
   await prune();
   return { rankDaily: d.rows[0].n + 1, rankAll: a.rows[0].n + 1 };
+}
+
+// ---- play counter: one row per Taipei day, bumped when PLAY BALL is clicked ----------------------
+async function countPlay() {
+  const day = today();
+  if (day < PLAYS_FROM) return false;
+  if (!pool) { memPlays.set(day, (memPlays.get(day) || 0) + 1); return true; }
+  await pool.query('INSERT INTO plays (day, n) VALUES ($1, 1) ON CONFLICT (day) DO UPDATE SET n = plays.n + 1', [day]);
+  return true;
+}
+async function plays() {
+  const day = today();
+  if (!pool) { let total = 0; for (const n of memPlays.values()) total += n; return { day, today: memPlays.get(day) || 0, total, from: PLAYS_FROM }; }
+  const t = await pool.query('SELECT n FROM plays WHERE day = $1', [day]);
+  const a = await pool.query('SELECT COALESCE(SUM(n), 0)::int AS n FROM plays');
+  return { day, today: t.rows.length ? t.rows[0].n : 0, total: a.rows[0].n, from: PLAYS_FROM };
 }
 
 // ---- validation + rate limit --------------------------------------------
@@ -145,6 +166,12 @@ const server = http.createServer(async (req, res) => {
       const period = url.searchParams.get('period') === 'all' ? 'all' : 'daily';
       const { day, rows } = await top(period);
       return send(res, 200, { period, day, scores: rows.map((r, i) => ({ rank: i + 1, ...r })) });
+    }
+    if (url.pathname === '/api/plays' && req.method === 'GET') return send(res, 200, await plays());
+    if (url.pathname === '/api/plays' && req.method === 'POST') {
+      const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+      if (limited(ip)) return send(res, 429, { error: 'slow down' });
+      return send(res, 200, { ok: true, counted: await countPlay() });
     }
     // moderation: POST /api/admin/delete { name } with header x-admin-token (only when ADMIN_TOKEN is set)
     if (url.pathname === '/api/admin/delete' && req.method === 'POST' && process.env.ADMIN_TOKEN) {
