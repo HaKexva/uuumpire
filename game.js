@@ -95,6 +95,12 @@
     if (meta) meta.setAttribute('content', p.css.night);
     buildAssets();
   }
+  // The Game Boy palette belongs to the pixel era. A game that crosses into the 3D era switches its UI to
+  // NIGHT GAME (the scene there is lit, not four shades) and goes back to the player's choice on the title.
+  let hdPalette = null; // the palette in force while the override lasts, else null
+  const uiPalette = () => (hdPalette === null ? settings.palette : hdPalette);
+  function enterHdPalette() { const p = PALETTES[settings.palette]; if (hdPalette === null && p && p.shades) { hdPalette = 0; applyPalette(0); } }
+  function leaveHdPalette() { if (hdPalette !== null) { hdPalette = null; applyPalette(settings.palette); } }
 
   // ------------------------------------------------------------
   // Sprites (char rows -> palette)
@@ -529,7 +535,7 @@
   function showScreen(name) {
     for (const k in screens) screens[k].classList.toggle('hidden', k !== name);
     currentScreen = name;
-    if (name === 'title') refreshTitle();
+    if (name === 'title') { leaveHdPalette(); refreshTitle(); }
     if (name === 'records') renderRecords();
     if (name === 'play') fitCanvas();
   }
@@ -560,7 +566,7 @@
     if (era3dLoading) return era3dLoading;
     loadHdBand();
     era3dLoading = import('./era3d.js?v=' + (window.UU_V || '')).then((m) => {
-      era3d = m.createEra3D({ C, game, stage: el.stage, canvas2d: canvas, assetsBase: window.UU_ERA3D_ASSETS || '../uuumpire-3d/assets/', firstLevel: ERA3D_LEVEL, getPalette: () => settings.palette });
+      era3d = m.createEra3D({ C, game, stage: el.stage, canvas2d: canvas, assetsBase: window.UU_ERA3D_ASSETS || '../uuumpire-3d/assets/', firstLevel: ERA3D_LEVEL, getPalette: () => uiPalette() });
       if (G.pitch) era3d.onEvent('next', { pitch: G.pitch, level: G.level, pitchIndex: G.pitchIndex, levelUp: false }); // the pitch already set up before the module arrived
       return era3d.ready.then(() => era3d);
     }).catch((e) => { console.error('3D era failed to load', e); era3d = null; });
@@ -571,6 +577,7 @@
   // If the era never loads, the bar ends and the pixel game simply carries on.
   function eraTransition(e) {
     game.setPaused(true); // the core clock only; no PAUSED overlay
+    enterHdPalette();
     hideText();
     const box = $('era-load'), text = $('era-load-text'), fill = $('era-load-fill');
     const lines = [t('era.1'), t('era.2'), t('era.3'), t('era.4')];
@@ -654,7 +661,7 @@
   // show the 3D scene when its level is on and it is loaded (now, or as soon as the models land)
   function syncEra3D() {
     if (G.level < ERA3D_LEVEL || currentScreen !== 'play') { if (era3d) era3d.hide(); return; }
-    loadEra3D().then(() => { if (era3d && G.level >= ERA3D_LEVEL && currentScreen === 'play') era3d.show(); });
+    loadEra3D().then(() => { if (era3d && G.level >= ERA3D_LEVEL && currentScreen === 'play') { enterHdPalette(); era3d.show(); } });
   }
   const ZONE = G.zone;       // sized per batter by the core; same object for the whole game
   const V = {                // view state: nothing here changes a call or a point
@@ -663,6 +670,7 @@
   let lastGame = null;       // summary of the last game (game-over screen, leaderboard submit)
 
   function newGame() {
+    leaveHdPalette(); // a retry from the HD end screen starts back in the pixel era
     Object.assign(V, { shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null });
     missGrowing = false;
     el.pause.classList.remove("show"); el.btnPause.classList.remove("pressed");
