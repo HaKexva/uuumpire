@@ -436,12 +436,13 @@ button { font-family: inherit; }
 .board-panel { min-height: 120px; }
 .records.board li { gap: 8px; }
 .records.board li .who { flex: 1; display: flex; gap: 10px; min-width: 0; }
-.records.board li .who .rk { --rk: var(--g-gray); color: var(--rk); flex-shrink: 0; min-width: 2.3em; display: flex; align-items: center; justify-content: flex-end; gap: 3px; }
-/* the top three carry a medal star: gold, silver, bronze (a palette can override each) */
+.records.board li .who .rk { --rk: var(--g-gray); color: var(--rk); flex-shrink: 0; min-width: 1.6em; position: relative; }
+/* the top three carry a medal star: gold, silver, bronze (a palette can override each). The star hangs in the
+   list's left padding so the rank column, and every name after it, stays where it is on a narrow screen */
 .records.board li .who .rk.m1 { --rk: var(--g-medal1, var(--g-gold)); }
 .records.board li .who .rk.m2 { --rk: var(--g-medal2, #dcdcdc); }
 .records.board li .who .rk.m3 { --rk: var(--g-medal3, #f0a060); }
-.records.board li .who .rk .medal { width: 14px; height: 14px; fill: currentColor; shape-rendering: crispEdges; flex-shrink: 0; }
+.records.board li .who .rk .medal { position: absolute; right: 100%; top: 50%; width: 14px; height: 14px; margin: -7px 4px 0 0; fill: currentColor; shape-rendering: crispEdges; }
 .records.board li .who .rk .medal.fill { display: inline-block; }
 .records.board li .who .rk .medal.hollow { display: none; }
 .records.board li .who .rk.m3 .medal.fill { display: var(--g-medal-fill, inline-block); }
