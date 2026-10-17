@@ -76,7 +76,9 @@
              call: '#9bbc0f', 'call-ball': '#9bbc0f', overlay: '#9bbc0f', 'overlay-accent': '#9bbc0f', ok: '#9bbc0f', ng: '#9bbc0f',
              'call-shadow': '3px 3px 0 #0f380f', 'overlay-shadow': '2px 0 0 #0f380f, -2px 0 0 #0f380f, 0 2px 0 #0f380f, 0 -2px 0 #0f380f',
              // menu highlight bar: dark bar, light text (the page's "white" is the dark shade here)
-             'hi-bg': '#0f380f', 'hi-fg': '#9bbc0f', 'hi-val': '#8bac0f' },
+             'hi-bg': '#0f380f', 'hi-fg': '#9bbc0f', 'hi-val': '#8bac0f',
+             // medals in shades: dark star, mid star, hollow star
+             medal1: '#0f380f', medal2: '#306230', medal3: '#0f380f', 'medal-fill': 'none', 'medal-hollow': 'inline-block' },
       shades: ['#0f380f', '#306230', '#8bac0f', '#9bbc0f'] },
   ];
 
@@ -89,7 +91,7 @@
     const rs = document.documentElement.style;
     rs.setProperty('--g-btn-accent', p.css.gold);
     // optional per-palette overrides: clear them first so the CSS fallbacks apply again
-    for (const k of ['logo-shadow', 'call-shadow', 'text-shadow', 'overlay-shadow', 'call', 'call-ball', 'overlay', 'overlay-accent', 'ok', 'ng', 'hi-bg', 'hi-fg', 'hi-val']) rs.removeProperty('--g-' + k);
+    for (const k of ['logo-shadow', 'call-shadow', 'text-shadow', 'overlay-shadow', 'call', 'call-ball', 'overlay', 'overlay-accent', 'ok', 'ng', 'hi-bg', 'hi-fg', 'hi-val', 'medal1', 'medal2', 'medal3', 'medal-fill', 'medal-hollow']) rs.removeProperty('--g-' + k);
     for (const k in p.css) rs.setProperty('--g-' + k, p.css[k]);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', p.css.night);
@@ -535,7 +537,7 @@
   function showScreen(name) {
     for (const k in screens) screens[k].classList.toggle('hidden', k !== name);
     currentScreen = name;
-    if (name === 'title') { leaveHdPalette(); refreshTitle(); }
+    if (name === 'title') { leaveHdPalette(); refreshTitle(); Board.loadPlays(); Board.prepRun(); }
     if (name === 'records') renderRecords();
     if (name === 'play') fitCanvas();
   }
@@ -555,7 +557,11 @@
   // Game state: the simulation is core.js; this layer keeps the view-only state and turns core
   // events into sound, text and particles.
   // ------------------------------------------------------------
-  const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent });
+  // Each game plays on a seed from the leaderboard server and logs its calls, so the server can replay
+  // it before the score goes on the board (core.replayRun). No server, no seed: the game still plays
+  // on Math.random, it just cannot be submitted.
+  let runRng = Math.random, run = null, runLog = [];
+  const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent, rng: () => runRng() });
   const G = game.state;      // phase, t, pitch, score, streak, misses, mood, ball, mitt, zone, result ...
 
   // The 3D era (era3d.js): from ERA3D_LEVEL the scene is drawn in 3D over the same stage box. The module and
@@ -669,7 +675,14 @@
   };
   let lastGame = null;       // summary of the last game (game-over screen, leaderboard submit)
 
-  function newGame() {
+  let starting = false;
+  async function newGame() {
+    if (starting) return;
+    starting = true;
+    run = await Board.takeRun(); // prefetched on the title screen; bounded wait, null when offline
+    starting = false;
+    runRng = run ? C.seededRng(run.seed) : Math.random;
+    runLog = [];
     leaveHdPalette(); // a retry from the HD end screen starts back in the pixel era
     Object.assign(V, { shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null });
     missGrowing = false;
@@ -728,7 +741,7 @@
           showText(el.judge, t(G.result.correct ? 'abs.stands' : 'abs.over'), G.result.correct ? 'ok' : 'ng');
         }
         break;
-      case 'resolve': onResolve(e); break;
+      case 'resolve': runLog.push(e.timeout ? [null] : [e.call, e.reaction]); onResolve(e); break;
       case 'replay': V.trail = []; hideText(); el.btnReplay.classList.add('hidden'); Sfx.select(); break;
       case 'replayEnd':
         showRevealTexts();
@@ -858,8 +871,9 @@
     $('over-acc').textContent = s.accuracy + '%';
     $('over-streak').textContent = s.streak;
     $('over-react').textContent = s.reaction === null ? '-' : s.reaction.toFixed(2) + 's';
-    lastGame = s;
+    lastGame = Object.assign(s, { run: run ? run.run : null, log: runLog });
     Board.resetSubmit();
+    Board.prepRun(); // a seed for the next game
     const prevBest = settings.records.length ? settings.records[0].score : 0;
     const isBest = s.score > prevBest && s.score > 0;
     $('over-newbest').classList.toggle('hidden', !isBest);
@@ -1174,7 +1188,7 @@
     Sfx.init(); Sfx.resume();
     Music.start('title');
     switch (action) {
-      case 'start': Sfx.select(); newGame(); break;
+      case 'start': Sfx.select(); Board.countPlay(); newGame(); break;
       case 'sound': settings.sound = !settings.sound; Sfx.enabled = settings.sound; saveSettings(); Sfx.select(); refreshTitle(); break;
       case 'music': settings.music = !settings.music; saveSettings(); Music.apply(); Sfx.select(); refreshTitle(); break;
       case 'palette': settings.palette = (settings.palette + 1) % PALETTES.length; saveSettings(); applyPalette(settings.palette); Sfx.select(); refreshTitle(); break;
@@ -1208,10 +1222,31 @@
   // Leaderboard (server/ on Railway). API_BASE empty = feature hidden. ?api=http://localhost:8787 to test.
   // ------------------------------------------------------------
   const API_BASE = (new URLSearchParams(location.search).get('api') || 'https://api-production-c3f4.up.railway.app').replace(/\/$/, '');
+  const RUN_WAIT = 1500; // ms a game start waits for a seed at most
+  const LOCAL_SKIP_RUN = LOCAL && !QS.has('api'); // a local page without ?api= plays unranked, no seed request
   const Board = {
     period: 'daily',
     busy: false,
     enabled: !!API_BASE,
+    // a seed per game (POST /api/runs). Fetched ahead on the title screen so PLAY BALL does not wait;
+    // takeRun() hands it over, or waits at most RUN_WAIT for one, or gives null (offline: play unranked)
+    runP: null,
+    prepRun() { if (this.enabled && !this.runP && !LOCAL_SKIP_RUN) this.runP = this.fetchRun(); },
+    async fetchRun() {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), RUN_WAIT);
+      try {
+        const r = await fetch(API_BASE + '/api/runs', { method: 'POST', signal: ctl.signal });
+        const j = r.ok ? await r.json() : null;
+        return j && typeof j.run === 'string' && typeof j.seed === 'number' ? j : null;
+      } catch (e) { return null; } finally { clearTimeout(timer); }
+    },
+    async takeRun() {
+      if (!this.enabled || LOCAL_SKIP_RUN) return null;
+      const p = this.runP || this.fetchRun();
+      this.runP = null;
+      return p;
+    },
     async fetchJson(path, opts) {
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), 6000);
@@ -1239,10 +1274,13 @@
           if (mine && s.name === mine && lastGame && s.score === lastGame.score) li.className = 'me';
           const who = document.createElement('span'); who.className = 'who';
           // names are shown as typed: translate="no" keeps browser page translation off them
+          const rk = document.createElement('span'); rk.className = 'rk' + (s.rank <= 3 ? ' m' + s.rank : '');
+          if (s.rank <= 3) rk.innerHTML = MEDAL_FILL + MEDAL_HOLLOW; // one of the two shows, per palette
+          rk.appendChild(document.createTextNode(ordinal(s.rank)));
           const nm = document.createElement('span'); nm.className = 'nm'; nm.translate = false;
           const nmIn = document.createElement('span'); nmIn.className = 'nm-in'; nmIn.textContent = s.name; nm.appendChild(nmIn);
           const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy, s.reaction === null || s.reaction === undefined ? '-' : Number(s.reaction).toFixed(2));
-          who.appendChild(nm); who.appendChild(meta);
+          who.appendChild(rk); who.appendChild(nm); who.appendChild(meta);
           const b = document.createElement('b'); b.textContent = s.score;
           li.appendChild(who); li.appendChild(b);
           list.appendChild(li);
@@ -1262,10 +1300,28 @@
         if (go) nm.style.setProperty('--nm-t', (2 + over / 20) + 's');
       }
     },
+    // games started today, on the title screen (the server counts PLAY BALL clicks from the launch day on)
+    playsAt: -1e9,
+    async loadPlays() {
+      const n = $('title-plays');
+      if (!this.enabled) return;
+      if (performance.now() - this.playsAt < 20000) return; // the title comes and goes; one fetch per 20 s is plenty
+      this.playsAt = performance.now();
+      try {
+        const d = await this.fetchJson('/api/plays');
+        n.textContent = t('plays.today', d.today);
+        n.classList.toggle('hidden', !(d.today > 0));
+      } catch (e) { n.classList.add('hidden'); }
+    },
+    countPlay() {
+      if (!this.enabled || LOCAL) return; // local test runs stay out of the live count
+      try { fetch(API_BASE + '/api/plays', { method: 'POST', keepalive: true }).catch(() => {}); } catch (e) { /* offline */ }
+    },
     resetSubmit() {
       const row = $('submit-row'), st = $('submit-status'), input = $('name-input'), btn = $('btn-submit');
-      row.classList.toggle('hidden', !this.enabled || !lastGame || lastGame.score <= 0);
-      st.textContent = '';
+      const eligible = this.enabled && lastGame && lastGame.score > 0;
+      row.classList.toggle('hidden', !eligible || !lastGame.run);
+      st.textContent = eligible && !lastGame.run ? t('submit.norun') : ''; // played without a seed (offline at the start)
       input.value = settings.name || '';
       btn.disabled = false;
       this.busy = false;
@@ -1290,6 +1346,12 @@
       }
     },
   };
+  // 7x7 pixel stars for the top three: filled (gold / silver / bronze) or hollow (Game Boy's bronze, where
+  // three shades are not enough for three medals). CSS picks which one shows.
+  const MEDAL_FILL = '<svg class="medal fill" viewBox="0 0 7 7" aria-hidden="true"><path d="M3 0h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM0 6h1v1h-1zM6 6h1v1h-1z"/></svg>';
+  const MEDAL_HOLLOW = '<svg class="medal hollow" viewBox="0 0 7 7" aria-hidden="true"><path d="M3 0h1v1h-1zM2 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM5 3h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM5 5h1v1h-1zM0 6h1v1h-1zM6 6h1v1h-1z"/></svg>';
+  // the rank before each name: a plain number in every language
+  function ordinal(n) { return t('board.rank', n); }
   $('btn-submit').addEventListener('click', () => Board.submit());
   $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); Board.submit(); } e.stopPropagation(); });
   document.querySelectorAll('#screen-board .tab').forEach((b) => b.addEventListener('click', () => { Sfx.select(); Board.show(b.dataset.period); }));

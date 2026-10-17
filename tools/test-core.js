@@ -207,12 +207,23 @@ const count = (log, type) => log.filter((l) => l.type === type).length;
   ok(game.callRemain() > 0 && game.callRemain() < 1, 'call window remaining');
 }
 
+// patient umpire: holds every call to the last 0.2 s of the window
+{
+  const { G, log } = play((g) => { if (g.state.phase === 'call' && g.state.t >= g.state.callWindow - 0.2) g.call(g.state.pitch.strike ? 'strike' : 'ball'); }, { maxPitches: 90, seed: 7 });
+  const resolves = log.filter((l) => l.type === 'resolve').map((l) => l.e);
+  ok(G.misses === 0 && resolves.length > 50 && resolves.every((r) => r.correct && !r.timeout && r.bonus.includes('late')), `every held call pays the late bonus (${resolves.length} calls, ${G.misses} misses)`);
+}
+
 // scoring rules
 {
   const p = { edgeDist: 1, swing: 'none' };
   ok(C.scoreCall(1, p, 1).pts === 150 && C.scoreCall(1, p, 1).bonus.join() === 'fine', 'edge bonus');
   ok(C.scoreCall(1, { edgeDist: 1, swing: 'full' }, 1).pts === 100, 'no edge bonus on a swing');
   ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 0.2).pts === 130, 'quick bonus');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.85, 2.08).pts === 150 && C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.85, 2.08).bonus.join() === 'late', 'late bonus inside the last 0.3 s');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.7, 2.08).pts === 100, 'no late bonus 0.38 s before the deadline');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 0.5, 0.7).bonus.join() === 'quick,late', 'a tight window can pay both');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.9).pts === 100, 'no window given, no late bonus');
   ok(C.scoreCall(11, { edgeDist: 9, swing: 'none' }, 1).pts === 200 && C.scoreCall(50, { edgeDist: 9, swing: 'none' }, 1).mult === 2, 'x2 cap');
   ok(C.moodAfter(0, true) === 1 && C.moodAfter(5, true) === 5 && C.moodAfter(1, false) === 0 && C.moodAfter(5, false) === 3, 'crowd meter +1 / -2');
 }
@@ -236,6 +247,46 @@ const count = (log, type) => log.filter((l) => l.type === type).length;
     games++;
   }
   console.log(`  ${games} random games, ${overs} ended by three misses`);
+}
+
+// replay: a logged game plays back to the same summary; a doctored one does not
+console.log('replay');
+{
+  const seed = 4242;
+  const rng = mulberry32(99);
+  const log = [];
+  const game = C.createGame({ rng: C.seededRng(seed), kits: 6, onEvent: (type, e) => { if (type === 'resolve') log.push(e.timeout ? [null] : [e.call, e.reaction]); } });
+  game.start();
+  let guard = 0;
+  while (game.state.phase !== 'over' && guard++ < 2e6) {
+    const dt = 1 / 60 + rng() * 0.02; // uneven frames, like a browser
+    game.update(dt);
+    const s = game.state;
+    if (s.phase === 'call' && rng() < 0.08) game.call(rng() < 0.7 ? (s.pitch.strike ? 'strike' : 'ball') : (s.pitch.strike ? 'ball' : 'strike'));
+    if (s.phase === 'reveal' && rng() < 0.01) game.replay();
+  }
+  const want = game.summary();
+  const got = C.replayRun(seed, log);
+  ok(got && got.score === want.score && got.pitches === want.pitches && got.accuracy === want.accuracy && got.streak === want.streak, `replay reproduces the summary (${want.score} pts, ${want.pitches} pitches)`);
+  ok(got && near(got.reaction, want.reaction, 1e-9), 'replay reproduces the average reaction');
+  ok(got && got.seconds > 0, 'replay reports game time');
+  ok(want.score > 0 && log.length === want.pitches, 'the log has one entry per pitch');
+  ok(C.replayRun(seed + 1, log) === null || C.replayRun(seed + 1, log).score !== want.score, 'another seed does not play to the same score');
+  const late = log.map((e) => (e[0] === null ? e : [e[0], 99]));
+  ok(C.replayRun(seed, late) === null, 'a call after the window is refused');
+  ok(C.replayRun(seed, log.slice(0, -1)) === null, 'a log shorter than the game is refused');
+  ok(C.replayRun(seed, log.concat([['strike', 0.1]])) === null, 'a log longer than the game is refused');
+  ok(C.replayRun(seed, 'nope') === null && C.replayRun(seed, [['strike']]) === null, 'junk is refused');
+  const strikes = log.map((e) => (e[0] === null ? e : ['strike', 0.2]));
+  const r2 = C.replayRun(seed, strikes);
+  ok(r2 === null || r2.score !== want.score || r2.pitches !== want.pitches, 'changing the calls changes the outcome');
+}
+// the server ships with its own copy of core.js as core.cjs (pre-commit hook): it must be this one
+{
+  const fs = require('fs'), path = require('path');
+  const here = path.join(__dirname, '..');
+  const copy = path.join(here, 'server', 'core.cjs');
+  ok(fs.existsSync(copy) && fs.readFileSync(copy, 'utf8') === fs.readFileSync(path.join(here, 'core.js'), 'utf8'), 'server/core.cjs is a copy of core.js (run tools/install-hooks.sh)');
 }
 
 console.log(`${checks} checks, ${fails} failed`);
