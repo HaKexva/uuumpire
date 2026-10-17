@@ -16,7 +16,7 @@ Works on desktop and mobile (portrait). Live: https://hakexva.github.io/uuumpire
 
 Cache busting: `index.html` is a static shell that fetches `version.json` (never cached) and loads every
 asset with `?v=<stamp>`, so a deploy is picked up even while GitHub Pages still serves the cached page.
-Run `sh tools/install-hooks.sh` once; the pre-commit hook then stamps `version.json` and copies `core.js` to `server/core.js` (the API replays games with it) on every commit
+Run `sh tools/install-hooks.sh` once; the pre-commit hook then stamps `version.json` and copies `core.js` to `server/core.cjs` (the API replays games with it) on every commit
 (`node tools/stamp.js` by hand otherwise).
 
 | Action | PC | Mobile |
