@@ -803,7 +803,7 @@
     const judge = r.timeout ? t('judge.late') : r.correct ? t('judge.ok') : t('judge.ng');
     setTimeout(() => only(() => showText(el.judge, judge, r.correct ? 'ok' : 'ng')), 180);
     if (r.reaction !== null) setTimeout(() => only(() => showText(el.react, t('reaction', r.reaction.toFixed(2)), '')), 240);
-    if (V.umpStyle) setTimeout(() => only(() => showText(el.style, t('ump.' + V.umpStyle), '')), 500);
+    if (V.umpStyle) setTimeout(() => only(() => { if (!(era3d && era3d.active)) showText(el.style, t('ump.' + V.umpStyle), ''); }), 500); // the style names the pixel inset's animation; the 3D era has none
     // crowd line, then swing / framing tags, then (on a correct call) the multiplier and bonuses
     const msgs = (r.crowd ? [t('tag.' + r.crowd)] : []).concat(r.tags.map((k) => t('tag.' + k)));
     if (r.correct) {
