@@ -46,6 +46,7 @@
     base: 100, streakStep: 0.1, streakCap: 10,   // x1.0 .. x2.0
     fineEdge: 3.8, finePts: 50,                   // edge pitch bonus (px from the zone edge)
     quick: 0.6, quickPts: 30,                     // quick call bonus (s)
+    late: 0.3, latePts: 50,                       // held call bonus: a correct call inside the last 0.3 s of the window
     swingLevel: 4, framingLevel: 5, submarineLevel: 3, discoLevel: 10,
   };
   // What each level adds (the UI shows lvl.<level>). Levels not listed just get faster/tighter.
@@ -241,14 +242,16 @@
   // ------------------------------------------------------------
   // Scoring and crowd
   // ------------------------------------------------------------
-  // Points for a correct call. streak counts this call. bonus lists the keys earned ('fine', 'quick').
-  function scoreCall(streak, pitch, reaction) {
+  // Points for a correct call. streak counts this call. bonus lists the keys earned ('fine', 'quick', 'late').
+  // window is the call window (s): a call within RULES.late of it was held to the last moment, like a real umpire's timing
+  function scoreCall(streak, pitch, reaction, window) {
     const mult = 1 + Math.min(streak - 1, RULES.streakCap) * RULES.streakStep;
     let pts = RULES.base * mult;
     const bonus = [];
     // framing never changes the call or the score: the ball is judged where it crossed the plate
     if (pitch.edgeDist < RULES.fineEdge && pitch.swing !== 'full') { pts += RULES.finePts; bonus.push('fine'); }
     if (reaction < RULES.quick) { pts += RULES.quickPts; bonus.push('quick'); }
+    if (window && reaction >= window - RULES.late) { pts += RULES.latePts; bonus.push('late'); }
     return { pts: Math.round(pts), mult, bonus };
   }
   // Crowd heat (0..moodMax): every correct call fills a cell, a miss knocks two out. Atmosphere only.
@@ -346,7 +349,7 @@
         G.streak++;
         G.correct++;
         G.bestStreak = Math.max(G.bestStreak, G.streak);
-        ({ pts, mult, bonus } = scoreCall(G.streak, p, reaction));
+        ({ pts, mult, bonus } = scoreCall(G.streak, p, reaction, G.callWindow));
         G.score += pts;
       } else {
         G.streak = 0;
