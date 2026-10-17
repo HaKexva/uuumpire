@@ -771,7 +771,8 @@
   function onResolve(r) {
     // the 3D era reviews every missed call: the ABS replay starts by itself once the verdict is read
     // (a swing is a strike wherever the ball went: nothing to review)
-    if (!r.correct && era3d && era3d.active && G.pitch.swing !== 'full') setTimeout(() => { if (G.phase === 'reveal' && era3d && era3d.active) startReplay(); }, 900);
+    // (a timeout reviews nothing either: no call was made, there is nothing to overturn)
+    if (!r.correct && !r.timeout && era3d && era3d.active && G.pitch.swing !== 'full') setTimeout(() => { if (G.phase === 'reveal' && era3d && era3d.active) startReplay(); }, 900);
     const p = G.pitch;
     V.umpStyle = pickUmpStyle(p.strike);
     el.timer.style.width = '0%';
