@@ -408,6 +408,7 @@
     windup() { this.tone(220, 0.08, { vol: 0.07 }); },
     whoosh() { this.tone(900, 0.35, { type: 'sawtooth', vol: 0.07, slide: 180 }); },
     pop() { this.tone(140, 0.1, { vol: 0.2, slide: 60 }); this.tone(1200, 0.03, { type: 'triangle', vol: 0.11 }); },
+    heart() { for (let i = 0; i < 4; i++) this.tone([1047, 1319, 1568, 2093][i], i < 3 ? 0.07 : 0.28, { vol: 0.05, delay: i * 0.07 }); }, // a container found
     good() { this.tone(660, 0.08); this.tone(880, 0.12, { delay: 0.08 }); this.tone(1320, 0.18, { delay: 0.17 }); },
     bad() { this.tone(200, 0.18, { type: 'sawtooth', vol: 0.05 }); this.tone(150, 0.3, { type: 'sawtooth', vol: 0.05, delay: 0.15 }); },
     strikeCall() { this.tone(520, 0.06, { vol: 0.05 }); this.tone(780, 0.1, { vol: 0.05, delay: 0.06 }); },
@@ -573,10 +574,13 @@
     hideText();
     const box = $('era-load'), text = $('era-load-text'), fill = $('era-load-fill');
     const lines = [t('era.1'), t('era.2'), t('era.3'), t('era.4')];
-    const tease = [t('era.t1'), t('era.t2'), t('era.t3')], TEASE_MS = 1300; // three lines before the bar
+    const tease = [t('era.t1'), t('era.t2')], TEASE_MS = 1300, HEARTS_MS = 1900; // two lines, then the two extra miss boxes drop in while the last line holds, then the bar
+    missGrowing = true; // the extra miss boxes wait for their ceremony
+    let hearts = false;
     box.classList.remove('hidden'); box.classList.add('tease'); box.classList.remove('hd');
     fill.style.width = '0%';
-    const started = performance.now(), MIN_MS = 3800, MAX_MS = 20000 + tease.length * TEASE_MS;
+    const PRE_MS = tease.length * TEASE_MS + HEARTS_MS;
+    const started = performance.now(), MIN_MS = 3800, MAX_MS = 20000 + PRE_MS;
     let ready = false;
     Promise.all([loadEra3D(), loadHdBand()]).then(() => { ready = true; });
     let done = false;
@@ -602,14 +606,28 @@
       if (currentScreen !== 'play') { box.classList.add('hidden'); done = true; clearInterval(timer); return; } // quit to title mid-bar
       const since = performance.now() - started;
       if (since < tease.length * TEASE_MS) { text.textContent = tease[Math.floor(since / TEASE_MS)]; return; }
+      if (!hearts) { hearts = true; growMisses(); } // WE GOT MORE: two more misses, one box at a time
+      if (since < PRE_MS) return;
       box.classList.remove('tease');
-      const ms = since - tease.length * TEASE_MS;
+      const ms = since - PRE_MS;
       const k = Math.min(1, ms / MIN_MS);
       fill.style.width = Math.round((ready ? k : Math.min(k, 0.92)) * 100) + '%';
       text.textContent = lines[Math.floor(ms / 950) % lines.length]; // keeps cycling while the models are still coming
       box.classList.toggle('hd', ms >= MIN_MS / 2); // half way the bar itself turns HD: pixel font first, broadcast type after
       if ((k >= 1 && ready) || ms > MAX_MS) { clearInterval(timer); finish(); }
     }, 50);
+  }
+  // the two extra miss boxes of the 3D era drop in one at a time with a chime, like heart containers
+  let missGrowing = false;
+  function growMisses() {
+    missGrowing = true;
+    const extras = el.miss.querySelectorAll('i.extra');
+    extras.forEach((b) => b.classList.remove('pop'));
+    extras.forEach((b, i) => setTimeout(() => {
+      if (i === extras.length - 1) missGrowing = false;
+      if (currentScreen !== 'play') return;
+      b.classList.add('pop'); Sfx.heart();
+    }, 250 + i * 800));
   }
   // The HD band (the-woodshed's recipe): smplr soundfonts from the CDN, a brass section for the cheer songs.
   // Loaded with the models; if it fails or is late the chip player carries the same songs.
@@ -646,6 +664,7 @@
 
   function newGame() {
     Object.assign(V, { shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null });
+    missGrowing = false;
     el.pause.classList.remove("show"); el.btnPause.classList.remove("pressed");
     hideText();
     el.info.textContent = ' ';
@@ -850,7 +869,9 @@
     el.score.textContent = G.score;
     el.streak.textContent = G.streak;
     el.level.textContent = G.level;
-    el.miss.classList.toggle('four', C.missesAllowed(G.level) > 3); // the 3D era allows one more miss
+    const four = C.missesAllowed(G.level) > 3; // the 3D era allows two more misses
+    el.miss.classList.toggle('four', four);
+    if (!missGrowing) el.miss.querySelectorAll('i.extra').forEach((b) => b.classList.toggle('pop', four)); // no ceremony pending: they are simply there (or not)
     const dots = el.miss.querySelectorAll('i');
     dots.forEach((d, i) => d.classList.toggle('on', i < G.misses));
     // crowd meter: one cell per correct call, two lost per miss

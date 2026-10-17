@@ -450,7 +450,13 @@ button { font-family: inherit; }
 .board-status { margin: 8px 0 0; }
 
 .hud-value.miss i.extra { display: none; }
-.hud-value.miss.four i.extra { display: inline-block; }
+.hud-value.miss.four i.extra { display: block; visibility: hidden; }
+.hud-value.miss.four i.extra.pop { visibility: visible; animation: miss-pop .55s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes miss-pop {
+  0% { transform: scale(0); background: var(--g-gold); outline-color: var(--g-gold); }
+  60% { transform: scale(1.5); background: var(--g-gold); outline-color: var(--g-gold); }
+  100% { transform: scale(1); }
+}
 
 /* ---- the 3D era (body.hd): the play screen's text goes HD too, a broadcast typeface with soft shadows ---- */
 body.hd #screen-play, body.hd #screen-play .game-btn { font-family: 'Oswald', 'Helvetica Neue', Arial, sans-serif; }

@@ -58,8 +58,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   canvas.id = 'game3d';
   canvas.style.cssText = 'position:absolute;left:0;top:0;display:none;';
   canvas2d.insertAdjacentElement('afterend', canvas);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  const DPR = window.devicePixelRatio || 1;
+  renderer.setPixelRatio(Math.min(1.5, DPR));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
   renderer.shadowMap.enabled = true;
@@ -121,6 +122,39 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4; sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.02;
   const sc = sun.shadow.camera; sc.near = 1; sc.far = 140; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -30;
   sun.target.position.set(0, 0, -6); scene.add(sun.target);
+  // quality tiers: the whole scene is drawn three times a frame at the top tier (shadow map, the AO
+  // pass's normals+depth, the colour pass). A tier down costs resolution first, then the AO pass, then
+  // bloom. The watchdog in frame() steps down when frames keep running long; it never steps back up
+  // (a phone that was slow once stays on the lighter path). ?hdq=0..3 pins a tier for testing.
+  const TIERS = [
+    { pr: 1.5, ao: 8, bloom: true, shadow: 2048 },
+    { pr: 1.25, ao: 4, bloom: true, shadow: 1024 },
+    { pr: 1, ao: 0, bloom: true, shadow: 1024 },
+    { pr: 1, ao: 0, bloom: false, shadow: 512 },
+  ];
+  const phone = /iPhone|iPad|Android|Mobile/i.test(navigator.userAgent) || (navigator.hardwareConcurrency || 8) <= 4;
+  let tier = -1, slowFrames = 0, lastFrameAt = 0;
+  function setTier(i) {
+    i = Math.max(0, Math.min(TIERS.length - 1, i | 0));
+    if (i === tier) return;
+    tier = i; const q = TIERS[i];
+    renderer.setPixelRatio(Math.min(q.pr, DPR));
+    gtao.enabled = q.ao > 0;
+    if (q.ao) { gtao.updateGtaoMaterial({ samples: q.ao }); gtao.updatePdMaterial({ samples: q.ao, rings: q.ao >= 8 ? 2 : 1 }); }
+    bloom.enabled = q.bloom;
+    if (sun.shadow.mapSize.x !== q.shadow) { sun.shadow.mapSize.set(q.shadow, q.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+    fit();
+    console.info('era3d quality tier', i, q);
+  }
+  const pin = parseInt(new URLSearchParams(location.search).get('hdq'), 10); const pinned = Number.isFinite(pin);
+  setTier(pinned ? pin : phone ? 1 : 0);
+  // frames over 24 ms (under 40 fps) count up, good frames count down; thirty net slow ones drop a tier
+  function watchdog() {
+    if (pinned) return;
+    const now = performance.now();
+    if (lastFrameAt && now - lastFrameAt < 500) { slowFrames = now - lastFrameAt > 24 ? slowFrames + 1 : Math.max(0, slowFrames - 1); if (slowFrames > 30) { slowFrames = 0; setTier(tier + 1); } }
+    lastFrameAt = now;
+  }
   const plateLight = new THREE.PointLight(0xfff4e0, 60, 25, 2); plateLight.position.set(1.5, 6, 6); scene.add(plateLight);
   let lookNow = -1;
   // the lamp heads (stadium.glb LightTower_n_Lamps, Scoreboard_Screen emissive) are on at night only
@@ -242,11 +276,13 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     renderer.render(abs, camera);
   }
 
-  // glTF materials: shadows on, nothing metal (the skin and leather metalness textures render black)
-  function prepTree(root) {
+  // glTF materials: shadows from the players, ball and bat only (the field and the bowl would be drawn
+  // into the shadow map every frame for nothing), nothing metal (the skin and leather metalness textures
+  // render black)
+  function prepTree(root, cast) {
     root.traverse((o) => {
       if (!o.isMesh) return;
-      o.castShadow = true; o.receiveShadow = true;
+      o.castShadow = !!cast; o.receiveShadow = true;
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.isMeshStandardMaterial) {
         m.metalness = 0; m.metalnessMap = null;
         for (const t of [m.map, m.normalMap, m.roughnessMap, m.aoMap]) if (t) t.anisotropy = 8; // the ground is seen at a grazing angle
@@ -259,7 +295,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
         m.envMapIntensity = plastic ? 0.35 : 0.25;
         m.needsUpdate = true;
       }
-      o.frustumCulled = false; // skinned bounds drift with the clips
+      if (o.isSkinnedMesh) o.frustumCulled = false; // skinned bounds drift with the clips; everything else culls
     });
   }
 
@@ -284,7 +320,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       this.root = SkeletonUtils.clone(A.player.scene);
       // the clone shares materials with the source: give this puppet its own so kit colours stay his
       this.root.traverse((o) => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone(); });
-      prepTree(this.root);
+      prepTree(this.root, true);
       const keep = new Set(gear);
       this.nodes = new Map();
       const helper = /^(Elbow_Pole|Ball_Grip|Bat_Grip|Glove_Pocket)/; // rig helpers are meshes in the file: never drawn
@@ -377,7 +413,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     for (const o of drop) { o.parent.remove(o); o.geometry.dispose(); }
     player.scene.traverse((o) => { if (o.isMesh && o.geometry.morphAttributes) { for (const k of Object.keys(o.geometry.morphAttributes)) delete o.geometry.morphAttributes[k]; o.morphTargetInfluences = undefined; o.morphTargetDictionary = undefined; } });
     A.player = { scene: player.scene, animations: player.animations };
-    prepTree(field.scene); prepTree(stadium.scene); prepTree(ballG.scene); prepTree(batG.scene);
+    prepTree(field.scene); prepTree(stadium.scene); prepTree(ballG.scene, true); prepTree(batG.scene, true);
     world.add(field.scene); world.add(stadium.scene);
     stadium.scene.traverse((o) => { if (o.isMesh && /Lamps/.test(o.name)) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.emissive) { m.userData.emi = m.emissiveIntensity; m.userData.emc = m.emissive.getHex(); lamps.push(m); } });
     setLamps(lookNow !== 1);
@@ -552,6 +588,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
 
   function frame(dt) {
     if (!batter) return;
+    watchdog();
     const p = G.pitch;
     const ph = G.phase;
     if (p && (ph === 'replay' || (ph === 'reveal' && absHold))) { renderAbs(p, dt); return; } // the ABS review has its own scene and camera
@@ -628,16 +665,22 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
         cue.stepFrom = catcher.root.position.x;
         cue.stepTo = base + THREE.MathUtils.clamp(latOf(p.x) - base, -0.25, 0.25) * 0.85;
       }
-      if ((p.swing === 'full' || p.swing === 'check') && !cue.swing) {
+    }
+    // the swing is timed to contact. The era's flights are short (0.2-0.4 s), shorter than the swing clip
+    // from load to contact (0.7 s), so the clip starts during the windup: the load and stride show before
+    // the bat comes through instead of the batter jumping into the middle of his swing at release
+    if (p && (p.swing === 'full' || p.swing === 'check') && !cue.swing && (flying || ph === 'windup')) {
+      const toContact = flying ? p.dur - G.t : C.TIMING.windup - G.t + p.dur;
+      if (flying || toContact <= SWING_CONTACT / SWING_TS) {
         cue.swing = true;
-        const from = Math.max(0, SWING_CONTACT - left * SWING_TS);
+        const from = Math.max(0, SWING_CONTACT - toContact * SWING_TS);
         cue.swingAction = batter.play('swing', { timeScale: SWING_TS, fade: 0.12, from });
       }
     }
     // the swing runs on past the catch: a check swing freezes short of contact, a full swing at extension
     if (p && cue.swingAction && !cue.swingAction.paused && cue.swingAction.time >= (p.swing === 'check' ? CHECK_STOP : SWING_HOLD)) { cue.swingAction.paused = true; cue.holdT = 0; }
-    // a short hold, then the batter settles back into his stance (the frozen pose is the model's worst angle)
-    if (p && cue.swingAction && cue.swingAction.paused && cue.holdT !== undefined) { cue.holdT += dt; if (cue.holdT > 0.5) { cue.holdT = undefined; batter.play('batting_stance', { loop: true, fade: 0.5 }); } }
+    // the finish holds through the call, then the batter settles back into his stance (the frozen pose is the model's worst angle)
+    if (p && cue.swingAction && cue.swingAction.paused && cue.holdT !== undefined) { cue.holdT += dt; if (cue.holdT > 1.0) { cue.holdT = undefined; batter.play('batting_stance', { loop: true, fade: 0.5 }); } }
     // after contact the front foot plants pointing at the mound (the clip leaves it square to the plate)
     if (p && p.swing === 'full' && cue.swingAction && cue.swingAction.time > 0.95) aimFrontFoot(THREE.MathUtils.clamp((cue.swingAction.time - 0.95) / 0.15, 0, 1));
     // the umpire breathes: a slow sway of a few millimetres, so the picture is never dead still
@@ -652,7 +695,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     active: false,
     ready: loadAll(),
     onEvent, frame,
-    debug() { return { batter, catcher, pitcher, camera, scene, ball, look: applyLook, renderer, crowdMat }; },
+    debug() { return { batter, catcher, pitcher, camera, scene, ball, look: applyLook, renderer, crowdMat, setTier, tier: () => tier, composer }; },
     show() { if (api.active) return; api.active = true; applyLook(getPalette() | 0); fit(); canvas.style.display = 'block'; canvas2d.style.visibility = 'hidden'; document.body.classList.add('hd'); },
     hide() { if (!api.active) return; api.active = false; canvas.style.display = 'none'; canvas2d.style.visibility = ''; document.body.classList.remove('hd'); },
   };
