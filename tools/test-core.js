@@ -37,7 +37,7 @@ for (let level = 1; level <= 12; level++) {
       ok(Math.hypot(p.frame.dx, p.frame.dy) <= p.edgeDist + 2 * C.BALL_R + 1e-9, 'tug never longer than it takes to get inside');
       if (!p.located && !p.frame.trap) ok(Math.hypot(p.frame.dx, p.frame.dy) <= 7 + 1e-9, 'far ball: short tug');
     }
-    const lo = type.speed[0] + Math.min(level, 8) + Math.max(0, level - 9) * 3 - (p.form === 'SUBMARINE' ? 6 : 0);
+    const lo = type.speed[0] + Math.min(level, 8) + Math.max(0, level - 9) * 3 - (p.form === 'SUBMARINE' ? 6 : 0) - (level === 12 || level === 13 ? 5 : 0);
     ok(p.speed >= lo - 0.5 && p.speed <= lo + (type.speed[1] - type.speed[0]) + 0.5, `${p.type} speed ${p.speed} in band at lv${level}`);
     ok(p.dur > (level >= C.RULES.hardLevel - 1 ? 0.2 : 0.3) && p.dur < 0.9, 'flight time sane'); // the 3D era runs the real flight time
     const end = C.ballPos(p, 1), start = C.ballPos(p, 0);

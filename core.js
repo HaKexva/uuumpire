@@ -51,6 +51,7 @@
     decoyLevel: 15, decoySpeed: [8, 13], decoyBreak: 1.22, decoyWindow: { 15: 0.85, 16: 0.78 }, // 15-16: the catcher sets up as a decoy, harder again
     showLevel: 17, showSpeed: [12, 18], showBreak: 1.3, showWindow: 0.7, showEdge: 0.9, showDur: 0.62, // 17: UNREAL
     eraLevel: 12, eraMisses: 2, // 12+: the 3D era; two more misses allowed so the new ballpark does not end a run at once
+    eraEaseLevels: 2, eraEaseSpeed: 5, // 12-13: the first two levels of the new view come 5 km/h slower; 14 takes it back
     eraStretch: 1.0, // 12+: no readability stretch on the flight, the real 18.44 m time
     eraReviewExtra: 0.8, // 12+: the ABS review stays up this much longer after the replay
   };
@@ -178,6 +179,7 @@
     let hump = type.hump ? rnd(type.hump[0], type.hump[1]) : 0;
     // speed creeps up with level, then jumps from level 10 on
     let speed = Math.round(rnd(type.speed[0], type.speed[1]) + Math.min(level, 8) + Math.max(0, level - 9) * 3);
+    if (level >= RULES.eraLevel && level < RULES.eraLevel + RULES.eraEaseLevels) speed -= RULES.eraEaseSpeed; // eyes adjusting to 3D
     // the back half of the 3D era: every pitch comes in 5-10 km/h harder and anything that moves, moves 15% more
     if (level >= RULES.hardLevel) {
       const show = level >= RULES.showLevel, decoy = level >= RULES.decoyLevel; // 13-14, 15-16, 17: three steps up
