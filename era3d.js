@@ -40,6 +40,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   // zone", and 5 px is 65 mm across and 94 mm up at this scale, so the drawn frame is the zone grown by the
   // difference: a real ball touching the frame is exactly a strike.
   const BALL_SCALE = 1, R_REAL = 0.0369;
+  const FLIGHT_SCALE = 1.4; // the ball in flight is drawn a touch larger so its movement reads; it is real-size by the time it is caught
   const GROW_X = C.BALL_R * M_LAT - R_REAL, GROW_Y = C.BALL_R * M_VERT - R_REAL;
   // nearest point of the drawn frame (metres) to a point on the plane: inside, the nearest edge; outside, the clamp
   function nearestEdgeM(hw, cy, hh, x, y) {
@@ -166,7 +167,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   let revealBall = null;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(R_REAL, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
   // speed trail: ghosts of the last few frames behind the ball (the eye reads velocity from the streak)
-  const ghosts = []; for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(R_REAL * (0.85 - i * 0.12), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 - i * 0.07 })); m.visible = false; scene.add(m); ghosts.push(m); }
+  const ghosts = []; for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(R_REAL * FLIGHT_SCALE * (0.85 - i * 0.12), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 - i * 0.07 })); m.visible = false; scene.add(m); ghosts.push(m); }
   const ghostHist = [];
   // ------------------------------------------------------------
   // ABS review (the replay): its own clean scene like the ballpark videoboard graphic. Dark field,
@@ -527,7 +528,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       if (gloveK > 0.5 && gloveMesh) { gloveHand.getWorldPosition(_H); ballInGlove(_v); _t.set(gx, gy, PLATE_Z - 0.09).sub(_v).add(_H); pinGlove(_t, gloveK); }
     } else gloveK = 0;
     if (flying && b && (cue.released || ph === 'replay')) {
-      ball.visible = true; ball.scale.setScalar(BALL_SCALE); ball.position.set(b.x, b.y, b.z); ball.rotation.x += dt * (p.spin + 2) * 2;
+      ball.visible = true; ball.scale.setScalar(BALL_SCALE * (1 + (FLIGHT_SCALE - 1) * (1 - tt * tt))); ball.position.set(b.x, b.y, b.z); ball.rotation.x += dt * (p.spin + 2) * 2;
       shadow.visible = true; shadow.position.set(b.x, 0.02, b.z); shadow.scale.setScalar(1 + b.y * 0.6);
       ghostHist.unshift([b.x, b.y, b.z]); if (ghostHist.length > 12) ghostHist.pop();
       ghosts.forEach((m, i) => { const h = ghostHist[(i + 1) * 2]; if (h) { m.visible = true; m.position.set(h[0], h[1], h[2]); } else m.visible = false; });
