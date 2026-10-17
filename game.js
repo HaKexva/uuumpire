@@ -529,7 +529,7 @@
   function showScreen(name) {
     for (const k in screens) screens[k].classList.toggle('hidden', k !== name);
     currentScreen = name;
-    if (name === 'title') { refreshTitle(); Board.loadPlays(); }
+    if (name === 'title') { refreshTitle(); Board.loadPlays(); Board.prepRun(); }
     if (name === 'records') renderRecords();
     if (name === 'play') fitCanvas();
   }
@@ -549,7 +549,11 @@
   // Game state: the simulation is core.js; this layer keeps the view-only state and turns core
   // events into sound, text and particles.
   // ------------------------------------------------------------
-  const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent });
+  // Each game plays on a seed from the leaderboard server and logs its calls, so the server can replay
+  // it before the score goes on the board (core.replayRun). No server, no seed: the game still plays
+  // on Math.random, it just cannot be submitted.
+  let runRng = Math.random, run = null, runLog = [];
+  const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent, rng: () => runRng() });
   const G = game.state;      // phase, t, pitch, score, streak, misses, mood, ball, mitt, zone, result ...
   const ZONE = G.zone;       // sized per batter by the core; same object for the whole game
   const V = {                // view state: nothing here changes a call or a point
@@ -557,7 +561,14 @@
   };
   let lastGame = null;       // summary of the last game (game-over screen, leaderboard submit)
 
-  function newGame() {
+  let starting = false;
+  async function newGame() {
+    if (starting) return;
+    starting = true;
+    run = await Board.takeRun(); // prefetched on the title screen; bounded wait, null when offline
+    starting = false;
+    runRng = run ? C.seededRng(run.seed) : Math.random;
+    runLog = [];
     Object.assign(V, { shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null });
     el.pause.classList.remove("show"); el.btnPause.classList.remove("pressed");
     hideText();
@@ -600,7 +611,7 @@
         spawnDust(e.x, e.y);
         if (!e.replay) V.flash = 0.06;
         break;
-      case 'resolve': onResolve(e); break;
+      case 'resolve': runLog.push(e.timeout ? [null] : [e.call, e.reaction]); onResolve(e); break;
       case 'replay': V.trail = []; hideText(); el.btnReplay.classList.add('hidden'); Sfx.select(); break;
       case 'replayEnd':
         showRevealTexts();
@@ -726,8 +737,9 @@
     $('over-acc').textContent = s.accuracy + '%';
     $('over-streak').textContent = s.streak;
     $('over-react').textContent = s.reaction === null ? '-' : s.reaction.toFixed(2) + 's';
-    lastGame = s;
+    lastGame = Object.assign(s, { run: run ? run.run : null, log: runLog });
     Board.resetSubmit();
+    Board.prepRun(); // a seed for the next game
     const prevBest = settings.records.length ? settings.records[0].score : 0;
     const isBest = s.score > prevBest && s.score > 0;
     $('over-newbest').classList.toggle('hidden', !isBest);
@@ -1072,10 +1084,31 @@
   // Leaderboard (server/ on Railway). API_BASE empty = feature hidden. ?api=http://localhost:8787 to test.
   // ------------------------------------------------------------
   const API_BASE = (new URLSearchParams(location.search).get('api') || 'https://api-production-c3f4.up.railway.app').replace(/\/$/, '');
+  const RUN_WAIT = 1500; // ms a game start waits for a seed at most
+  const LOCAL_SKIP_RUN = LOCAL && !QS.has('api'); // a local page without ?api= plays unranked, no seed request
   const Board = {
     period: 'daily',
     busy: false,
     enabled: !!API_BASE,
+    // a seed per game (POST /api/runs). Fetched ahead on the title screen so PLAY BALL does not wait;
+    // takeRun() hands it over, or waits at most RUN_WAIT for one, or gives null (offline: play unranked)
+    runP: null,
+    prepRun() { if (this.enabled && !this.runP && !LOCAL_SKIP_RUN) this.runP = this.fetchRun(); },
+    async fetchRun() {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), RUN_WAIT);
+      try {
+        const r = await fetch(API_BASE + '/api/runs', { method: 'POST', signal: ctl.signal });
+        const j = r.ok ? await r.json() : null;
+        return j && typeof j.run === 'string' && typeof j.seed === 'number' ? j : null;
+      } catch (e) { return null; } finally { clearTimeout(timer); }
+    },
+    async takeRun() {
+      if (!this.enabled || LOCAL_SKIP_RUN) return null;
+      const p = this.runP || this.fetchRun();
+      this.runP = null;
+      return p;
+    },
     async fetchJson(path, opts) {
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), 6000);
@@ -1148,8 +1181,9 @@
     },
     resetSubmit() {
       const row = $('submit-row'), st = $('submit-status'), input = $('name-input'), btn = $('btn-submit');
-      row.classList.toggle('hidden', !this.enabled || !lastGame || lastGame.score <= 0);
-      st.textContent = '';
+      const eligible = this.enabled && lastGame && lastGame.score > 0;
+      row.classList.toggle('hidden', !eligible || !lastGame.run);
+      st.textContent = eligible && !lastGame.run ? t('submit.norun') : ''; // played without a seed (offline at the start)
       input.value = settings.name || '';
       btn.disabled = false;
       this.busy = false;

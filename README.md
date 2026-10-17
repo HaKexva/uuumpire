@@ -16,7 +16,7 @@ Works on desktop and mobile (portrait). Live: https://hakexva.github.io/uuumpire
 
 Cache busting: `index.html` is a static shell that fetches `version.json` (never cached) and loads every
 asset with `?v=<stamp>`, so a deploy is picked up even while GitHub Pages still serves the cached page.
-Run `sh tools/install-hooks.sh` once; the pre-commit hook then stamps `version.json` on every commit
+Run `sh tools/install-hooks.sh` once; the pre-commit hook then stamps `version.json` and copies `core.js` to `server/core.js` (the API replays games with it) on every commit
 (`node tools/stamp.js` by hand otherwise).
 
 | Action | PC | Mobile |
@@ -102,7 +102,15 @@ plausibility (max 400 pts per pitch, 12 posts per minute per IP) and names are 1
 
 - `GET /api/scores?period=daily|all` top 20; rows outside both the all-time top 20 and today's top 20 are pruned after every
   submit (and at startup), so the table never grows past what can be shown.
-- `POST /api/scores` `{ name, score, pitches, accuracy, streak, reaction, lang }`.
+- `POST /api/runs` → `{ run, seed }`: a seed for one game. The game asks for one on the title screen (and after
+  each game), starts on it, and logs every call as `[call, seconds after the catch]` (`[null]` for a timeout).
+- `POST /api/scores` `{ name, score, pitches, accuracy, streak, reaction, lang, run, log }`. The server replays the
+  log on the run's seed with `core.js` (`replayRun`) and takes the score only if the replay produces the same
+  summary; a run is single-use, expires after 12 h, and a game that took less wall-clock time than it has game
+  time is refused. Rejections answer 400 `{ error: 'rejected', why }` and are logged. This stops posted-by-hand
+  scores, not a bot that plays the game. `REQUIRE_RUN=0` on the server accepts bare scores (old clients).
+- Offline, or when the seed does not arrive within 1.5 s, the game starts anyway on `Math.random`; the
+  game-over screen then says the game is not eligible for the board instead of showing the name box.
 - The game submits from the game-over screen (name is remembered) and shows TODAY / ALL TIME from the title menu.
   Each row shows pitches, accuracy and the average reaction time (rows posted before reaction was recorded show `-`).
 - `API_BASE` in `game.js` points at the server; `?api=http://localhost:8787` overrides it. Without a reachable
