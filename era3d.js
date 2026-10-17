@@ -323,7 +323,14 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       gltf('player_base.glb'), gltf('field.glb'), gltf('stadium.glb'), gltf('ball.glb'), gltf('bat.glb'),
       fetch(assetsBase + 'gear_defaults.json').then((r) => r.json()),
     ]);
-    A.player = player;
+    // memory: keep only the player's scene and clips (the loader's parser holds the whole file and its
+    // caches); throw away the gear variants no role wears and the morph targets (never used here)
+    const worn = new Set([...gear.field, ...gear.catcher, ...gear.batter, 'Gear_Glove_Catcher', 'Gear_Glove_Catcher_Laces', 'Glove_Pocket_Catcher', 'Hand_R_Ball']);
+    const drop = [];
+    player.scene.traverse((o) => { if (o.isMesh && !worn.has(o.name) && !/^(Elbow_Pole|Ball_Grip|Bat_Grip|Glove_Pocket)/.test(o.name)) drop.push(o); });
+    for (const o of drop) { o.parent.remove(o); o.geometry.dispose(); }
+    player.scene.traverse((o) => { if (o.isMesh && o.geometry.morphAttributes) { for (const k of Object.keys(o.geometry.morphAttributes)) delete o.geometry.morphAttributes[k]; o.morphTargetInfluences = undefined; o.morphTargetDictionary = undefined; } });
+    A.player = { scene: player.scene, animations: player.animations };
     prepTree(field.scene); prepTree(stadium.scene); prepTree(ballG.scene); prepTree(batG.scene);
     world.add(field.scene); world.add(stadium.scene);
     stadium.scene.traverse((o) => { if (o.isMesh && /Lamps/.test(o.name)) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.emissive) { m.userData.emi = m.emissiveIntensity; m.userData.emc = m.emissive.getHex(); lamps.push(m); } });
