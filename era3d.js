@@ -530,7 +530,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   // animation cues (seconds before the catch): clip event frames from the claudeball asset notes
   // the swing clip makes contact 0.875 s in; at these flight times it starts at release, part-way into its
   // load, at a touch over natural speed, so contact lands on the catch. A check swing freezes just short of it.
-  const SWING_TS = 1.25, SWING_CONTACT = 0.875, CHECK_STOP = 0.815, SWING_HOLD = 0.9, CATCH_LEAD = 0.292; // hold at contact: later the hips open and the belt skin folds
+  const SWING_TS = 1.25, SWING_CONTACT = 0.875, CHECK_STOP = 0.815, SWING_HOLD = 1.15, CATCH_LEAD = 0.292, FRAME_GAIN = 1.6; // hold at contact: later the hips open and the belt skin folds
   const PITCH_RELEASE = 0.583; // pitch_*_windup clips release at this time; scaled onto the rules' windup
   let cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
   let gloveK = 0; // how far the glove is pinned to the ball (eases off at the reveal)
@@ -601,9 +601,10 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     // the call window, drifting with the rules' framing tug; the ball sits in the pocket
     const caught = ph === 'call' || (ph === 'replay' && G.replayCaught);
     if (p && (cue.catch || caught || reveal)) {
-      // framing is shown late and slow (0.2 s after the catch, over 0.4 s): the umpire gets a look at the
+      // framing is shown a beat late (0.12 s after the catch, over 0.3 s): the umpire gets a look at the
       // true crossing before the mitt drags the ball toward the zone
-      const fk = ph === 'call' ? THREE.MathUtils.clamp((G.t - 0.2) / 0.4, 0, 1) : 1;
+      // the tug is a few centimetres in the rules' pixels: shown 1.6x so the eye catches the mitt moving
+      const fk = (ph === 'call' ? THREE.MathUtils.clamp((G.t - 0.12) / 0.3, 0, 1) : 1) * FRAME_GAIN;
       const fx = G.ball ? p.x + (G.ball.x - p.x) * fk : p.x, fy = G.ball ? p.y + (G.ball.y - p.y) * fk : p.y;
       const gx = latOf(fx), gy = hgtOf(fy);
       cue.shownX = gx; cue.shownY = gy;
