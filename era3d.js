@@ -14,7 +14,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const CDN = 'https://cdn.jsdelivr.net/npm/three@0.170.0/';
 
-export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpire-3d/assets/', firstLevel = 12 }) {
+export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpire-3d/assets/', firstLevel = 12, getPalette = () => 0 }) {
   const G = game.state;
 
   // ---- px (168x192 scene) -> metres. Lateral: the 33 px plate is 17 in. Vertical: the mid batter's zone
@@ -91,17 +91,40 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   }
   new ResizeObserver(fit).observe(canvas2d);
 
-  // night game under the towers: an environment fill (PBR needs one), a cool sky fill and two warm lamp
-  // banks, the main one behind the plate so the batter, catcher and plate are lit toward the umpire
+  // the lighting rig; what it does depends on the game's palette setting (night, day, dome)
   const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.9;
-  scene.add(new THREE.HemisphereLight(0xd0dcff, 0x30401c, 1.2));
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.5;
+  const hemi = new THREE.HemisphereLight(0xd0dcff, 0x30401c, 1.2); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0d0, 3.2); sun.position.set(-14, 30, 24); scene.add(sun);
   const back = new THREE.DirectionalLight(0xa0b0ff, 1.6); back.position.set(10, 20, -40); scene.add(back);
-  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
-  const sc = sun.shadow.camera; sc.near = 1; sc.far = 120; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -30;
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4; sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.02;
+  const sc = sun.shadow.camera; sc.near = 1; sc.far = 140; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -30;
   sun.target.position.set(0, 0, -6); scene.add(sun.target);
   const plateLight = new THREE.PointLight(0xfff4e0, 60, 25, 2); plateLight.position.set(1.5, 6, 6); scene.add(plateLight);
+  let lookNow = -1;
+  function applyLook(idx) {
+    if (idx === lookNow) return;
+    lookNow = idx;
+    if (idx === 1) { // DAY GAME: a high afternoon sun from behind the plate side, blue sky, crisp shadows
+      scene.background = new THREE.Color(0x8fc4ff); scene.fog = new THREE.Fog(0xa8d4ff, 120, 320);
+      hemi.color.set(0xbfdcff); hemi.groundColor.set(0x5c7a3c); hemi.intensity = 1.0;
+      sun.color.set(0xfff6e4); sun.intensity = 3.4; sun.position.set(22, 42, 26);
+      back.color.set(0xc8d8ff); back.intensity = 0.5; plateLight.intensity = 0;
+      scene.environmentIntensity = 0.55; renderer.toneMappingExposure = 1.0; sun.shadow.radius = 2;
+    } else if (idx === 2) { // DOME: a white roof, flat even light, soft shadows
+      scene.background = new THREE.Color(0xdfe5ef); scene.fog = new THREE.Fog(0xdfe5ef, 110, 300);
+      hemi.color.set(0xf4f6fa); hemi.groundColor.set(0x6a7a6a); hemi.intensity = 1.9;
+      sun.color.set(0xffffff); sun.intensity = 1.3; sun.position.set(-8, 40, 10);
+      back.color.set(0xffffff); back.intensity = 0.8; plateLight.intensity = 25;
+      scene.environmentIntensity = 0.55; renderer.toneMappingExposure = 1.0; sun.shadow.radius = 7;
+    } else { // NIGHT GAME (and GAME BOY): the towers, a cool sky fill, warm lamp banks
+      scene.background = new THREE.Color(0x06082a); scene.fog = new THREE.Fog(0x06082a, 90, 220);
+      hemi.color.set(0xd0dcff); hemi.groundColor.set(0x30401c); hemi.intensity = 1.2;
+      sun.color.set(0xfff0d0); sun.intensity = 3.0; sun.position.set(-14, 30, 24);
+      back.color.set(0xa0b0ff); back.intensity = 1.6; plateLight.intensity = 60;
+      scene.environmentIntensity = 0.5; renderer.toneMappingExposure = 1.1; sun.shadow.radius = 4;
+    }
+  }
 
   // the field and stadium share an origin at the plate apex with centre field at +z: turn them round
   const world = new THREE.Group(); world.rotation.y = Math.PI; scene.add(world);
@@ -198,7 +221,16 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     root.traverse((o) => {
       if (!o.isMesh) return;
       o.castShadow = true; o.receiveShadow = true;
-      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.isMeshStandardMaterial) { m.metalness = 0; m.metalnessMap = null; m.needsUpdate = true; }
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.isMeshStandardMaterial) {
+        m.metalness = 0; m.metalnessMap = null;
+        // real kit is matte: helmets, masks and pads are satin at most, cloth and leather rougher; and the
+        // environment reflection stays faint so nothing reads as wet plastic
+        const n = (m.name || '').toLowerCase();
+        const plastic = /helmet|mask|protector|shin|cap|plastic|button|buckle/.test(n);
+        m.roughness = Math.max(m.roughness, plastic ? 0.62 : 0.72);
+        m.envMapIntensity = plastic ? 0.35 : 0.25;
+        m.needsUpdate = true;
+      }
       o.frustumCulled = false; // skinned bounds drift with the clips
     });
   }
@@ -379,7 +411,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   // animation cues (seconds before the catch): clip event frames from the claudeball asset notes
   // the swing clip makes contact 0.875 s in; at these flight times it starts at release, part-way into its
   // load, at a touch over natural speed, so contact lands on the catch. A check swing freezes just short of it.
-  const SWING_TS = 1.25, SWING_CONTACT = 0.875, CHECK_STOP = 0.815, SWING_HOLD = 1.12, CATCH_LEAD = 0.292; // hold at full extension, before the clip wraps the arms behind the head
+  const SWING_TS = 1.25, SWING_CONTACT = 0.875, CHECK_STOP = 0.815, SWING_HOLD = 1.0, CATCH_LEAD = 0.292; // hold just past contact: later the hips turn so far the pants skin slips and the arms wrap behind the head
   const PITCH_RELEASE = 0.583; // pitch_*_windup clips release at this time; scaled onto the rules' windup
   let cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
   let gloveK = 0; // how far the glove is pinned to the ball (eases off at the reveal)
@@ -394,6 +426,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
 
   function setupPitch(p) {
     if (!batter) { pendingNext = p; return; }
+    applyLook(getPalette() | 0);
     pendingNext = null;
     const oldSwing = cue.swingAction;
     cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
@@ -527,8 +560,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     active: false,
     ready: loadAll(),
     onEvent, frame,
-    debug() { return { batter, catcher, pitcher, camera, scene, ball }; },
-    show() { if (api.active) return; api.active = true; fit(); canvas.style.display = 'block'; canvas2d.style.visibility = 'hidden'; document.body.classList.add('hd'); },
+    debug() { return { batter, catcher, pitcher, camera, scene, ball, look: applyLook }; },
+    show() { if (api.active) return; api.active = true; applyLook(getPalette() | 0); fit(); canvas.style.display = 'block'; canvas2d.style.visibility = 'hidden'; document.body.classList.add('hd'); },
     hide() { if (!api.active) return; api.active = false; canvas.style.display = 'none'; canvas2d.style.visibility = ''; document.body.classList.remove('hd'); },
   };
   return api;
