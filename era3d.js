@@ -97,7 +97,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   gtao.updateGtaoMaterial({ radius: 0.35, distanceExponent: 1, thickness: 1, scale: 1.2, samples: 8, distanceFallOff: 1, screenSpaceRadius: false });
   gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
   composer.addPass(gtao);
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.6, 0.86); composer.addPass(bloom);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.4, 0.97); composer.addPass(bloom);
   const vignette = new ShaderPass(VignetteShader); vignette.uniforms.offset.value = 0.95; vignette.uniforms.darkness.value = 1.1; composer.addPass(vignette);
   composer.addPass(new OutputPass());
   function fit() {
@@ -129,7 +129,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     if (idx === lookNow) return;
     lookNow = idx;
     setLamps(idx !== 1);
-    bloom.strength = idx === 1 ? 0.12 : 0.35;
+    bloom.strength = idx === 1 ? 0.06 : 0.15;
     if (idx === 1) { // DAY GAME: a high afternoon sun from behind the plate side, blue sky, crisp shadows
       scene.background = new THREE.Color(0x8fc4ff); scene.fog = new THREE.Fog(0xa8d4ff, 120, 320);
       hemi.color.set(0xbfdcff); hemi.groundColor.set(0x5c7a3c); hemi.intensity = 1.0;
