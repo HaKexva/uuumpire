@@ -25,11 +25,12 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   const G = game.state;
 
   // ---- px (168x192 scene) -> metres. Lateral: the 33 px plate is 17 in. Vertical: the mid batter's zone
-  // (52 px over the cleats .. 24 px) maps onto 1.045 m .. 0.518 m, the KBO ABS proportions (56.35% / 27.64%
-  // of a 1.85 m batter); the taller and shorter batters scale with their zones. A linear map with an offset,
-  // so both the top and the bottom land where a real zone sits on the model's stance.
+  // (52 px over the cleats .. 24 px) maps onto 1.170 m .. 0.518 m: chest to knee on the model's stance (the
+  // drawn frame, grown by GROW_Y, tops out at the chest bone and bottoms at the knee; 63% / 28% of a 1.85 m
+  // batter). The taller and shorter batters scale with their zones. A linear map with an offset, so both
+  // ends land on the body whatever the size.
   const M_LAT = C.IN_PER_PX * 0.0254;
-  const M_VERT = (1.045 - 0.518) / (52 - 24);
+  const M_VERT = (1.170 - 0.518) / (52 - 24);
   const H_OFF = 0.518 - 24 * M_VERT;
   const PLATE_CX = (68 + 101) / 2;
   const latOf = (x) => (x - PLATE_CX) * M_LAT;
@@ -530,7 +531,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   // animation cues (seconds before the catch): clip event frames from the claudeball asset notes
   // the swing clip makes contact 0.875 s in; at these flight times it starts at release, part-way into its
   // load, at a touch over natural speed, so contact lands on the catch. A check swing freezes just short of it.
-  const SWING_TS = 1.25, SWING_CONTACT = 0.875, CHECK_STOP = 0.815, SWING_HOLD = 1.15, CATCH_LEAD = 0.292, FRAME_GAIN = 1.6; // hold at contact: later the hips open and the belt skin folds
+  const SWING_TS = 1.25, SWING_CONTACT = 0.875, CHECK_STOP = 0.815, SWING_HOLD = 1.05, CATCH_LEAD = 0.292, FRAME_GAIN = 1.2; // hold with the bat over the shoulder: past 1.05 the hands wrap behind the helmet and the forearms cut through it from the umpire's eye
   const PITCH_RELEASE = 0.583; // pitch_*_windup clips release at this time; scaled onto the rules' windup
   let cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
   let gloveK = 0; // how far the glove is pinned to the ball (eases off at the reveal)
@@ -603,7 +604,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     if (p && (cue.catch || caught || reveal)) {
       // framing is shown a beat late (0.12 s after the catch, over 0.3 s): the umpire gets a look at the
       // true crossing before the mitt drags the ball toward the zone
-      // the tug is a few centimetres in the rules' pixels: shown 1.6x so the eye catches the mitt moving
+      // the tug is a few centimetres in the rules' pixels: shown 1.2x so the eye catches the mitt moving
       const fk = (ph === 'call' ? THREE.MathUtils.clamp((G.t - 0.12) / 0.3, 0, 1) : 1) * FRAME_GAIN;
       const fx = G.ball ? p.x + (G.ball.x - p.x) * fk : p.x, fy = G.ball ? p.y + (G.ball.y - p.y) * fk : p.y;
       const gx = latOf(fx), gy = hgtOf(fy);
@@ -624,8 +625,10 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       ghostHist.unshift([b.x, b.y, b.z]); if (ghostHist.length > 12) ghostHist.pop();
       ghosts.forEach((m, i) => { const h = ghostHist[(i + 1) * 2]; if (h) { m.visible = true; m.position.set(h[0], h[1], h[2]); } else m.visible = false; });
     } else if (p && caught) {
-      // through the call window the ball sits where the mitt shows it, on the zone plane
-      ball.position.set(cue.shownX, cue.shownY, PLATE_Z); ball.scale.setScalar(BALL_SCALE); ball.visible = true; shadow.visible = false;
+      // through the call window the ball sits in the pocket, so the umpire sees leather where it went in and
+      // the mitt alone tells the location (on the plane in front of the mitt it floated off the back of the glove)
+      if (gloveMesh && gloveK > 0.5) ball.position.copy(ballInGlove(_v)); else ball.position.set(cue.shownX, cue.shownY, PLATE_Z);
+      ball.scale.setScalar(BALL_SCALE); ball.visible = true; shadow.visible = false;
     } else { ball.visible = false; shadow.visible = false; }
     if (!flying) { ghostHist.length = 0; for (const m of ghosts) m.visible = false; }
     // level 12 keeps the zone up through the pitch as a guide; from 13 it only comes back at the reveal,
