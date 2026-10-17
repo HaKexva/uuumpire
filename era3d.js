@@ -318,11 +318,57 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     update(dt) { this.mixer.update(dt); }
   }
 
+  // The crowd: one billboard quad per seat from claudeball's spectator sheet (8x4 cells), instead of the
+  // modelled fans (about a million triangles). The quads turn to face the camera about Y and sway a little.
+  let crowdMat = null;
+  async function buildCrowd(stadiumScene) {
+    const [buf, tex] = await Promise.all([
+      fetch(assetsBase + 'seats.f32').then((r) => r.arrayBuffer()),
+      new Promise((ok, fail) => new THREE.TextureLoader().load(assetsBase + 'crowd_sheet.png', ok, undefined, fail)),
+    ]);
+    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const f = new Float32Array(buf), n = f.length / 4;
+    const geo = new THREE.PlaneGeometry(0.62, 0.78); geo.translate(0, 0.39, 0);
+    const cell = new Float32Array(n * 2), phase = new Float32Array(n);
+    const mesh = new THREE.InstancedMesh(geo, null, n);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    for (let i = 0; i < n; i++) {
+      // seats.npz is pre-mirror: x is negated to match field_layout (first base at -X)
+      m4.compose(new THREE.Vector3(-f[i * 4], f[i * 4 + 1], f[i * 4 + 2]), q.setFromEuler(e.set(0, -f[i * 4 + 3], 0)), new THREE.Vector3(1, 1, 1));
+      mesh.setMatrixAt(i, m4);
+      cell[i * 2] = Math.floor(Math.random() * 8) / 8; cell[i * 2 + 1] = Math.floor(Math.random() * 4) / 4;
+      phase[i] = Math.random() * Math.PI * 2;
+    }
+    geo.setAttribute('cell', new THREE.InstancedBufferAttribute(cell, 2));
+    geo.setAttribute('phase', new THREE.InstancedBufferAttribute(phase, 1));
+    crowdMat = new THREE.MeshLambertMaterial({ map: tex, transparent: false, alphaTest: 0.5, side: THREE.DoubleSide });
+    crowdMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uTime = crowdMat.userData.uTime = { value: 0 };
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec2 cell; attribute float phase; uniform float uTime;')
+        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMapUv = uv * vec2(0.125, 0.25) + cell;')
+        .replace('#include <project_vertex>', `
+        // billboard about the seat's origin, facing the camera around Y, with a slow sway
+        // the bust sits on the seat (not inside the chair model): up to seat height and a step forward
+        vec4 seat = instanceMatrix * vec4(0.0, 0.42, 0.28, 1.0);
+        vec4 seatView = modelViewMatrix * seat;
+        float sway = sin(uTime * 1.3 + phase) * 0.015;
+        vec3 off = vec3(position.x + sway * position.y, position.y, 0.0);
+        vec4 mvPosition = seatView + vec4(off, 0.0);
+        gl_Position = projectionMatrix * mvPosition;`);
+    };
+    mesh.material = crowdMat; mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = false;
+    stadiumScene.add(mesh);
+    const gone = []; stadiumScene.traverse((o) => { if (o.isMesh && /^Crowd_/.test(o.name)) gone.push(o); });
+    for (const o of gone) { o.parent.remove(o); o.geometry.dispose(); }
+  }
+
   async function loadAll() {
     const [player, field, stadium, ballG, batG, gear] = await Promise.all([
       gltf('player_base.glb'), gltf('field.glb'), gltf('stadium.glb'), gltf('ball.glb'), gltf('bat.glb'),
       fetch(assetsBase + 'gear_defaults.json').then((r) => r.json()),
     ]);
+    await buildCrowd(stadium.scene);
     // memory: keep only the player's scene and clips (the loader's parser holds the whole file and its
     // caches); throw away the gear variants no role wears and the morph targets (never used here)
     const worn = new Set([...gear.field, ...gear.catcher, ...gear.batter, 'Gear_Glove_Catcher', 'Gear_Glove_Catcher_Laces', 'Glove_Pocket_Catcher', 'Hand_R_Ball']);
@@ -596,6 +642,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     if (p && p.swing === 'full' && cue.swingAction && cue.swingAction.time > 0.95) aimFrontFoot(THREE.MathUtils.clamp((cue.swingAction.time - 0.95) / 0.15, 0, 1));
     // the umpire breathes: a slow sway of a few millimetres, so the picture is never dead still
     breathT += dt;
+    if (crowdMat && crowdMat.userData.uTime) crowdMat.userData.uTime.value = breathT;
     if (camMode === 'ump') { camera.position.y = CAM.y + Math.sin(breathT * 1.1) * 0.006; camera.position.x = -camSide * CAM.x + Math.sin(breathT * 0.7) * 0.004; camera.lookAt(CAM.look); }
     composer.render();
   }
@@ -605,7 +652,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     active: false,
     ready: loadAll(),
     onEvent, frame,
-    debug() { return { batter, catcher, pitcher, camera, scene, ball, look: applyLook }; },
+    debug() { return { batter, catcher, pitcher, camera, scene, ball, look: applyLook, renderer, crowdMat }; },
     show() { if (api.active) return; api.active = true; applyLook(getPalette() | 0); fit(); canvas.style.display = 'block'; canvas2d.style.visibility = 'hidden'; document.body.classList.add('hd'); },
     hide() { if (!api.active) return; api.active = false; canvas.style.display = 'none'; canvas2d.style.visibility = ''; document.body.classList.remove('hd'); },
   };
