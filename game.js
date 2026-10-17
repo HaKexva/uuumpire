@@ -1170,11 +1170,8 @@
       }
     },
   };
-  // 1st 2nd 3rd 4th... (English); the other languages take a prefix or suffix from the table
-  function ordinal(n) {
-    const m = n % 100, sfx = m >= 11 && m <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th';
-    return t('board.rank', n, sfx);
-  }
+  // the rank before each name: a plain number in every language
+  function ordinal(n) { return t('board.rank', n); }
   $('btn-submit').addEventListener('click', () => Board.submit());
   $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); Board.submit(); } e.stopPropagation(); });
   document.querySelectorAll('#screen-board .tab').forEach((b) => b.addEventListener('click', () => { Sfx.select(); Board.show(b.dataset.period); }));
