@@ -435,8 +435,10 @@ button { font-family: inherit; }
 .tab.active { opacity: 1; background: var(--g-btn-accent); }
 .board-panel { min-height: 120px; }
 .records.board li { gap: 8px; }
-.records.board li .who { flex: 1; display: flex; gap: 10px; min-width: 0; }
-.records.board li .who .rk { --rk: var(--g-gray); color: var(--rk); flex-shrink: 0; min-width: 1.6em; position: relative; }
+.records.board li .who { flex: 1; display: flex; gap: 6px; min-width: 0; }
+/* the board list keeps only the gutter the medal star needs (the records list keeps its wider one) */
+.records.board { padding-left: 18px; }
+.records.board li .who .rk { --rk: var(--g-gray); color: var(--rk); flex-shrink: 0; min-width: 1.4em; position: relative; }
 /* the top three carry a medal star: gold, silver, bronze (a palette can override each). The star hangs in the
    list's left padding so the rank column, and every name after it, stays where it is on a narrow screen */
 .records.board li .who .rk.m1 { --rk: var(--g-medal1, var(--g-gold)); }
