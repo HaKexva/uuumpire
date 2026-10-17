@@ -11,6 +11,13 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
 
 const CDN = 'https://cdn.jsdelivr.net/npm/three@0.170.0/';
 
@@ -82,11 +89,24 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   camera.position.set(CAM.x, CAM.y, CAM.z);
   camera.lookAt(CAM.look);
 
+  // post: the broadcast look. Ambient occlusion under feet and in creases, bloom on the lamps and the
+  // white kit, a soft vignette; the ABS review renders straight (a clean graphic).
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const gtao = new GTAOPass(scene, camera, 1, 1); gtao.output = GTAOPass.OUTPUT.Default; gtao.blendIntensity = 0.85;
+  gtao.updateGtaoMaterial({ radius: 0.35, distanceExponent: 1, thickness: 1, scale: 1.2, samples: 8, distanceFallOff: 1, screenSpaceRadius: false });
+  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
+  composer.addPass(gtao);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.6, 0.86); composer.addPass(bloom);
+  const vignette = new ShaderPass(VignetteShader); vignette.uniforms.offset.value = 0.95; vignette.uniforms.darkness.value = 1.1; composer.addPass(vignette);
+  composer.addPass(new OutputPass());
   function fit() {
     const w = canvas2d.clientWidth, h = canvas2d.clientHeight;
     if (!w || !h) return;
     canvas.style.width = canvas2d.style.width; canvas.style.height = canvas2d.style.height;
     renderer.setSize(w, h, false);
+    const pr = renderer.getPixelRatio();
+    composer.setSize(w * pr, h * pr); gtao.setSize(w * pr, h * pr); bloom.setSize(w * pr, h * pr);
     camera.aspect = w / h; camera.updateProjectionMatrix();
   }
   new ResizeObserver(fit).observe(canvas2d);
@@ -102,9 +122,14 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   sun.target.position.set(0, 0, -6); scene.add(sun.target);
   const plateLight = new THREE.PointLight(0xfff4e0, 60, 25, 2); plateLight.position.set(1.5, 6, 6); scene.add(plateLight);
   let lookNow = -1;
+  // the lamp heads (stadium.glb LightTower_n_Lamps, Scoreboard_Screen emissive) are on at night only
+  const lamps = [];
+  function setLamps(on) { for (const m of lamps) { m.emissiveIntensity = on ? m.userData.emi : 0; m.emissive.set(on ? m.userData.emc : 0x000000); m.needsUpdate = true; } }
   function applyLook(idx) {
     if (idx === lookNow) return;
     lookNow = idx;
+    setLamps(idx !== 1);
+    bloom.strength = idx === 1 ? 0.12 : 0.35;
     if (idx === 1) { // DAY GAME: a high afternoon sun from behind the plate side, blue sky, crisp shadows
       scene.background = new THREE.Color(0x8fc4ff); scene.fog = new THREE.Fog(0xa8d4ff, 120, 320);
       hemi.color.set(0xbfdcff); hemi.groundColor.set(0x5c7a3c); hemi.intensity = 1.0;
@@ -223,6 +248,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       o.castShadow = true; o.receiveShadow = true;
       for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.isMeshStandardMaterial) {
         m.metalness = 0; m.metalnessMap = null;
+        for (const t of [m.map, m.normalMap, m.roughnessMap, m.aoMap]) if (t) t.anisotropy = 8; // the ground is seen at a grazing angle
+        if (/grass|dirt|track|clay/.test((m.name || '').toLowerCase())) { if (m.normalMap) m.normalScale.set(1.6, 1.6); m.roughness = 1; }
         // real kit is matte: helmets, masks and pads are satin at most, cloth and leather rougher; and the
         // environment reflection stays faint so nothing reads as wet plastic
         const n = (m.name || '').toLowerCase();
@@ -298,6 +325,8 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     A.player = player;
     prepTree(field.scene); prepTree(stadium.scene); prepTree(ballG.scene); prepTree(batG.scene);
     world.add(field.scene); world.add(stadium.scene);
+    stadium.scene.traverse((o) => { if (o.isMesh && /Lamps/.test(o.name)) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.emissive) { m.userData.emi = m.emissiveIntensity; m.userData.emc = m.emissive.getHex(); lamps.push(m); } });
+    setLamps(lookNow !== 1);
     ball = ballG.scene; ball.scale.setScalar(BALL_SCALE); scene.add(ball);
     revealBall = ballG.scene.clone(); revealBall.scale.setScalar(BALL_SCALE); scene.add(revealBall);
     const home = { uniform_jersey: 0xfcfcfc, uniform_pants: 0xfcfcfc, uniform_socks: 0x01215b, cap: 0x01215b, helmet: 0x01215b, piping: 0x01215b, uniform_undershirt: 0x01215b, glove: 0xb8793c, glove_laces: 0xe0c090 };
@@ -553,8 +582,12 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     if (p && cue.swingAction && !cue.swingAction.paused && cue.swingAction.time >= (p.swing === 'check' ? CHECK_STOP : SWING_HOLD)) cue.swingAction.paused = true;
     // after contact the front foot plants pointing at the mound (the clip leaves it square to the plate)
     if (p && p.swing === 'full' && cue.swingAction && cue.swingAction.time > 0.95) aimFrontFoot(THREE.MathUtils.clamp((cue.swingAction.time - 0.95) / 0.15, 0, 1));
-    renderer.render(scene, camera);
+    // the umpire breathes: a slow sway of a few millimetres, so the picture is never dead still
+    breathT += dt;
+    if (camMode === 'ump') { camera.position.y = CAM.y + Math.sin(breathT * 1.1) * 0.006; camera.position.x = -camSide * CAM.x + Math.sin(breathT * 0.7) * 0.004; camera.lookAt(CAM.look); }
+    composer.render();
   }
+  let breathT = 0;
 
   const api = {
     active: false,
