@@ -190,12 +190,23 @@ const count = (log, type) => log.filter((l) => l.type === type).length;
   ok(game.callRemain() > 0 && game.callRemain() < 1, 'call window remaining');
 }
 
+// patient umpire: holds every call to the last 0.2 s of the window
+{
+  const { G, log } = play((g) => { if (g.state.phase === 'call' && g.state.t >= g.state.callWindow - 0.2) g.call(g.state.pitch.strike ? 'strike' : 'ball'); }, { maxPitches: 90, seed: 7 });
+  const resolves = log.filter((l) => l.type === 'resolve').map((l) => l.e);
+  ok(G.misses === 0 && resolves.length > 50 && resolves.every((r) => r.correct && !r.timeout && r.bonus.includes('late')), `every held call pays the late bonus (${resolves.length} calls, ${G.misses} misses)`);
+}
+
 // scoring rules
 {
   const p = { edgeDist: 1, swing: 'none' };
   ok(C.scoreCall(1, p, 1).pts === 150 && C.scoreCall(1, p, 1).bonus.join() === 'fine', 'edge bonus');
   ok(C.scoreCall(1, { edgeDist: 1, swing: 'full' }, 1).pts === 100, 'no edge bonus on a swing');
   ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 0.2).pts === 130, 'quick bonus');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.85, 2.08).pts === 150 && C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.85, 2.08).bonus.join() === 'late', 'late bonus inside the last 0.3 s');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.7, 2.08).pts === 100, 'no late bonus 0.38 s before the deadline');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 0.5, 0.7).bonus.join() === 'quick,late', 'a tight window can pay both');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.9).pts === 100, 'no window given, no late bonus');
   ok(C.scoreCall(11, { edgeDist: 9, swing: 'none' }, 1).pts === 200 && C.scoreCall(50, { edgeDist: 9, swing: 'none' }, 1).mult === 2, 'x2 cap');
   ok(C.moodAfter(0, true) === 1 && C.moodAfter(5, true) === 5 && C.moodAfter(1, false) === 0 && C.moodAfter(5, false) === 3, 'crowd meter +1 / -2');
 }
