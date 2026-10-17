@@ -264,12 +264,12 @@ console.log('replay');
   const r2 = C.replayRun(seed, strikes);
   ok(r2 === null || r2.score !== want.score || r2.pitches !== want.pitches, 'changing the calls changes the outcome');
 }
-// the server ships with its own copy of core.js (pre-commit hook): it must be this one
+// the server ships with its own copy of core.js as core.cjs (pre-commit hook): it must be this one
 {
   const fs = require('fs'), path = require('path');
   const here = path.join(__dirname, '..');
-  const copy = path.join(here, 'server', 'core.js');
-  ok(fs.existsSync(copy) && fs.readFileSync(copy, 'utf8') === fs.readFileSync(path.join(here, 'core.js'), 'utf8'), 'server/core.js is a copy of core.js (run tools/install-hooks.sh)');
+  const copy = path.join(here, 'server', 'core.cjs');
+  ok(fs.existsSync(copy) && fs.readFileSync(copy, 'utf8') === fs.readFileSync(path.join(here, 'core.js'), 'utf8'), 'server/core.cjs is a copy of core.js (run tools/install-hooks.sh)');
 }
 
 console.log(`${checks} checks, ${fails} failed`);

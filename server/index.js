@@ -21,9 +21,10 @@ import { createRequire } from 'node:module';
 import pg from 'pg';
 
 // core.js is the game itself. `railway up` ships server/ alone, so the pre-commit hook keeps a copy
-// here (server/core.js); a repo checkout prefers the original one directory up.
+// here as server/core.cjs (this package is type: module, so a .js copy would not load with require);
+// a repo checkout prefers the original one directory up.
 const require = createRequire(import.meta.url);
-const CORE_PATH = fs.existsSync(new URL('../core.js', import.meta.url)) ? '../core.js' : './core.js';
+const CORE_PATH = fs.existsSync(new URL('../core.js', import.meta.url)) ? '../core.js' : './core.cjs';
 const C = require(CORE_PATH);
 
 const PORT = process.env.PORT || 8787;
