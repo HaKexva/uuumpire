@@ -274,6 +274,45 @@
   // ------------------------------------------------------------
   // Game: the state machine
   // ------------------------------------------------------------
+  // Deterministic generator (mulberry32) so a game can be replayed from its seed: the leaderboard
+  // server hands the client a seed, the client plays on it and logs its calls, and the server plays
+  // the log back (replayRun) to check the score before it goes on the board.
+  function seededRng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = Math.imul(a ^ (a >>> 15), a | 1);
+      t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Plays a call log back on a seed. log: one entry per pitch, [call, t] with call 'strike' | 'ball'
+  // and t the seconds after the catch, or [null] for a pitch left to the clock. Returns the summary
+  // the game produced plus `seconds` of game time, or null when the log cannot be played (a call
+  // outside its window, a log longer or shorter than the game, ...). Frame length does not matter:
+  // every phase change resets the clock, so the call time is the only timing that reaches the score.
+  function replayRun(seed, log) {
+    if (!Array.isArray(log) || log.length > RULES.maxLevel * RULES.pitchesPerLevel) return null;
+    const game = createGame({ rng: seededRng(seed), kits: 1 });
+    const G = game.state;
+    const DT = 1 / 60, MAX_STEPS = 400000;
+    let steps = 0;
+    const stepUntil = (done) => { while (!done()) { if (steps++ > MAX_STEPS) return false; game.update(DT); } return true; };
+    const atCall = () => G.phase === 'call' || G.phase === 'over';
+    game.start();
+    for (const e of log) {
+      if (!Array.isArray(e) || !stepUntil(atCall) || G.phase === 'over') return null;
+      const call = e[0], t = e[1];
+      if (call === null) { if (!stepUntil(() => G.phase !== 'call')) return null; continue; }
+      if ((call !== 'strike' && call !== 'ball') || typeof t !== 'number' || !(t >= 0) || t >= G.callWindow) return null;
+      G.t = t;
+      if (!game.call(call)) return null;
+    }
+    if (!stepUntil(atCall) || G.phase !== 'over') return null; // the log stops before the game did
+    return Object.assign(game.summary(), { seconds: steps * DT });
+  }
+
   // createGame({ rng, kits, onEvent }) -> { state, start, update(dt), call(c), replay(), setPaused(on), summary() }
   // Phases: idle | windup | flight | call | reveal | replay | over. Events (type, data) in order of a pitch:
   //   next     { pitchIndex, level, levelUp, banner, congrats, pitch }  a pitch is set up (windup pending)
@@ -475,6 +514,6 @@
   return {
     BALL_R, BATTER_H, BATTER_FEET_Y, IN_PER_PX, RELEASE, MITT_REST, TIMING, RULES, UNLOCKS, PROFILE, PITCH_TYPES,
     zoneFor, levelFor, callWindowFor, pickForm, pickType, isStrikeAt, edgeDistance, genPitch, ballPos,
-    scoreCall, moodAfter, absInfo, createGame,
+    scoreCall, moodAfter, absInfo, createGame, seededRng, replayRun,
   };
 });

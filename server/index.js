@@ -2,20 +2,36 @@
 
    GET  /health                           -> { ok: true }
    GET  /api/scores?period=daily|all      -> { period, day, scores: [{ rank, name, score, pitches, accuracy, streak, reaction, day }] }
-   POST /api/scores { name, score, pitches, accuracy, streak, reaction, lang }
-                                          -> { ok, rankDaily, rankAll }
    POST /api/plays                        -> { ok, counted }   one more game started today (PLAY BALL clicked)
    GET  /api/plays                        -> { day, today, total, from }
+   POST /api/runs                         -> { run, seed }   a seed for one game (replayed on submit)
+   POST /api/scores { name, score, pitches, accuracy, streak, reaction, lang, run, log }
+                                          -> { ok, rankDaily, rankAll }  or 400 { error }
+
+   Anti-cheat: a score must come with the run id the game was started on and its call log; the server
+   replays the log on that seed with core.js (replayRun) and only takes the score the replay produces.
+   A run is single-use and expires after RUN_TTL. REQUIRE_RUN=0 accepts bare scores (old clients).
 
    "Today" is the Asia/Taipei calendar day (the players are mostly in TW/JP). CORS is open: the game is a
    static page on another origin and nothing here is sensitive. */
 import http from 'node:http';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
 import pg from 'pg';
+
+// core.js is the game itself. `railway up` ships server/ alone, so the pre-commit hook keeps a copy
+// here (server/core.js); a repo checkout prefers the original one directory up.
+const require = createRequire(import.meta.url);
+const CORE_PATH = fs.existsSync(new URL('../core.js', import.meta.url)) ? '../core.js' : './core.js';
+const C = require(CORE_PATH);
 
 const PORT = process.env.PORT || 8787;
 const TZ = process.env.BOARD_TZ || 'Asia/Taipei';
 const LIMIT = 20; // rows shown per board; anything outside both top-20s is pruned (see prune())
 const PLAYS_FROM = process.env.PLAYS_FROM || '2026-10-18'; // the play counter starts on this Taipei day; earlier starts are not counted
+const RUN_TTL = 12 * 3600 * 1000; // a seed is good for one game started within this
+const REQUIRE_RUN = process.env.REQUIRE_RUN !== '0';
 
 // ---- storage -------------------------------------------------------------
 const pool = process.env.DATABASE_URL
@@ -23,6 +39,7 @@ const pool = process.env.DATABASE_URL
   : null;
 const mem = []; // fallback when no database is configured (dev)
 const memPlays = new Map(); // day -> games started (dev fallback)
+const memRuns = new Map(); // id -> { seed, created_at, used }
 
 async function init() {
   if (!pool) { console.log('no DATABASE_URL: using in-memory scores'); return; }
@@ -41,6 +58,13 @@ async function init() {
   await pool.query('CREATE INDEX IF NOT EXISTS scores_day_score ON scores (day, score DESC)');
   await pool.query('CREATE INDEX IF NOT EXISTS scores_score ON scores (score DESC)');
   await pool.query('CREATE TABLE IF NOT EXISTS plays (day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)');
+  await pool.query(`CREATE TABLE IF NOT EXISTS runs (
+    id TEXT PRIMARY KEY,
+    seed INTEGER NOT NULL,
+    created_at BIGINT NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0
+  )`);
+  await pruneRuns();
   console.log('postgres ready');
   await prune();
 }
@@ -111,6 +135,44 @@ async function plays() {
   return { day, today: t.rows.length ? t.rows[0].n : 0, total: a.rows[0].n, from: PLAYS_FROM };
 }
 
+// ---- runs: a seed per game, replayed on submit ---------------------------
+async function newRun() {
+  const id = crypto.randomUUID(), seed = crypto.randomInt(1, 2147483647), now = Date.now();
+  if (!pool) { memRuns.set(id, { seed, created_at: now, used: 0 }); if (memRuns.size > 20000) await pruneRuns(); }
+  else { await pool.query('INSERT INTO runs (id, seed, created_at) VALUES ($1,$2,$3)', [id, seed, now]); if (Math.random() < 0.02) await pruneRuns(); }
+  return { run: id, seed };
+}
+// the run, marked used; null when unknown, already used or expired
+async function takeRun(id) {
+  if (typeof id !== 'string' || id.length > 64) return null;
+  const since = Date.now() - RUN_TTL;
+  if (!pool) {
+    const r = memRuns.get(id);
+    if (!r || r.used || r.created_at < since) return null;
+    r.used = 1;
+    return r;
+  }
+  const q = await pool.query('UPDATE runs SET used = 1 WHERE id = $1 AND used = 0 AND created_at > $2 RETURNING seed, created_at', [id, since]);
+  return q.rows[0] ? { seed: q.rows[0].seed, created_at: Number(q.rows[0].created_at) } : null;
+}
+async function pruneRuns() {
+  const since = Date.now() - RUN_TTL;
+  if (!pool) { for (const [id, r] of memRuns) if (r.used || r.created_at < since) memRuns.delete(id); return; }
+  await pool.query('DELETE FROM runs WHERE used = 1 OR created_at < $1', [since]);
+}
+// why a submitted score is not the one its log plays to (null = it is)
+async function verify(rec, body) {
+  if (body.run === undefined && body.log === undefined && !REQUIRE_RUN) return null;
+  const run = await takeRun(body.run);
+  if (!run) return 'run';
+  const r = C.replayRun(run.seed, body.log);
+  if (!r) return 'log';
+  if (r.score !== rec.score || r.pitches !== rec.pitches || r.accuracy !== rec.accuracy || r.streak !== rec.streak) return 'score';
+  if ((r.reaction === null) !== (rec.reaction === null) || (r.reaction !== null && Math.abs(r.reaction - rec.reaction) > 0.002)) return 'reaction';
+  if (Date.now() - run.created_at < r.seconds * 1000 * 0.9) return 'clock'; // played faster than the game runs
+  return null;
+}
+
 // ---- validation + rate limit --------------------------------------------
 const MAX_PER_PITCH = 400; // best case per pitch: 100 x2.0 streak +50 +30, x1.5 guide off = 345
 function validate(b) {
@@ -151,7 +213,7 @@ function send(res, status, body) {
 function readJson(req) {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', (c) => { data += c; if (data.length > 4096) { reject(new Error('too large')); req.destroy(); } });
+    req.on('data', (c) => { data += c; if (data.length > 16384) { reject(new Error('too large')); req.destroy(); } });
     req.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch (e) { reject(e); } });
     req.on('error', reject);
   });
@@ -184,11 +246,19 @@ const server = http.createServer(async (req, res) => {
       else { const before = mem.length; for (let i = mem.length - 1; i >= 0; i--) if (mem[i].name === name) mem.splice(i, 1); removed = before - mem.length; }
       return send(res, 200, { ok: true, removed });
     }
+    if (url.pathname === '/api/runs' && req.method === 'POST') {
+      const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+      if (limited(ip)) return send(res, 429, { error: 'slow down' });
+      return send(res, 200, await newRun());
+    }
     if (url.pathname === '/api/scores' && req.method === 'POST') {
       const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
       if (limited(ip)) return send(res, 429, { error: 'slow down' });
-      const rec = validate(await readJson(req));
+      const body = await readJson(req);
+      const rec = validate(body);
       if (!rec) return send(res, 400, { error: 'bad score' });
+      const why = await verify(rec, body);
+      if (why) { console.log(`rejected ${rec.name} ${rec.score} (${why}) from ${ip}`); return send(res, 400, { error: 'rejected', why }); }
       const ranks = await insert(rec);
       return send(res, 200, { ok: true, ...ranks });
     }
@@ -199,5 +269,5 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-init().then(() => server.listen(PORT, () => console.log('uuumpire api on :' + PORT)))
+init().then(() => server.listen(PORT, () => console.log(`uuumpire api on :${PORT} (core ${CORE_PATH}, runs ${REQUIRE_RUN ? 'required' : 'optional'})`)))
   .catch((e) => { console.error('init failed', e); process.exit(1); });

@@ -232,5 +232,45 @@ const count = (log, type) => log.filter((l) => l.type === type).length;
   console.log(`  ${games} random games, ${overs} ended by three misses`);
 }
 
+// replay: a logged game plays back to the same summary; a doctored one does not
+console.log('replay');
+{
+  const seed = 4242;
+  const rng = mulberry32(99);
+  const log = [];
+  const game = C.createGame({ rng: C.seededRng(seed), kits: 6, onEvent: (type, e) => { if (type === 'resolve') log.push(e.timeout ? [null] : [e.call, e.reaction]); } });
+  game.start();
+  let guard = 0;
+  while (game.state.phase !== 'over' && guard++ < 2e6) {
+    const dt = 1 / 60 + rng() * 0.02; // uneven frames, like a browser
+    game.update(dt);
+    const s = game.state;
+    if (s.phase === 'call' && rng() < 0.08) game.call(rng() < 0.7 ? (s.pitch.strike ? 'strike' : 'ball') : (s.pitch.strike ? 'ball' : 'strike'));
+    if (s.phase === 'reveal' && rng() < 0.01) game.replay();
+  }
+  const want = game.summary();
+  const got = C.replayRun(seed, log);
+  ok(got && got.score === want.score && got.pitches === want.pitches && got.accuracy === want.accuracy && got.streak === want.streak, `replay reproduces the summary (${want.score} pts, ${want.pitches} pitches)`);
+  ok(got && near(got.reaction, want.reaction, 1e-9), 'replay reproduces the average reaction');
+  ok(got && got.seconds > 0, 'replay reports game time');
+  ok(want.score > 0 && log.length === want.pitches, 'the log has one entry per pitch');
+  ok(C.replayRun(seed + 1, log) === null || C.replayRun(seed + 1, log).score !== want.score, 'another seed does not play to the same score');
+  const late = log.map((e) => (e[0] === null ? e : [e[0], 99]));
+  ok(C.replayRun(seed, late) === null, 'a call after the window is refused');
+  ok(C.replayRun(seed, log.slice(0, -1)) === null, 'a log shorter than the game is refused');
+  ok(C.replayRun(seed, log.concat([['strike', 0.1]])) === null, 'a log longer than the game is refused');
+  ok(C.replayRun(seed, 'nope') === null && C.replayRun(seed, [['strike']]) === null, 'junk is refused');
+  const strikes = log.map((e) => (e[0] === null ? e : ['strike', 0.2]));
+  const r2 = C.replayRun(seed, strikes);
+  ok(r2 === null || r2.score !== want.score || r2.pitches !== want.pitches, 'changing the calls changes the outcome');
+}
+// the server ships with its own copy of core.js (pre-commit hook): it must be this one
+{
+  const fs = require('fs'), path = require('path');
+  const here = path.join(__dirname, '..');
+  const copy = path.join(here, 'server', 'core.js');
+  ok(fs.existsSync(copy) && fs.readFileSync(copy, 'utf8') === fs.readFileSync(path.join(here, 'core.js'), 'utf8'), 'server/core.js is a copy of core.js (run tools/install-hooks.sh)');
+}
+
 console.log(`${checks} checks, ${fails} failed`);
 process.exit(fails ? 1 : 0);
