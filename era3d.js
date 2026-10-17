@@ -545,9 +545,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     bar.opacity = reveal ? 1 : 0.55;
     // reveal: the ball where it really crossed, a ring blinking gold (strike) / white (ball) like the pixel
     // scene, and the ABS tick from the ball to the nearest zone edge when the readout is on
-    // once the call is in, the mitt and hand get out of the way: only the ball where it crossed, and the tick
+    // once the call is in, the catcher gets out of the way: only the ball where it crossed, and the tick
     revealBall.visible = reveal; ring.visible = false;
-    for (const n of ['Gear_Glove_Catcher', 'Gear_Glove_Catcher_Laces', 'Hand_L']) { const o = catcher.nodes.get(n); if (o) o.visible = !reveal; }
+    catcher.root.visible = !reveal;
     const showAbs = reveal && G.result && G.result.abs && G.t > 0.3;
     absTick.visible = showAbs;
     if (reveal) {
