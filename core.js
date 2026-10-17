@@ -42,18 +42,27 @@
     firstPitch: 0.9, nextPitch: 0.35, levelUp: 2.4, congrats: 3.6, // delay before the next windup
   };
   const RULES = {
-    misses: 3, pitchesPerLevel: 5, maxLevel: 11, moodMax: 5,
+    misses: 3, pitchesPerLevel: 5, maxLevel: 17, moodMax: 5,   // 12-17: the 3D era (era3d.js)
     base: 100, streakStep: 0.1, streakCap: 10,   // x1.0 .. x2.0
     fineEdge: 3.8, finePts: 50,                   // edge pitch bonus (px from the zone edge)
     quick: 0.6, quickPts: 30,                     // quick call bonus (s)
     late: 0.3, latePts: 50,                       // held call bonus: a correct call inside the last 0.3 s of the window
     swingLevel: 4, framingLevel: 5, submarineLevel: 3, discoLevel: 10,
+    hardLevel: 13, hardSpeed: [5, 10], hardBreak: 1.15,  // 13-14: every pitch 5-10 km/h harder, breaking stuff moves 15% more
+    decoyLevel: 15, decoySpeed: [8, 13], decoyBreak: 1.22, decoyWindow: { 15: 0.85, 16: 0.78 }, // 15-16: the catcher sets up as a decoy, harder again
+    showLevel: 17, showSpeed: [12, 18], showBreak: 1.3, showWindow: 0.7, showEdge: 0.9, showDur: 0.62, // 17: UNREAL
+    eraLevel: 12, eraMisses: 2, // 12+: the 3D era; two more misses allowed so the new ballpark does not end a run at once
+    eraEaseLevels: 2, eraEaseSpeed: 5, // 12-13: the first two levels of the new view come 5 km/h slower; 14 takes it back
+    eraStretch: 1.0, // 12+: no readability stretch on the flight, the real 18.44 m time
+    eraReviewExtra: 0.8, // 12+: the ABS review stays up this much longer after the replay
   };
   // What each level adds (the UI shows lvl.<level>). Levels not listed just get faster/tighter.
-  const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro' };
+  const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro', 12: 'cam', 13: 'noguide', 14: 'heat', 15: 'decoy', 17: 'show' };
 
+  // misses that end the run: three, four from the 3D era on
+  function missesAllowed(level) { return RULES.misses + (level >= RULES.eraLevel ? RULES.eraMisses : 0); }
   function levelFor(pitchIndex) { return Math.min(RULES.maxLevel, 1 + Math.floor(pitchIndex / RULES.pitchesPerLevel)); }
-  function callWindowFor(level) { return Math.max(0.9, 2.2 - level * 0.12); }
+  function callWindowFor(level) { return level >= RULES.showLevel ? RULES.showWindow : (RULES.decoyWindow[level] || Math.max(0.9, 2.2 - level * 0.12)); }
 
   // ------------------------------------------------------------
   // Pitches
@@ -137,7 +146,7 @@
     const ex0 = zone.x0 - BALL_R, ex1 = zone.x1 + BALL_R;
     const ey0 = zone.y0 - BALL_R, ey1 = zone.y1 + BALL_R;
     const isStrike = rng() < 0.5;
-    const edgeProb = clamp(0.2 + level * 0.07, 0.2, 0.8);
+    const edgeProb = clamp(0.2 + level * 0.07, 0.2, level >= RULES.showLevel ? RULES.showEdge : 0.8); // 15 lives on the corners
     const edge = rng() < edgeProb;
     let x, y;
     const side = rndInt(4); // 0 left, 1 right, 2 top, 3 bottom
@@ -168,9 +177,18 @@
     const dir = type.side === 'glove' ? hand : type.side === 'arm' ? -hand : sgn();
     let bx = rnd(type.bx[0], type.bx[1]) * dir;
     let by = rnd(type.by[0], type.by[1]);
-    const hump = type.hump ? rnd(type.hump[0], type.hump[1]) : 0;
+    let hump = type.hump ? rnd(type.hump[0], type.hump[1]) : 0;
     // speed creeps up with level, then jumps from level 10 on
     let speed = Math.round(rnd(type.speed[0], type.speed[1]) + Math.min(level, 8) + Math.max(0, level - 9) * 3);
+    if (level >= RULES.eraLevel && level < RULES.eraLevel + RULES.eraEaseLevels) speed -= RULES.eraEaseSpeed; // eyes adjusting to 3D
+    // the back half of the 3D era: every pitch comes in 5-10 km/h harder and anything that moves, moves 15% more
+    if (level >= RULES.hardLevel) {
+      const show = level >= RULES.showLevel, decoy = level >= RULES.decoyLevel; // 13-14, 15-16, 17: three steps up
+      const sp = show ? RULES.showSpeed : decoy ? RULES.decoySpeed : RULES.hardSpeed;
+      speed += Math.round(rnd(sp[0], sp[1]));
+      const brk = show ? RULES.showBreak : decoy ? RULES.decoyBreak : RULES.hardBreak;
+      if (type.name !== 'FOURSEAM') { bx *= brk; by *= brk; hump *= brk; }
+    }
     // knuckleball: no spin, flutters side to side on the way in (sin terms vanish at t=1, so it still lands on target)
     const wob = type.wobble ? {
       ax: rnd(type.wobble[0], type.wobble[1]) * sgn(), ay: rnd(type.wobble[0], type.wobble[1]) * 0.6 * sgn(),
@@ -183,8 +201,8 @@
     }
     // flight time from the real distance (18.44 m) at the shown speed, stretched 1.3x so it stays
     // readable, then tightened a little per level. 137 km/h at level 1 ~ 0.62 s; 169 at level 12 ~ 0.41 s.
-    let dur = (18.44 / (speed / 3.6)) * 1.3;
-    dur *= clamp(1 - (level - 1) * 0.03, 0.72, 1); // each level is a noticeable tick quicker
+    let dur = (18.44 / (speed / 3.6)) * (level >= RULES.eraLevel ? RULES.eraStretch : 1.3); // the 3D era shows the real flight time
+    dur *= clamp(1 - (level - 1) * 0.03, level >= RULES.showLevel ? RULES.showDur : 0.72, 1); // each level is a noticeable tick quicker; 15 is a blur
 
     const located = isStrikeAt(zone, x, y);
     const edgeDist = edgeDistance(zone, x, y);
@@ -435,7 +453,7 @@
             if (!G.replayCaught) { G.replayCaught = true; emit('catch', { x: p.x, y: p.y, early: false, replay: true }); }
             G.mitt.x = p.x; G.mitt.y = p.y;
             if (G.t >= p.dur + TIMING.replayHold) { // hold on the catch, then back to the reveal
-              G.phase = 'reveal'; G.t = TIMING.replayBack; G.ball = null;
+              G.phase = 'reveal'; G.t = TIMING.replayBack - (G.level >= RULES.eraLevel ? RULES.eraReviewExtra : 0); G.ball = null; // the 3D era's ABS review holds a little longer
               emit('replayEnd');
             }
           }
@@ -461,7 +479,7 @@
 
         case 'reveal':
           if (G.t >= TIMING.reveal) {
-            if (G.misses >= RULES.misses) {
+            if (G.misses >= missesAllowed(G.level)) {
               G.phase = 'over';
               emit('over', summary());
             } else if (G.pitchIndex + 1 >= RULES.maxLevel * RULES.pitchesPerLevel) {
@@ -513,7 +531,7 @@
 
   return {
     BALL_R, BATTER_H, BATTER_FEET_Y, IN_PER_PX, RELEASE, MITT_REST, TIMING, RULES, UNLOCKS, PROFILE, PITCH_TYPES,
-    zoneFor, levelFor, callWindowFor, pickForm, pickType, isStrikeAt, edgeDistance, genPitch, ballPos,
+    zoneFor, levelFor, missesAllowed, callWindowFor, pickForm, pickType, isStrikeAt, edgeDistance, genPitch, ballPos,
     scoreCall, moodAfter, absInfo, createGame, seededRng, replayRun,
   };
 });

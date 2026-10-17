@@ -97,6 +97,12 @@
     if (meta) meta.setAttribute('content', p.css.night);
     buildAssets();
   }
+  // The Game Boy palette belongs to the pixel era. A game that crosses into the 3D era switches its UI to
+  // NIGHT GAME (the scene there is lit, not four shades) and goes back to the player's choice on the title.
+  let hdPalette = null; // the palette in force while the override lasts, else null
+  const uiPalette = () => (hdPalette === null ? settings.palette : hdPalette);
+  function enterHdPalette() { const p = PALETTES[settings.palette]; if (hdPalette === null && p && p.shades) { hdPalette = 0; applyPalette(0); } }
+  function leaveHdPalette() { if (hdPalette !== null) { hdPalette = null; applyPalette(settings.palette); } }
 
   // ------------------------------------------------------------
   // Sprites (char rows -> palette)
@@ -410,6 +416,7 @@
     windup() { this.tone(220, 0.08, { vol: 0.07 }); },
     whoosh() { this.tone(900, 0.35, { type: 'sawtooth', vol: 0.07, slide: 180 }); },
     pop() { this.tone(140, 0.1, { vol: 0.2, slide: 60 }); this.tone(1200, 0.03, { type: 'triangle', vol: 0.11 }); },
+    heart() { for (let i = 0; i < 4; i++) this.tone([1047, 1319, 1568, 2093][i], i < 3 ? 0.07 : 0.28, { vol: 0.05, delay: i * 0.07 }); }, // a container found
     good() { this.tone(660, 0.08); this.tone(880, 0.12, { delay: 0.08 }); this.tone(1320, 0.18, { delay: 0.17 }); },
     bad() { this.tone(200, 0.18, { type: 'sawtooth', vol: 0.05 }); this.tone(150, 0.3, { type: 'sawtooth', vol: 0.05, delay: 0.15 }); },
     strikeCall() { this.tone(520, 0.06, { vol: 0.05 }); this.tone(780, 0.1, { vol: 0.05, delay: 0.06 }); },
@@ -472,6 +479,7 @@
   // theme plus the loaded ballpark tunes), picked per game. start() with no name resumes the current song.
   const TITLE_SONGS = ['entry', 'ballgame'];
   const PLAY_SONGS = ['theme'];
+  const HD_SONGS = [];       // the 3D era's cheer songs (assets/songs index "hd"): brass rally tunes, CPBL / NPB style
   const Music = {
     get player() { return window.UUMusic ? window.UUMusic.Player : null; },
     start(song) {
@@ -483,7 +491,7 @@
         if (p.playing && TITLE_SONGS.includes(p.current)) return; // already on a menu song: keep it
         song = pick(TITLE_SONGS);
       } else if (song === 'play') {
-        song = pick(PLAY_SONGS);
+        song = pick(G.level >= ERA3D_LEVEL && HD_SONGS.length ? HD_SONGS : PLAY_SONGS); // from level 12 the PA plays the cheer songs
       }
       p.setEnabled(true); p.start(song);
     },
@@ -493,7 +501,7 @@
   };
   // don't lose a pitch to a tab switch, another window taking focus, or a system overlay
   // (iOS Screen Distance "too close" warning fires no visibilitychange; it does take focus / stall frames)
-  function autoPause() { if (currentScreen === 'play' && G.phase !== 'idle' && G.phase !== 'over' && !G.paused) setPaused(true); }
+  function autoPause() { if (DEBUG && QS.has('nopause')) return; if (currentScreen === 'play' && G.phase !== 'idle' && G.phase !== 'over' && !G.paused) setPaused(true); } // ?nopause: debug captures from a background tab
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { Music.stop(); autoPause(); }
     else if (Sfx.ctx && currentScreen !== 'over' && !G.paused) Music.start();
@@ -529,7 +537,7 @@
   function showScreen(name) {
     for (const k in screens) screens[k].classList.toggle('hidden', k !== name);
     currentScreen = name;
-    if (name === 'title') { refreshTitle(); Board.loadPlays(); Board.prepRun(); }
+    if (name === 'title') { leaveHdPalette(); refreshTitle(); Board.loadPlays(); Board.prepRun(); }
     if (name === 'records') renderRecords();
     if (name === 'play') fitCanvas();
   }
@@ -555,6 +563,112 @@
   let runRng = Math.random, run = null, runLog = [];
   const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent, rng: () => runRng() });
   const G = game.state;      // phase, t, pitch, score, streak, misses, mood, ball, mitt, zone, result ...
+
+  // The 3D era (era3d.js): from ERA3D_LEVEL the scene is drawn in 3D over the same stage box. The module and
+  // its models load in the background two levels early; the pixel scene keeps drawing until it is ready.
+  const ERA3D_LEVEL = 12;
+  let era3d = null, era3dLoading = null;
+  function loadEra3D() {
+    if (era3dLoading) return era3dLoading;
+    loadHdBand();
+    era3dLoading = import('./era3d.js?v=' + (window.UU_V || '')).then((m) => {
+      era3d = m.createEra3D({ C, game, stage: el.stage, canvas2d: canvas, assetsBase: window.UU_ERA3D_ASSETS || '../uuumpire-3d/assets/', firstLevel: ERA3D_LEVEL, getPalette: () => uiPalette() });
+      if (G.pitch) era3d.onEvent('next', { pitch: G.pitch, level: G.level, pitchIndex: G.pitchIndex, levelUp: false }); // the pitch already set up before the module arrived
+      return era3d.ready.then(() => era3d);
+    }).catch((e) => { console.error('3D era failed to load', e); era3d = null; });
+    return era3dLoading;
+  }
+  // Level 11 cleared: hold the game and run a "new ballpark" loading bar over the stage (at least a few
+  // seconds, longer if the models are still coming), then swap the stage to 3D and show the level banner.
+  // If the era never loads, the bar ends and the pixel game simply carries on.
+  function eraTransition(e) {
+    game.setPaused(true); // the core clock only; no PAUSED overlay
+    enterHdPalette();
+    hideText();
+    const box = $('era-load'), text = $('era-load-text'), fill = $('era-load-fill');
+    const lines = [t('era.1'), t('era.2'), t('era.3'), t('era.4')];
+    const tease = [t('era.t1'), t('era.t2')], TEASE_MS = 1300, HEARTS_MS = 1900; // two lines, then the two extra miss boxes drop in while the last line holds, then the bar
+    missGrowing = true; // the extra miss boxes wait for their ceremony
+    let hearts = false;
+    box.classList.remove('hidden'); box.classList.add('tease'); box.classList.remove('hd');
+    fill.style.width = '0%';
+    const PRE_MS = tease.length * TEASE_MS + HEARTS_MS;
+    const started = performance.now(), MIN_MS = 3800, MAX_MS = 20000 + PRE_MS;
+    let ready = false;
+    Promise.all([loadEra3D(), loadHdBand()]).then(() => { ready = true; });
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      fill.style.width = '100%';
+      text.textContent = lines[lines.length - 1];
+      syncEra3D();
+      setTimeout(() => {
+        box.classList.add('hidden');
+        if (currentScreen === 'play') {
+          showText(el.call, t('level.n', e.level), '');
+          showText(el.bonus, t('lvl.' + e.level), '');
+          setTimeout(() => Sfx.crowd('cheer', 1), 150);
+          Music.stop(); if (Music.player) Music.player.setHd(hdBand); Music.start('play'); // the new ballpark has its own PA: the cheer songs on the brass band
+        }
+        game.setPaused(false);
+      }, 400);
+    };
+    // a timer, not an animation frame: a tab in the background still finishes the bar
+    const timer = setInterval(() => {
+      if (currentScreen !== 'play') { box.classList.add('hidden'); done = true; clearInterval(timer); return; } // quit to title mid-bar
+      const since = performance.now() - started;
+      if (since < tease.length * TEASE_MS) { text.textContent = tease[Math.floor(since / TEASE_MS)]; return; }
+      if (!hearts) { hearts = true; growMisses(); } // WE GOT MORE: two more misses, one box at a time
+      if (since < PRE_MS) return;
+      box.classList.remove('tease');
+      const ms = since - PRE_MS;
+      const k = Math.min(1, ms / MIN_MS);
+      fill.style.width = Math.round((ready ? k : Math.min(k, 0.92)) * 100) + '%';
+      text.textContent = lines[Math.floor(ms / 950) % lines.length]; // keeps cycling while the models are still coming
+      box.classList.toggle('hd', ms >= MIN_MS / 2); // half way the bar itself turns HD: pixel font first, broadcast type after
+      if ((k >= 1 && ready) || ms > MAX_MS) { clearInterval(timer); finish(); }
+    }, 50);
+  }
+  // the two extra miss boxes of the 3D era drop in one at a time with a chime, like heart containers
+  let missGrowing = false;
+  function growMisses() {
+    missGrowing = true;
+    const extras = el.miss.querySelectorAll('i.extra');
+    extras.forEach((b) => b.classList.remove('pop'));
+    extras.forEach((b, i) => setTimeout(() => {
+      if (i === extras.length - 1) missGrowing = false;
+      if (currentScreen !== 'play') return;
+      b.classList.add('pop'); Sfx.heart();
+    }, 250 + i * 800));
+  }
+  // The HD band (the-woodshed's recipe): smplr soundfonts from the CDN, a brass section for the cheer songs.
+  // Loaded with the models; if it fails or is late the chip player carries the same songs.
+  let hdBand = null, hdBandLoading = null;
+  function loadHdBand() {
+    if (hdBandLoading) return hdBandLoading;
+    Sfx.init();
+    const P = Music.player;
+    if (!P || !P.ctx) return Promise.resolve(null);
+    hdBandLoading = import('https://cdn.jsdelivr.net/npm/smplr@1.0.0/+esm').then(async (m) => {
+      const ctx = P.ctx, dest = P.master;
+      const sf = (instrument, volume) => new m.Soundfont(ctx, { instrument, volume, destination: dest });
+      const lead = sf('trumpet', 95), horns = sf('trombone', 70), bass = sf('tuba', 110);
+      const kit = new m.DrumMachine(ctx, { instrument: 'TR-808', volume: 90, destination: dest });
+      await Promise.all([lead.load, horns.load, bass.load, kit.load].map((p) => p && p.catch ? p.catch(() => null) : p));
+      const groups = (kit.getGroupNames && kit.getGroupNames()) || [];
+      const find = (re) => groups.find((g) => re.test(g));
+      const names = { K: find(/kick|bd/i), S: find(/snare|sd/i), h: find(/hat|hh/i) };
+      hdBand = { lead: { inst: lead, velocity: 100 }, horns: { inst: horns, velocity: 80 }, bass: { inst: bass, velocity: 100 }, drums: { inst: kit, names } };
+      return hdBand;
+    }).catch((e) => { console.warn('HD band unavailable, chip band plays', e); return null; });
+    return hdBandLoading;
+  }
+  // show the 3D scene when its level is on and it is loaded (now, or as soon as the models land)
+  function syncEra3D() {
+    if (G.level < ERA3D_LEVEL || currentScreen !== 'play') { if (era3d) era3d.hide(); return; }
+    loadEra3D().then(() => { if (era3d && G.level >= ERA3D_LEVEL && currentScreen === 'play') { enterHdPalette(); era3d.show(); } });
+  }
   const ZONE = G.zone;       // sized per batter by the core; same object for the whole game
   const V = {                // view state: nothing here changes a call or a point
     shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null,
@@ -569,20 +683,31 @@
     starting = false;
     runRng = run ? C.seededRng(run.seed) : Math.random;
     runLog = [];
+    leaveHdPalette(); // a retry from the HD end screen starts back in the pixel era
     Object.assign(V, { shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null });
+    missGrowing = false;
     el.pause.classList.remove("show"); el.btnPause.classList.remove("pressed");
     hideText();
     el.info.textContent = ' ';
     showScreen('play');
     Music.tempo(1);
+    if (Music.player) Music.player.setHd(null); // a new run starts in the chip era
+    Music.stop();
     Music.start('play');
     game.start();
+    // debug: ?level=N starts the run at that level (localhost only)
+    const startLevel = DEBUG ? parseInt(QS.get('level'), 10) : 0;
+    if (startLevel > 1 && startLevel <= C.RULES.maxLevel) { G.pitchIndex = (startLevel - 1) * C.RULES.pitchesPerLevel; game.startWindup(C.TIMING.firstPitch, true); }
+    syncEra3D();
     updateHud();
   }
 
   function onGameEvent(type, e) {
+    if (era3d) era3d.onEvent(type, e);
     switch (type) {
       case 'next': { // a pitch is set up; the windup starts after the delay the core chose
+        if (e.level >= ERA3D_LEVEL - 2) loadEra3D();
+        if (e.levelUp || e.pitchIndex === 0) syncEra3D();
         V.trail = [];
         el.count.textContent = t('pitch.n', e.pitchIndex + 1);
         el.timer.style.width = '0%';
@@ -591,6 +716,7 @@
         el.btnReplay.classList.add('hidden');
         if (e.levelUp) Sfx.levelUp();
         if (e.levelUp && e.level >= C.RULES.discoLevel) Music.start('disco'); // level 10: the disco inning takes over the PA
+        if (e.levelUp && e.level === ERA3D_LEVEL) { eraTransition(e); updateHud(); break; } // level 11 cleared: the ballpark changes
         if (e.congrats) { // cleared the disco inning
           showText(el.call, t('congrats'), 'small', 'party');
           showText(el.bonus, t('congrats.sub'), '', 'wobble');
@@ -610,6 +736,10 @@
         Sfx.pop();
         spawnDust(e.x, e.y);
         if (!e.replay) V.flash = 0.06;
+        else if (era3d && era3d.active && G.result) { // the ABS review has read the pitch: the verdict
+          showText(el.call, t(G.pitch.strike ? 'call.strike' : 'call.ball'), 'small' + (G.pitch.strike ? '' : ' ball'));
+          showText(el.judge, t(G.result.correct ? 'abs.stands' : 'abs.over'), G.result.correct ? 'ok' : 'ng');
+        }
         break;
       case 'resolve': runLog.push(e.timeout ? [null] : [e.call, e.reaction]); onResolve(e); break;
       case 'replay': V.trail = []; hideText(); el.btnReplay.classList.add('hidden'); Sfx.select(); break;
@@ -675,10 +805,14 @@
   function makeCall(call) { game.call(call); }
 
   // leave a game in progress (Escape, or EXIT TO TITLE on the pause overlay); the run is not recorded
-  function quitToTitle() { setPaused(false); Sfx.select(); Music.start('title'); showScreen('title'); }
+  function quitToTitle() { setPaused(false); Sfx.select(); if (Music.player) Music.player.setHd(null); Music.stop(); Music.start('title'); showScreen('title'); if (era3d) era3d.hide(); }
 
   // the call is in: sound, crowd, the umpire's style for this reveal, the texts
   function onResolve(r) {
+    // the 3D era reviews every missed call: the ABS replay starts by itself once the verdict is read
+    // (a swing is a strike wherever the ball went: nothing to review)
+    // (a timeout reviews nothing either: no call was made, there is nothing to overturn)
+    if (!r.correct && !r.timeout && era3d && era3d.active && G.pitch.swing !== 'full') setTimeout(() => { if (G.phase === 'reveal' && era3d && era3d.active) startReplay(); }, 900);
     const p = G.pitch;
     V.umpStyle = pickUmpStyle(p.strike);
     el.timer.style.width = '0%';
@@ -710,7 +844,7 @@
     const judge = r.timeout ? t('judge.late') : r.correct ? t('judge.ok') : t('judge.ng');
     setTimeout(() => only(() => showText(el.judge, judge, r.correct ? 'ok' : 'ng')), 180);
     if (r.reaction !== null) setTimeout(() => only(() => showText(el.react, t('reaction', r.reaction.toFixed(2)), '')), 240);
-    if (V.umpStyle) setTimeout(() => only(() => showText(el.style, t('ump.' + V.umpStyle), '')), 500);
+    if (V.umpStyle) setTimeout(() => only(() => { if (!(era3d && era3d.active)) showText(el.style, t('ump.' + V.umpStyle), ''); }), 500); // the style names the pixel inset's animation; the 3D era has none
     // crowd line, then swing / framing tags, then (on a correct call) the multiplier and bonuses
     const msgs = (r.crowd ? [t('tag.' + r.crowd)] : []).concat(r.tags.map((k) => t('tag.' + k)));
     if (r.correct) {
@@ -757,6 +891,9 @@
     el.score.textContent = G.score;
     el.streak.textContent = G.streak;
     el.level.textContent = G.level;
+    const four = C.missesAllowed(G.level) > 3; // the 3D era allows two more misses
+    el.miss.classList.toggle('four', four);
+    if (!missGrowing) el.miss.querySelectorAll('i.extra').forEach((b) => b.classList.toggle('pop', four)); // no ceremony pending: they are simply there (or not)
     const dots = el.miss.querySelectorAll('i');
     dots.forEach((d, i) => d.classList.toggle('on', i < G.misses));
     // crowd meter: one cell per correct call, two lost per miss
@@ -1011,11 +1148,12 @@
   // Main loop
   // ------------------------------------------------------------
   // debug flags work only on a local dev server; the deployed page ignores them
-  const LOCAL = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
+  // debug switches work on localhost and on a private LAN address (a phone on the same Wi-Fi)
+  const LOCAL = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname) || /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)\d/.test(location.hostname);
   const QS = new URLSearchParams(LOCAL ? location.search : '');
   const SLOW = parseFloat(QS.get('slow')) || 1; // debug: ?slow=4 slows game time
   const DEBUG = QS.has('debug');               // debug: ?debug exposes window.__uu to pose frames
-  if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); render(); }, sfx: Sfx };
+  if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); if (era3d && era3d.active) era3d.frame(dt); else render(); }, era: () => era3d, sfx: Sfx };
   let last = performance.now();
   function loop(now) {
     let dt = (now - last) / 1000;
@@ -1025,7 +1163,7 @@
     dt /= SLOW;
     const paused = G.paused || (DEBUG && window.__uu.pause);
     if (!paused && currentScreen === 'play' && G.phase !== 'idle' && G.phase !== 'over') { game.update(dt); updateView(dt); }
-    if (currentScreen === 'play') render();
+    if (currentScreen === 'play') { if (era3d && era3d.active) era3d.frame(dt); else render(); }
     requestAnimationFrame(loop);
   }
 
@@ -1318,6 +1456,7 @@
       .then((song) => { if (window.UUMusic) { window.UUMusic.Player.addSong(key, song); pool.push(key); } });
     for (const key of index.play || []) addTask(key.toUpperCase(), loadSong(key, PLAY_SONGS));
     for (const key of index.title || []) addTask(key.toUpperCase(), loadSong(key, TITLE_SONGS));
+    for (const key of index.hd || []) addTask(key.toUpperCase(), loadSong(key, HD_SONGS));
     total = tasks.length; show();
     await Promise.all(tasks);
     fill.style.width = '100%'; text.textContent = t('loading.done');

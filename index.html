@@ -13,6 +13,11 @@
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
   <link rel="preload" href="fonts/Cubic_11.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&display=swap">
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+  </script>
   <style>
     /* inline so the gate works before style.css arrives: nothing shows in a fallback font or unstyled */
     html { background: #01215b; }
@@ -58,7 +63,7 @@
       <div class="hud-cell"><span class="hud-label" data-i18n="hud.score">SCORE</span><span id="hud-score" class="hud-value">0</span></div>
       <div class="hud-cell"><span class="hud-label" data-i18n="hud.streak">STREAK</span><span id="hud-streak" class="hud-value">0</span></div>
       <div class="hud-cell"><span class="hud-label" data-i18n="hud.level">LV</span><span id="hud-level" class="hud-value">1</span></div>
-      <div class="hud-cell"><span class="hud-label" data-i18n="hud.miss">MISS</span><span id="hud-miss" class="hud-value miss"><i></i><i></i><i></i></span></div>
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.miss">MISS</span><span id="hud-miss" class="hud-value miss"><i></i><i></i><i></i><i class="extra"></i><i class="extra"></i></span></div>
       <div class="hud-cell"><span class="hud-label" data-i18n="hud.crowd">CROWD</span><span id="hud-crowd" class="hud-value meter"><i></i><i></i><i></i><i></i><i></i></span></div>
     </div>
     <div class="stage" id="stage">
@@ -70,6 +75,7 @@
       <div id="bonus-text" class="bonus-text"></div>
       <div id="abs-text" class="abs-text"></div>
       <div id="pause-text" class="pause-text"><span class="plate" data-i18n="paused">PAUSED</span></div>
+      <div id="era-load" class="era-load hidden"><div id="era-load-text" class="era-load-text"></div><div class="loadbar era-loadbar"><div id="era-load-fill" class="loadbar-fill"></div></div></div>
       <button id="btn-replay" class="game-btn game-btn--sm replay-btn hidden" type="button" data-i18n="btn.replay">REPLAY</button>
       <button id="btn-quit" class="game-btn game-btn--sm quit-btn" type="button" data-i18n="btn.quit">EXIT TO TITLE</button>
     </div>

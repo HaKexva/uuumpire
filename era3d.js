@@ -1,0 +1,707 @@
+/* UUUMPIRE 3D era: from level 12 the same core.js game is drawn as a 3D ballpark from the umpire's
+   eye above the catcher, in the same stage box as the pixel canvas. game.js owns the game, the
+   HUD texts, the sounds and the loop; this module only draws the scene and animates the players.
+   Models: claudeball (MIT), loaded from `assetsBase` (field, stadium, ball, bat, one player rig).
+   three.js comes from the import map in index.html.
+   Usage (game.js):  const era = await import('./era3d.js'); const e3 = era.createEra3D({ C, game, stage, canvas2d, assetsBase });
+                     e3.onEvent(type, e) from the event dispatcher; e3.frame(dt) from the loop while e3.active; e3.show() / e3.hide(). */
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
+
+const CDN = 'https://cdn.jsdelivr.net/npm/three@0.170.0/';
+
+export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpire-3d/assets/', firstLevel = 12, getPalette = () => 0 }) {
+  const G = game.state;
+
+  // ---- px (168x192 scene) -> metres. Lateral: the 33 px plate is 17 in. Vertical: the mid batter's zone
+  // (52 px over the cleats .. 24 px) maps onto 1.170 m .. 0.518 m: chest to knee on the model's stance (the
+  // drawn frame, grown by GROW_Y, tops out at the chest bone and bottoms at the knee; 63% / 28% of a 1.85 m
+  // batter). The taller and shorter batters scale with their zones. A linear map with an offset, so both
+  // ends land on the body whatever the size.
+  const M_LAT = C.IN_PER_PX * 0.0254;
+  const M_VERT = (1.170 - 0.518) / (52 - 24);
+  const H_OFF = 0.518 - 24 * M_VERT;
+  const PLATE_CX = (68 + 101) / 2;
+  const latOf = (x) => (x - PLATE_CX) * M_LAT;
+  const hgtOf = (y) => (C.BATTER_FEET_Y - y) * M_VERT + H_OFF;
+  const MOUND_Z = -18.44;        // rubber front edge (field.glb, rotated so centre field is -z)
+  const PLATE_Z = -0.2;          // where the ball is judged: the middle of the plate (apex at 0)
+  // The ball is drawn at its real size (36.9 mm radius). The rules judge a strike as "a 5 px ball touches the
+  // zone", and 5 px is 65 mm across and 94 mm up at this scale, so the drawn frame is the zone grown by the
+  // difference: a real ball touching the frame is exactly a strike.
+  const BALL_SCALE = 1, R_REAL = 0.0369;
+  const FLIGHT_SCALE = 1.4; // the ball in flight is drawn a touch larger so its movement reads; it is real-size by the time it is caught
+  const GROW_X = C.BALL_R * M_LAT - R_REAL, GROW_Y = C.BALL_R * M_VERT - R_REAL;
+  // nearest point of the drawn frame (metres) to a point on the plane: inside, the nearest edge; outside, the clamp
+  function nearestEdgeM(hw, cy, hh, x, y) {
+    const inside = x >= -hw && x <= hw && y >= cy - hh && y <= cy + hh;
+    if (!inside) return { x: Math.min(Math.max(x, -hw), hw), y: Math.min(Math.max(y, cy - hh), cy + hh) };
+    const d = [[x + hw, -hw, y], [hw - x, hw, y], [y - (cy - hh), x, cy - hh], [cy + hh - y, x, cy + hh]].sort((a, b) => a[0] - b[0])[0];
+    return { x: d[1], y: d[2] };
+  }
+  const CATCHER_X = 0.12;        // the catcher sets up this far toward the batter
+
+  // ------------------------------------------------------------
+  // Canvas and renderer: a WebGL canvas laid over the pixel canvas, same CSS box, device resolution
+  // ------------------------------------------------------------
+  const canvas = document.createElement('canvas');
+  canvas.id = 'game3d';
+  canvas.style.cssText = 'position:absolute;left:0;top:0;display:none;';
+  canvas2d.insertAdjacentElement('afterend', canvas);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  const DPR = window.devicePixelRatio || 1;
+  renderer.setPixelRatio(Math.min(1.5, DPR));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x06082a);
+  scene.fog = new THREE.Fog(0x06082a, 90, 220);
+  // the stage is portrait (168:192): a tall window on the same width of plate, aimed low so the
+  // horizon sits high like the pixel scene's
+  const camera = new THREE.PerspectiveCamera(78, 168 / 192, 0.1, 400);
+  // the umpire's eye: right above the catcher's helmet, a small step to the open side (the slot);
+  // 1.85 m up and 1 m behind the plate is the lowest eye that still sees the bottom of the zone over the helmet
+  // the umpire-cam, as on the broadcast: the eye in the slot (the gap between catcher and batter, on the
+  // batter's side of the catcher's head), chin at the crown of the helmet, a very wide lens, the horizon a
+  // third of the way down. Same picture for both batters, mirrored.
+  const CAM = { x: 0.35, y: 1.58, z: 0.85, look: new THREE.Vector3(0, 0.3, -6) }; // just above and behind the helmet: only mask and mitt in the near corner
+  // the ABS review: the centre-field broadcast camera, long lens, the zone frame face-on
+  const ABS_CAM = { pos: new THREE.Vector3(1.6, 2.4, -11.0), look: new THREE.Vector3(0, 0.8, -0.2), fov: 24 };
+  let camMode = 'ump';
+  function setCam(mode) {
+    camMode = mode;
+    // the broadcast camera sits on the side away from the batter, or he would stand between it and the plate
+    { camera.position.set(-camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(CAM.look); camera.fov = 78; }
+    camera.updateProjectionMatrix();
+  }
+  let camSide = 1;
+  camera.position.set(CAM.x, CAM.y, CAM.z);
+  camera.lookAt(CAM.look);
+
+  // post: the broadcast look. Ambient occlusion under feet and in creases, bloom on the lamps and the
+  // white kit, a soft vignette; the ABS review renders straight (a clean graphic).
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const gtao = new GTAOPass(scene, camera, 1, 1); gtao.output = GTAOPass.OUTPUT.Default; gtao.blendIntensity = 0.85;
+  gtao.updateGtaoMaterial({ radius: 0.35, distanceExponent: 1, thickness: 1, scale: 1.2, samples: 8, distanceFallOff: 1, screenSpaceRadius: false });
+  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
+  composer.addPass(gtao);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.4, 0.97); composer.addPass(bloom);
+  const vignette = new ShaderPass(VignetteShader); vignette.uniforms.offset.value = 0.95; vignette.uniforms.darkness.value = 1.1; composer.addPass(vignette);
+  composer.addPass(new OutputPass());
+  function fit() {
+    const w = canvas2d.clientWidth, h = canvas2d.clientHeight;
+    if (!w || !h) return;
+    canvas.style.width = canvas2d.style.width; canvas.style.height = canvas2d.style.height;
+    renderer.setSize(w, h, false);
+    const pr = renderer.getPixelRatio();
+    composer.setSize(w * pr, h * pr); gtao.setSize(w * pr, h * pr); bloom.setSize(w * pr, h * pr);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(fit).observe(canvas2d);
+
+  // the lighting rig; what it does depends on the game's palette setting (night, day, dome)
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.5;
+  const hemi = new THREE.HemisphereLight(0xd0dcff, 0x30401c, 1.2); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff0d0, 3.2); sun.position.set(-14, 30, 24); scene.add(sun);
+  const back = new THREE.DirectionalLight(0xa0b0ff, 1.6); back.position.set(10, 20, -40); scene.add(back);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.radius = 4; sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.02;
+  const sc = sun.shadow.camera; sc.near = 1; sc.far = 140; sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -30;
+  sun.target.position.set(0, 0, -6); scene.add(sun.target);
+  // quality tiers: the whole scene is drawn three times a frame at the top tier (shadow map, the AO
+  // pass's normals+depth, the colour pass). A tier down costs resolution first, then the AO pass, then
+  // bloom. The watchdog in frame() steps down when frames keep running long; it never steps back up
+  // (a phone that was slow once stays on the lighter path). ?hdq=0..3 pins a tier for testing.
+  const TIERS = [
+    { pr: 1.5, ao: 8, bloom: true, shadow: 2048 },
+    { pr: 1.25, ao: 4, bloom: true, shadow: 1024 },
+    { pr: 1, ao: 0, bloom: true, shadow: 1024 },
+    { pr: 1, ao: 0, bloom: false, shadow: 512 },
+  ];
+  const phone = /iPhone|iPad|Android|Mobile/i.test(navigator.userAgent) || (navigator.hardwareConcurrency || 8) <= 4;
+  let tier = -1, slowFrames = 0, lastFrameAt = 0;
+  function setTier(i) {
+    i = Math.max(0, Math.min(TIERS.length - 1, i | 0));
+    if (i === tier) return;
+    tier = i; const q = TIERS[i];
+    renderer.setPixelRatio(Math.min(q.pr, DPR));
+    gtao.enabled = q.ao > 0;
+    if (q.ao) { gtao.updateGtaoMaterial({ samples: q.ao }); gtao.updatePdMaterial({ samples: q.ao, rings: q.ao >= 8 ? 2 : 1 }); }
+    bloom.enabled = q.bloom;
+    if (sun.shadow.mapSize.x !== q.shadow) { sun.shadow.mapSize.set(q.shadow, q.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+    fit();
+    console.info('era3d quality tier', i, q);
+  }
+  const pin = parseInt(new URLSearchParams(location.search).get('hdq'), 10); const pinned = Number.isFinite(pin);
+  setTier(pinned ? pin : phone ? 1 : 0);
+  // frames over 24 ms (under 40 fps) count up, good frames count down; thirty net slow ones drop a tier
+  function watchdog() {
+    if (pinned) return;
+    const now = performance.now();
+    if (lastFrameAt && now - lastFrameAt < 500) { slowFrames = now - lastFrameAt > 24 ? slowFrames + 1 : Math.max(0, slowFrames - 1); if (slowFrames > 30) { slowFrames = 0; setTier(tier + 1); } }
+    lastFrameAt = now;
+  }
+  const plateLight = new THREE.PointLight(0xfff4e0, 60, 25, 2); plateLight.position.set(1.5, 6, 6); scene.add(plateLight);
+  let lookNow = -1;
+  // the lamp heads (stadium.glb LightTower_n_Lamps, Scoreboard_Screen emissive) are on at night only
+  const lamps = [];
+  function setLamps(on) { for (const m of lamps) { m.emissiveIntensity = on ? m.userData.emi : 0; m.emissive.set(on ? m.userData.emc : 0x000000); m.needsUpdate = true; } }
+  function applyLook(idx) {
+    if (idx === lookNow) return;
+    lookNow = idx;
+    setLamps(idx !== 1);
+    bloom.strength = idx === 1 ? 0.06 : 0.15;
+    if (idx === 1) { // DAY GAME: a high afternoon sun from behind the plate side, blue sky, crisp shadows
+      scene.background = new THREE.Color(0x8fc4ff); scene.fog = new THREE.Fog(0xa8d4ff, 120, 320);
+      hemi.color.set(0xbfdcff); hemi.groundColor.set(0x5c7a3c); hemi.intensity = 1.0;
+      sun.color.set(0xfff6e4); sun.intensity = 3.4; sun.position.set(22, 42, 26);
+      back.color.set(0xc8d8ff); back.intensity = 0.5; plateLight.intensity = 0;
+      scene.environmentIntensity = 0.55; renderer.toneMappingExposure = 1.0; sun.shadow.radius = 2;
+    } else if (idx === 2) { // DOME: a white roof, flat even light, soft shadows
+      scene.background = new THREE.Color(0xdfe5ef); scene.fog = new THREE.Fog(0xdfe5ef, 110, 300);
+      hemi.color.set(0xf4f6fa); hemi.groundColor.set(0x6a7a6a); hemi.intensity = 1.9;
+      sun.color.set(0xffffff); sun.intensity = 1.3; sun.position.set(-8, 40, 10);
+      back.color.set(0xffffff); back.intensity = 0.8; plateLight.intensity = 25;
+      scene.environmentIntensity = 0.55; renderer.toneMappingExposure = 1.0; sun.shadow.radius = 7;
+    } else { // NIGHT GAME (and GAME BOY): the towers, a cool sky fill, warm lamp banks
+      scene.background = new THREE.Color(0x06082a); scene.fog = new THREE.Fog(0x06082a, 90, 220);
+      hemi.color.set(0xd0dcff); hemi.groundColor.set(0x30401c); hemi.intensity = 1.2;
+      sun.color.set(0xfff0d0); sun.intensity = 3.0; sun.position.set(-14, 30, 24);
+      back.color.set(0xa0b0ff); back.intensity = 1.6; plateLight.intensity = 60;
+      scene.environmentIntensity = 0.5; renderer.toneMappingExposure = 1.1; sun.shadow.radius = 4;
+    }
+  }
+
+  // the field and stadium share an origin at the plate apex with centre field at +z: turn them round
+  const world = new THREE.Group(); world.rotation.y = Math.PI; scene.add(world);
+
+  // zone frame (four bars, visible at any resolution), landing marker, ball shadow
+  const zoneBox = new THREE.Group(); scene.add(zoneBox);
+  const bar = new THREE.MeshBasicMaterial({ color: 0xf8b800, transparent: true, opacity: 1 });
+  for (const [sx, sy, px, py] of [[1, 0.018, 0, 0.5], [1, 0.018, 0, -0.5], [0.018, 1, 0.5, 0], [0.018, 1, -0.5, 0]]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.02), bar); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); zoneBox.add(m);
+  }
+  // the reveal: the ball back at the crossing point inside a blinking ring, and the ABS tick to the nearest edge
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(R_REAL * 1.7, 0.008, 8, 28), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); scene.add(ring);
+  const absTick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xd82800 })); scene.add(absTick);
+  let revealBall = null;
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(R_REAL, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
+  // speed trail: ghosts of the last few frames behind the ball (the eye reads velocity from the streak)
+  const ghosts = []; for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(R_REAL * FLIGHT_SCALE * (0.85 - i * 0.12), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 - i * 0.07 })); m.visible = false; scene.add(m); ghosts.push(m); }
+  const ghostHist = [];
+  // ------------------------------------------------------------
+  // ABS review (the replay): its own clean scene like the ballpark videoboard graphic. Dark field,
+  // the plate, the batter's zone as a translucent plane mid-plate, the tracked path as a trail, the
+  // ball frozen where it crossed, a tick to the nearest edge. The view sweeps in from behind the mound.
+  // ------------------------------------------------------------
+  const abs = new THREE.Scene();
+  abs.background = new THREE.Color(0x060b22);
+  abs.add(new THREE.HemisphereLight(0xc0d0ff, 0x101830, 1.6));
+  { const l = new THREE.DirectionalLight(0xffffff, 1.2); l.position.set(-4, 8, -6); abs.add(l); }
+  { const grid = new THREE.GridHelper(60, 60, 0x24387a, 0x14224a); grid.position.y = -0.002; abs.add(grid); }
+  { // the plate: 17 in wide pentagon, apex toward the catcher, like the field model
+    const w = 17 * 0.0254, sh = new THREE.Shape();
+    sh.moveTo(-w / 2, 0); sh.lineTo(w / 2, 0); sh.lineTo(w / 2, -w / 2); sh.lineTo(0, -w); sh.lineTo(-w / 2, -w / 2); sh.lineTo(-w / 2, 0);
+    const plate = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshBasicMaterial({ color: 0xe8ecff })); plate.rotation.x = -Math.PI / 2; plate.position.set(0, 0.002, -0.43); abs.add(plate);
+    const mound = new THREE.Mesh(new THREE.CircleGeometry(2.7, 32), new THREE.MeshBasicMaterial({ color: 0x1a2a5c })); mound.rotation.x = -Math.PI / 2; mound.position.set(0, 0.001, MOUND_Z + 0.4); abs.add(mound);
+  }
+  const absZone = new THREE.Group(); abs.add(absZone);
+  {
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false })); absZone.add(plane);
+    const fm = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    for (const [sx, sy, px, py] of [[1, 0.02, 0, 0.5], [1, 0.02, 0, -0.5], [0.02, 1, 0.5, 0], [0.02, 1, -0.5, 0]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.012), fm); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); absZone.add(m); }
+  }
+  const absOuter = new THREE.Group(); abs.add(absOuter); // the ball's centre inside this faint line is still a strike (frame + one ball radius)
+  { const om = new THREE.MeshBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.45 });
+    for (const [sx, sy, px, py] of [[1, 0.008, 0, 0.5], [1, 0.008, 0, -0.5], [0.008, 1, 0.5, 0], [0.008, 1, -0.5, 0]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.01), om); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); absOuter.add(m); } }
+  const absPath = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })); abs.add(absPath);
+  const absBall = new THREE.Mesh(new THREE.SphereGeometry(R_REAL, 14, 10), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x404040 })); abs.add(absBall);
+  const absComet = []; for (let i = 0; i < 10; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(R_REAL * (0.9 - i * 0.07), 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 - i * 0.04 })); m.visible = false; abs.add(m); absComet.push(m); }
+  const absMark = new THREE.Mesh(new THREE.SphereGeometry(R_REAL, 14, 10), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); abs.add(absMark);
+  const absRing = new THREE.Mesh(new THREE.TorusGeometry(R_REAL * 1.8, 0.009, 8, 32), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); abs.add(absRing);
+  const absShown = new THREE.Mesh(new THREE.TorusGeometry(R_REAL * 1.1, 0.006, 8, 32), new THREE.MeshBasicMaterial({ color: 0x9fb4ff, transparent: true, opacity: 0.8 })); abs.add(absShown); // where the mitt showed it
+  const absReviewTick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xd82800 })); abs.add(absReviewTick);
+  const absShadow = new THREE.Mesh(new THREE.CircleGeometry(R_REAL, 10), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 })); absShadow.rotation.x = -Math.PI / 2; abs.add(absShadow);
+  // the flight is watched from a fixed high seat behind the mound (whole path in view); on arrival the
+  // view cuts in to a 3/4 close-up of the zone, aimed a little above it so it sits under the verdict texts
+  const ABS_FROM = new THREE.Vector3(1.4, 3.4, MOUND_Z - 3), ABS_FAR_LOOK = new THREE.Vector3(0, 0.9, -4);
+  const ABS_TO = new THREE.Vector3(1.6, 1.6, -2.4), ABS_LOOK = new THREE.Vector3(0, 1.25, PLATE_Z);
+  let absHold = false, absZoomT = 0;
+  const _look = new THREE.Vector3();
+  const absHist = [];
+  function buildAbsPath(p) {
+    const pts = []; for (let i = 0; i <= 60; i++) { const w = worldAt(p, i / 60); pts.push(new THREE.Vector3(w.x, w.y, w.z)); }
+    absPath.geometry.dispose(); absPath.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+    const z = p.zone;
+    absZone.scale.set((z.x1 - z.x0) * M_LAT + 2 * GROW_X, (z.y1 - z.y0) * M_VERT + 2 * GROW_Y, 1); absZone.position.set(0, (hgtOf(z.y0) + hgtOf(z.y1)) / 2, PLATE_Z);
+    absOuter.scale.set(absZone.scale.x + 2 * R_REAL, absZone.scale.y + 2 * R_REAL, 1); absOuter.position.set(0, absZone.position.y, PLATE_Z - 0.005);
+    absHist.length = 0; for (const m of absComet) m.visible = false;
+  }
+  function renderAbs(p, dt) {
+    const tt = G.phase === 'replay' ? Math.min(1, G.t / p.dur) : 1;
+    const arrived = G.replayCaught || G.phase !== 'replay';
+    if (arrived) absZoomT += dt;
+    const k = Math.min(1, absZoomT / 0.35), e = k * k * (3 - 2 * k);
+    camera.position.lerpVectors(ABS_FROM, ABS_TO, e); camera.position.x *= camSide;
+    camera.lookAt(_look.lerpVectors(ABS_FAR_LOOK, ABS_LOOK, e)); camera.fov = 22 + 16 * e; camera.updateProjectionMatrix();
+    const w = worldAt(p, tt);
+    absBall.position.set(w.x, w.y, w.z); absBall.visible = !arrived;
+    absShadow.position.set(w.x, 0.003, w.z); absShadow.visible = !arrived;
+    if (!arrived) { absHist.unshift(new THREE.Vector3(w.x, w.y, w.z)); if (absHist.length > 40) absHist.pop(); }
+    absComet.forEach((m, i) => { const h = absHist[(i + 1) * 3]; if (h && !arrived) { m.visible = true; m.position.copy(h); } else m.visible = false; });
+    const cross = worldAt(p, 1);
+    absMark.visible = arrived; absRing.visible = false; absShown.visible = false;
+    absMark.position.set(cross.x, cross.y, PLATE_Z); absRing.position.set(cross.x, cross.y, PLATE_Z + 0.02);
+
+    const on = Math.floor(G.t * 8) % 2 === 0; const col = p.strike ? 0xf8b800 : 0xfcfcfc;
+    absMark.material.color.set(p.strike ? 0xf8b800 : 0xfcfcfc); absRing.material.color.set(on ? col : 0x6c7490);
+    const n = nearestEdgeM(absZone.scale.x / 2, absZone.position.y, absZone.scale.y / 2, cross.x, cross.y); const ex = n.x, ey = n.y;
+    const len = Math.hypot(ex - cross.x, ey - cross.y);
+    absReviewTick.visible = arrived && len > 0.005;
+    if (absReviewTick.visible) { absReviewTick.position.set((cross.x + ex) / 2, (cross.y + ey) / 2, PLATE_Z + 0.03); absReviewTick.scale.set(len, 0.014, 0.014); absReviewTick.rotation.z = Math.atan2(ey - cross.y, ex - cross.x); }
+    renderer.render(abs, camera);
+  }
+
+  // glTF materials: shadows from the players, ball and bat only (the field and the bowl would be drawn
+  // into the shadow map every frame for nothing), nothing metal (the skin and leather metalness textures
+  // render black)
+  function prepTree(root, cast) {
+    root.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = !!cast; o.receiveShadow = true;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.isMeshStandardMaterial) {
+        m.metalness = 0; m.metalnessMap = null;
+        for (const t of [m.map, m.normalMap, m.roughnessMap, m.aoMap]) if (t) t.anisotropy = 8; // the ground is seen at a grazing angle
+        if (/grass|dirt|track|clay/.test((m.name || '').toLowerCase())) { if (m.normalMap) m.normalScale.set(1.6, 1.6); m.roughness = 1; }
+        // real kit is matte: helmets, masks and pads are satin at most, cloth and leather rougher; and the
+        // environment reflection stays faint so nothing reads as wet plastic
+        const n = (m.name || '').toLowerCase();
+        const plastic = /helmet|mask|protector|shin|cap|plastic|button|buckle/.test(n);
+        m.roughness = Math.max(m.roughness, plastic ? 0.62 : 0.72);
+        m.envMapIntensity = plastic ? 0.35 : 0.25;
+        m.needsUpdate = true;
+      }
+      if (o.isSkinnedMesh) o.frustumCulled = false; // skinned bounds drift with the clips; everything else culls
+    });
+  }
+
+  // ------------------------------------------------------------
+  // Assets (claudeball): players from one GLB, gear per role, clips by name
+  // ------------------------------------------------------------
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  loader.setKTX2Loader(new KTX2Loader().setTranscoderPath(CDN + 'examples/jsm/libs/basis/').detectSupport(renderer));
+  const gltf = (file) => new Promise((ok, fail) => loader.load(assetsBase + file, ok, undefined, fail));
+
+  const A = {};
+  let ball = null, pitcher = null, batter = null, catcher = null, gloveHand = null, glovePocket = null, gloveArm = null, gloveForeArm = null;
+  const KITS = [ // batter uniforms, six kits like the pixel game
+    { uniform_jersey: 0xf8b800, uniform_pants: 0xfcfcfc, helmet: 0x202060 }, { uniform_jersey: 0xd82800, uniform_pants: 0xd8d8d8, helmet: 0x202020 },
+    { uniform_jersey: 0x2038ec, uniform_pants: 0xfcfcfc, helmet: 0x2038ec }, { uniform_jersey: 0x00a800, uniform_pants: 0xe8e8d0, helmet: 0x004000 },
+    { uniform_jersey: 0x3c3c3c, uniform_pants: 0xbcbcbc, helmet: 0x3c3c3c }, { uniform_jersey: 0xfcfcfc, uniform_pants: 0x5c94fc, helmet: 0x01215b },
+  ];
+
+  class Puppet {
+    constructor(gear, colors) {
+      this.root = SkeletonUtils.clone(A.player.scene);
+      // the clone shares materials with the source: give this puppet its own so kit colours stay his
+      this.root.traverse((o) => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone(); });
+      prepTree(this.root, true);
+      const keep = new Set(gear);
+      this.nodes = new Map();
+      const helper = /^(Elbow_Pole|Ball_Grip|Bat_Grip|Glove_Pocket)/; // rig helpers are meshes in the file: never drawn
+      this.root.traverse((o) => { this.nodes.set(o.name, o); if (o.isMesh) o.visible = keep.has(o.name) && !helper.test(o.name); });
+      this.recolor(colors);
+      this.mixer = new THREE.AnimationMixer(this.root);
+      this.actions = new Map();
+      for (const clip of A.player.animations) this.actions.set(clip.name, this.mixer.clipAction(clip));
+      this.current = null;
+      scene.add(this.root);
+    }
+    recolor(colors) {
+      this.root.traverse((o) => {
+        if (!o.isMesh) return;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (colors[m.name] === undefined) continue;
+          m.color.set(colors[m.name]);
+          if (m.name === 'glove' || m.name === 'glove_laces') { m.map = null; m.roughness = 0.9; m.needsUpdate = true; } // leather photo is near-black: flat tan
+        }
+      });
+    }
+    play(name, { loop = false, timeScale = 1, fade = 0.12, from = 0 } = {}) {
+      const a = this.actions.get(name);
+      if (!a) return null;
+      a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); a.clampWhenFinished = true; a.timeScale = timeScale; a.time = from; a.enabled = true; a.setEffectiveWeight(1);
+      if (this.current && this.current !== a) this.current.crossFadeTo(a, fade, false);
+      a.play();
+      this.current = a;
+      return a;
+    }
+    update(dt) { this.mixer.update(dt); }
+  }
+
+  // The crowd: one billboard quad per seat from claudeball's spectator sheet (8x4 cells), instead of the
+  // modelled fans (about a million triangles). The quads turn to face the camera about Y and sway a little.
+  let crowdMat = null;
+  async function buildCrowd(stadiumScene) {
+    const [buf, tex] = await Promise.all([
+      fetch(assetsBase + 'seats.f32').then((r) => r.arrayBuffer()),
+      new Promise((ok, fail) => new THREE.TextureLoader().load(assetsBase + 'crowd_sheet.png', ok, undefined, fail)),
+    ]);
+    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const f = new Float32Array(buf), n = f.length / 4;
+    const geo = new THREE.PlaneGeometry(0.62, 0.78); geo.translate(0, 0.39, 0);
+    const cell = new Float32Array(n * 2), phase = new Float32Array(n);
+    const mesh = new THREE.InstancedMesh(geo, null, n);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    for (let i = 0; i < n; i++) {
+      // seats.npz is pre-mirror: x is negated to match field_layout (first base at -X)
+      m4.compose(new THREE.Vector3(-f[i * 4], f[i * 4 + 1], f[i * 4 + 2]), q.setFromEuler(e.set(0, -f[i * 4 + 3], 0)), new THREE.Vector3(1, 1, 1));
+      mesh.setMatrixAt(i, m4);
+      cell[i * 2] = Math.floor(Math.random() * 8) / 8; cell[i * 2 + 1] = Math.floor(Math.random() * 4) / 4;
+      phase[i] = Math.random() * Math.PI * 2;
+    }
+    geo.setAttribute('cell', new THREE.InstancedBufferAttribute(cell, 2));
+    geo.setAttribute('phase', new THREE.InstancedBufferAttribute(phase, 1));
+    crowdMat = new THREE.MeshLambertMaterial({ map: tex, transparent: false, alphaTest: 0.5, side: THREE.DoubleSide });
+    crowdMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uTime = crowdMat.userData.uTime = { value: 0 };
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec2 cell; attribute float phase; uniform float uTime;')
+        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMapUv = uv * vec2(0.125, 0.25) + cell;')
+        .replace('#include <project_vertex>', `
+        // billboard about the seat's origin, facing the camera around Y, with a slow sway
+        // the bust sits on the seat (not inside the chair model): up to seat height and a step forward
+        vec4 seat = instanceMatrix * vec4(0.0, 0.42, 0.28, 1.0);
+        vec4 seatView = modelViewMatrix * seat;
+        float sway = sin(uTime * 1.3 + phase) * 0.015;
+        vec3 off = vec3(position.x + sway * position.y, position.y, 0.0);
+        vec4 mvPosition = seatView + vec4(off, 0.0);
+        gl_Position = projectionMatrix * mvPosition;`);
+    };
+    mesh.material = crowdMat; mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = false;
+    stadiumScene.add(mesh);
+    const gone = []; stadiumScene.traverse((o) => { if (o.isMesh && /^Crowd_/.test(o.name)) gone.push(o); });
+    for (const o of gone) { o.parent.remove(o); o.geometry.dispose(); }
+  }
+
+  async function loadAll() {
+    const [player, field, stadium, ballG, batG, gear] = await Promise.all([
+      gltf('player_base.glb'), gltf('field.glb'), gltf('stadium.glb'), gltf('ball.glb'), gltf('bat.glb'),
+      fetch(assetsBase + 'gear_defaults.json').then((r) => r.json()),
+    ]);
+    await buildCrowd(stadium.scene);
+    // memory: keep only the player's scene and clips (the loader's parser holds the whole file and its
+    // caches); throw away the gear variants no role wears and the morph targets (never used here)
+    const worn = new Set([...gear.field, ...gear.catcher, ...gear.batter, 'Gear_Glove_Catcher', 'Gear_Glove_Catcher_Laces', 'Glove_Pocket_Catcher', 'Hand_R_Ball']);
+    const drop = [];
+    player.scene.traverse((o) => { if (o.isMesh && !worn.has(o.name) && !/^(Elbow_Pole|Ball_Grip|Bat_Grip|Glove_Pocket)/.test(o.name)) drop.push(o); });
+    for (const o of drop) { o.parent.remove(o); o.geometry.dispose(); }
+    player.scene.traverse((o) => { if (o.isMesh && o.geometry.morphAttributes) { for (const k of Object.keys(o.geometry.morphAttributes)) delete o.geometry.morphAttributes[k]; o.morphTargetInfluences = undefined; o.morphTargetDictionary = undefined; } });
+    A.player = { scene: player.scene, animations: player.animations };
+    prepTree(field.scene); prepTree(stadium.scene); prepTree(ballG.scene, true); prepTree(batG.scene, true);
+    world.add(field.scene); world.add(stadium.scene);
+    stadium.scene.traverse((o) => { if (o.isMesh && /Lamps/.test(o.name)) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m.emissive) { m.userData.emi = m.emissiveIntensity; m.userData.emc = m.emissive.getHex(); lamps.push(m); } });
+    setLamps(lookNow !== 1);
+    ball = ballG.scene; ball.scale.setScalar(BALL_SCALE); scene.add(ball);
+    revealBall = ballG.scene.clone(); revealBall.scale.setScalar(BALL_SCALE); scene.add(revealBall);
+    const home = { uniform_jersey: 0xfcfcfc, uniform_pants: 0xfcfcfc, uniform_socks: 0x01215b, cap: 0x01215b, helmet: 0x01215b, piping: 0x01215b, uniform_undershirt: 0x01215b, glove: 0xb8793c, glove_laces: 0xe0c090 };
+    pitcher = new Puppet(gear.field, home);
+    const catcherGear = gear.catcher.filter((n) => n !== 'Gear_Glove' && n !== 'Gear_Glove_Laces').concat(['Gear_Glove_Catcher', 'Gear_Glove_Catcher_Laces']);
+    catcher = new Puppet(catcherGear, home);
+    batter = new Puppet(gear.batter, KITS[0]);
+    const grip = batter.nodes.get('Bat_Grip') || batter.nodes.get('mixamorigRightHand');
+    if (grip) grip.add(batG.scene);
+    pitcher.root.position.set(0, 0.254, MOUND_Z - 0.05); // on the rubber (clip root = mound top), facing the plate
+    catcher.root.position.set(0, 0, 0.6); catcher.root.rotation.y = Math.PI;
+    pitcher.play('pitcher_rock', { loop: true });
+    catcher.play('catcher_crouch', { loop: true });
+    batter.play('batting_stance', { loop: true });
+    gloveHand = catcher.nodes.get('mixamorigLeftHand');
+    gloveForeArm = catcher.nodes.get('mixamorigLeftForeArm');
+    gloveArm = catcher.nodes.get('mixamorigLeftArm');
+    glovePocket = catcher.nodes.get('Glove_Pocket_Catcher') || gloveHand;
+    gloveMesh = catcher.nodes.get('Gear_Glove_Catcher') || null;
+    if (pendingNext) setupPitch(pendingNext);
+  }
+
+  // ------------------------------------------------------------
+  // Two-bone IK on the glove arm, run after the mixer has posed the catcher: the upper arm and the
+  // forearm rotate so the hand lands on `target` (world), blended by k from where the clip put it.
+  // Analytic (law of cosines), elbow kept on the side the clip had it; the wrist then turns the pocket
+  // toward the pitcher. Nothing stretches; beyond reach the arm points straight at the target.
+  // ------------------------------------------------------------
+  const _v = new THREE.Vector3(), _P = new THREE.Vector3(), _ident = new THREE.Quaternion(), _S = new THREE.Vector3(), _E = new THREE.Vector3(), _H = new THREE.Vector3(), _T = new THREE.Vector3(), _t = new THREE.Vector3(), _dir = new THREE.Vector3(), _pole = new THREE.Vector3(), _E2 = new THREE.Vector3(), _from = new THREE.Vector3(), _to = new THREE.Vector3(), _pq = new THREE.Quaternion(), _rot = new THREE.Quaternion();
+  function rotateBoneWorld(bone, from, to) {
+    _rot.setFromUnitVectors(from, to);
+    bone.parent.getWorldQuaternion(_pq);
+    bone.quaternion.premultiply(_pq.clone().invert().multiply(_rot).multiply(_pq));
+  }
+  function pinGlove(target, k) {
+    if (k <= 0) return;
+    catcher.root.updateMatrixWorld(true);
+    gloveArm.getWorldPosition(_S); gloveForeArm.getWorldPosition(_E); gloveHand.getWorldPosition(_H);
+    _T.copy(_H).lerp(target, k);
+    const a = _E.distanceTo(_S), b = _H.distanceTo(_E);
+    _dir.copy(_T).sub(_S);
+    const d = Math.min(_dir.length(), (a + b) * 0.999);
+    if (d < 1e-4) return;
+    _dir.normalize();
+    const cosA = THREE.MathUtils.clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), sinA = Math.sqrt(1 - cosA * cosA);
+    _pole.copy(_E).sub(_S); _pole.addScaledVector(_dir, -_pole.dot(_dir));
+    if (_pole.lengthSq() < 1e-6) _pole.set(0, -1, 0).addScaledVector(_dir, _dir.y);
+    _pole.normalize();
+    _E2.copy(_S).addScaledVector(_dir, a * cosA).addScaledVector(_pole, a * sinA);
+    rotateBoneWorld(gloveArm, _from.copy(_E).sub(_S).normalize(), _to.copy(_E2).sub(_S).normalize());
+    catcher.root.updateMatrixWorld(true);
+    gloveForeArm.getWorldPosition(_E); gloveHand.getWorldPosition(_H);
+    rotateBoneWorld(gloveForeArm, _from.copy(_H).sub(_E).normalize(), _to.copy(_T).sub(_E).normalize());
+    catcher.root.updateMatrixWorld(true);
+    gloveHand.getWorldPosition(_H); glovePocket.getWorldPosition(_P);
+    _from.copy(_P).sub(_H).normalize(); _to.set(0, 0.25, -1).normalize();
+    _rot.setFromUnitVectors(_from, _to); _rot.slerp(_ident, 1 - k);
+    gloveHand.parent.getWorldQuaternion(_pq);
+    gloveHand.quaternion.premultiply(_pq.clone().invert().multiply(_rot).multiply(_pq));
+    catcher.root.updateMatrixWorld(true);
+  }
+  // turn the batter's front foot (the model's left) so its toes point down the mound line, blended by k;
+  // tried in world space and checked, because a mirrored lefty flips the sign of a bone rotation
+  const _fa = new THREE.Vector3(), _fb = new THREE.Vector3(), _fq = new THREE.Quaternion(), _fpq = new THREE.Quaternion();
+  function aimFrontFoot(k) {
+    const foot = batter.nodes.get('mixamorigLeftFoot'), toe = batter.nodes.get('mixamorigLeftToeBase');
+    if (!foot || !toe || k <= 0) return;
+    const dir = () => { batter.root.updateMatrixWorld(true); toe.getWorldPosition(_fb); foot.getWorldPosition(_fa); _fb.sub(_fa); _fb.y = 0; return _fb.normalize(); };
+    const want = new THREE.Vector3(0, 0, -1);
+    const apply = (sign) => { _fq.setFromUnitVectors(dir(), want); _fq.slerp(_ident, 1 - k); if (sign < 0) _fq.invert(); foot.parent.getWorldQuaternion(_fpq); foot.quaternion.premultiply(_fpq.clone().invert().multiply(_fq).multiply(_fpq)); };
+    const before = dir().dot(want);
+    apply(1);
+    if (dir().dot(want) < before) { apply(-1); apply(-1); }
+  }
+  // where the ball sits once caught: the centre of the mitt itself (the skinned mesh's posed bounds),
+  // nudged a hair toward the pitcher so the ball shows in the pocket opening
+  const _bb = new THREE.Box3();
+  let gloveMesh = null;
+  function ballInGlove(out) {
+    if (gloveMesh && gloveMesh.isSkinnedMesh) {
+      gloveMesh.computeBoundingBox();
+      gloveMesh.boundingBox.getCenter(out).applyMatrix4(gloveMesh.matrixWorld);
+      out.z -= 0.03;
+      return out;
+    }
+    gloveHand.getWorldPosition(_H); glovePocket.getWorldPosition(_P);
+    return out.copy(_P).addScaledVector(_H.sub(_P).normalize(), 0.0369 * 0.8);
+  }
+
+  // ------------------------------------------------------------
+  // Flight in 3D: core.js ballPos's shape (linear + break profile + hump + wobble) in metres, from the
+  // pitcher's hand to the exact plate point the rules judged. z runs straight, mound to plate.
+  // ------------------------------------------------------------
+  function release(p) {
+    return { lat: (p.hand === 'R' ? -1 : 1) * 0.55, h: p.form === 'SUBMARINE' ? 0.65 : 1.9, z: MOUND_Z + 1.9 };
+  }
+  // gravity: a pitch is thrown a touch upward and falls through a parabola between its two fixed ends,
+  // so mid-flight it rides above the straight chord by (g/2)(T/2)^2 for its real flight time T
+  function sagOf(p) { const T = 18.44 / (p.speed / 3.6); return 0.5 * 9.81 * (T / 2) * (T / 2); }
+  function worldAt(p, t) {
+    const r = release(p);
+    let l = r.lat + (latOf(p.x) - p.bx * M_LAT - r.lat) * t + p.bx * M_LAT * p.fx(t);
+    let h = r.h + (hgtOf(p.y) + p.by * M_VERT - r.h) * t - p.by * M_VERT * p.fy(t) + p.hump * M_VERT * Math.sin(Math.PI * t) + sagOf(p) * 4 * t * (1 - t);
+    if (p.wob) { l += p.wob.ax * M_LAT * Math.sin(Math.PI * p.wob.nx * t) * t; h += p.wob.ay * M_VERT * Math.sin(Math.PI * p.wob.ny * t) * t; }
+    return { x: l, y: h, z: r.z + (PLATE_Z - r.z) * t };
+  }
+
+  // ------------------------------------------------------------
+  // Events and frames
+  // ------------------------------------------------------------
+  // animation cues (seconds before the catch): clip event frames from the claudeball asset notes
+  // the swing clip makes contact 0.875 s in; at these flight times it starts at release, part-way into its
+  // load, at a touch over natural speed, so contact lands on the catch. A check swing freezes just short of it.
+  const SWING_TS = 1.25, SWING_CONTACT = 0.875, CHECK_STOP = 0.815, SWING_HOLD = 1.05, CATCH_LEAD = 0.292, FRAME_GAIN = 1.2; // hold with the bat over the shoulder: past 1.05 the hands wrap behind the helmet and the forearms cut through it from the umpire's eye
+  const PITCH_RELEASE = 0.583; // pitch_*_windup clips release at this time; scaled onto the rules' windup
+  let cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
+  let gloveK = 0; // how far the glove is pinned to the ball (eases off at the reveal)
+  // nearest point of the zone rectangle (px) to the ball centre: inside, the nearest edge; outside, the clamp
+  function nearestEdgePx(z, x, y) {
+    const inside = x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1;
+    if (!inside) return { x: Math.min(Math.max(x, z.x0), z.x1), y: Math.min(Math.max(y, z.y0), z.y1) };
+    const d = [[x - z.x0, z.x0, y, 'x'], [z.x1 - x, z.x1, y, 'x'], [y - z.y0, x, z.y0, 'y'], [z.y1 - y, x, z.y1, 'y']].sort((a, b) => a[0] - b[0])[0];
+    return { x: d[1], y: d[2] };
+  }
+  let pendingNext = null;
+
+  function setupPitch(p) {
+    if (!batter) { pendingNext = p; return; }
+    applyLook(getPalette() | 0);
+    pendingNext = null;
+    const oldSwing = cue.swingAction;
+    cue = { swing: false, check: false, catch: false, released: false, stepTo: undefined, stepFrom: 0 };
+    if (oldSwing) oldSwing.stop();
+    const hb = C.BATTER_H[p.batterSize];
+    batter.root.scale.set(p.batterLeft ? -hb : hb, hb, hb); // a lefty is the mirrored righty
+    // deep in the box (feet 1.2 m off the plate's centre line) and a step toward the mound, so from the
+    // umpire's eye he stands beside the plate instead of over it
+    batter.root.position.set(p.batterLeft ? 1.1 : -1.1, 0, PLATE_Z - 0.25);
+    batter.root.rotation.y = p.batterLeft ? -Math.PI / 2 : Math.PI / 2;
+    batter.recolor(KITS[p.kit % KITS.length]);
+    batter.play('batting_stance', { loop: true, fade: 0.05 }); // a new batter steps in: no blend out of the old swing
+    pitcher.root.scale.x = p.hand === 'R' ? 1 : -1;
+    pitcher.play('pitcher_rock', { loop: true, fade: 0.3 });
+    catcher.play('catcher_crouch', { loop: true, fade: 0.3 });
+    camSide = p.batterLeft ? -1 : 1; // the slot: the side away from the batter
+    absHold = false; absZoomT = 0;
+    setCam('ump');
+    // from level 15 the catcher sets up off-centre like a real target (inside or outside, at random): the
+    // umpire's eye has to find the ball, not the mitt
+    const decoy = G.level >= C.RULES.decoyLevel ? (Math.random() < 0.5 ? -1 : 1) * (0.15 + Math.random() * 0.25) : 0;
+    cue.catcherBase = decoy; // the catcher sits on the plate's centre line: the slot is the umpire's move
+    catcher.root.position.x = cue.catcherBase;
+    const z = p.zone;
+    // the batter's own zone (17 in wide, knees to mid-torso): a ball touching its edge is a strike, so the
+    // frame is the real zone, not the grown boundary the rules test against the ball's centre
+    zoneBox.scale.set((z.x1 - z.x0) * M_LAT + 2 * GROW_X, (z.y1 - z.y0) * M_VERT + 2 * GROW_Y, 1);
+    zoneBox.position.set(0, (hgtOf(z.y0) + hgtOf(z.y1)) / 2, PLATE_Z);
+  }
+
+  function onEvent(type, e) {
+    switch (type) {
+      case 'next': setupPitch(e.pitch); break;
+      case 'windup': if (pitcher) pitcher.play(G.pitch.form === 'SUBMARINE' ? 'pitch_submarine_windup' : 'pitch_overhand_windup', { timeScale: PITCH_RELEASE / C.TIMING.windup, fade: 0.15 }); break;
+      case 'pitch': cue.released = true; break;
+      case 'replay': cue.catch = false; buildAbsPath(G.pitch); camMode = 'abs'; absHold = true; absZoomT = 0; break;
+      case 'replayEnd': break; // the review stays up through the rest of the reveal
+    }
+  }
+
+  function frame(dt) {
+    if (!batter) return;
+    watchdog();
+    const p = G.pitch;
+    const ph = G.phase;
+    if (p && (ph === 'replay' || (ph === 'reveal' && absHold))) { renderAbs(p, dt); return; } // the ABS review has its own scene and camera
+    const flying = (ph === 'flight' || ph === 'replay') && G.ball && !(ph === 'replay' && G.replayCaught);
+    const reveal = ph === 'reveal';
+    const tt = flying ? Math.min(1, G.t / p.dur) : 1;
+    const b = flying ? worldAt(p, tt) : null;
+    pitcher.update(dt); batter.update(dt); catcher.update(dt);
+    // the glove goes to where the ball will cross (lead-in eases it there), then holds the ball through
+    // the call window, drifting with the rules' framing tug; the ball sits in the pocket
+    const caught = ph === 'call' || (ph === 'replay' && G.replayCaught);
+    if (p && (cue.catch || caught || reveal)) {
+      // framing is shown a beat late (0.12 s after the catch, over 0.3 s): the umpire gets a look at the
+      // true crossing before the mitt drags the ball toward the zone
+      // the tug is a few centimetres in the rules' pixels: shown 1.2x so the eye catches the mitt moving
+      const fk = (ph === 'call' ? THREE.MathUtils.clamp((G.t - 0.12) / 0.3, 0, 1) : 1) * FRAME_GAIN;
+      const fx = G.ball ? p.x + (G.ball.x - p.x) * fk : p.x, fy = G.ball ? p.y + (G.ball.y - p.y) * fk : p.y;
+      const gx = latOf(fx), gy = hgtOf(fy);
+      cue.shownX = gx; cue.shownY = gy;
+      const k = caught ? 1 : reveal ? 0 : THREE.MathUtils.clamp(1 - (p.dur - G.t) / CATCH_LEAD, 0, 1);
+      gloveK = reveal ? Math.max(0, gloveK - dt * 3) : k * k; // the catcher eases the mitt back once the call is in
+      if (cue.stepTo !== undefined && !reveal) { const ease = k * k * (3 - 2 * k); catcher.root.position.x = cue.stepFrom + (cue.stepTo - cue.stepFrom) * ease; }
+      // the mitt's centre, not the hand, goes to the crossing point on the zone plane: pin the hand, measure
+      // where the mitt landed, pin again with the difference (no depth offset, so no parallax against the frame)
+      // the mitt's centre sits a hand's depth beyond the plane (toward the mound), so the ball on the plane
+      // shows on the mitt's face to the umpire instead of inside the leather; 9 cm is too little to misread the frame
+      pinGlove(_t.set(gx, gy, PLATE_Z - 0.09), gloveK);
+      if (gloveK > 0.5 && gloveMesh) { gloveHand.getWorldPosition(_H); ballInGlove(_v); _t.set(gx, gy, PLATE_Z - 0.09).sub(_v).add(_H); pinGlove(_t, gloveK); }
+    } else gloveK = 0;
+    if (flying && b && (cue.released || ph === 'replay')) {
+      ball.visible = true; ball.scale.setScalar(BALL_SCALE * (1 + (FLIGHT_SCALE - 1) * (1 - tt * tt))); ball.position.set(b.x, b.y, b.z); ball.rotation.x += dt * (p.spin + 2) * 2;
+      shadow.visible = true; shadow.position.set(b.x, 0.02, b.z); shadow.scale.setScalar(1 + b.y * 0.6);
+      ghostHist.unshift([b.x, b.y, b.z]); if (ghostHist.length > 12) ghostHist.pop();
+      ghosts.forEach((m, i) => { const h = ghostHist[(i + 1) * 2]; if (h) { m.visible = true; m.position.set(h[0], h[1], h[2]); } else m.visible = false; });
+    } else if (p && caught) {
+      // through the call window the ball sits in the pocket, so the umpire sees leather where it went in and
+      // the mitt alone tells the location (on the plane in front of the mitt it floated off the back of the glove)
+      if (gloveMesh && gloveK > 0.5) ball.position.copy(ballInGlove(_v)); else ball.position.set(cue.shownX, cue.shownY, PLATE_Z);
+      ball.scale.setScalar(BALL_SCALE); ball.visible = true; shadow.visible = false;
+    } else { ball.visible = false; shadow.visible = false; }
+    if (!flying) { ghostHist.length = 0; for (const m of ghosts) m.visible = false; }
+    // level 12 keeps the zone up through the pitch as a guide; from 13 it only comes back at the reveal,
+    // so the catcher's framing can sell a ball as a strike
+    const guide = G.level === firstLevel && (ph === 'windup' || flying || ph === 'call');
+    zoneBox.visible = reveal || guide;
+    if (camMode === 'abs') setCam('ump');
+    bar.opacity = reveal ? 1 : 0.55;
+    // reveal: the ball where it really crossed, a ring blinking gold (strike) / white (ball) like the pixel
+    // scene, and the ABS tick from the ball to the nearest zone edge when the readout is on
+    // once the call is in, the catcher gets out of the way: only the ball where it crossed, and the tick
+    revealBall.visible = reveal; ring.visible = false;
+    catcher.root.visible = !reveal;
+    const showAbs = reveal && G.result && G.result.abs && G.t > 0.3;
+    absTick.visible = showAbs;
+    if (reveal) {
+      const w = worldAt(p, 1);
+      revealBall.position.set(w.x, w.y, PLATE_Z); revealBall.rotation.y += dt * 0.8;
+      ring.position.set(w.x, w.y, PLATE_Z + 0.02);
+      const on = Math.floor(G.t * 6) % 2 === 0; ring.material.color.set(on ? (p.strike ? 0xf8b800 : 0xfcfcfc) : 0x7c7c7c);
+      if (showAbs) {
+        const n = nearestEdgeM(zoneBox.scale.x / 2, zoneBox.position.y, zoneBox.scale.y / 2, w.x, w.y);
+        const ex = n.x, ey = n.y;
+        const len = Math.max(0.01, Math.hypot(ex - w.x, ey - w.y));
+        absTick.position.set((w.x + ex) / 2, (w.y + ey) / 2, PLATE_Z + 0.03);
+        absTick.scale.set(len, 0.012, 0.012);
+        absTick.rotation.z = Math.atan2(ey - w.y, ex - w.x);
+      }
+    }
+    // cues timed back from the catch: the catcher reaches (and side-steps on a wide one), the batter swings or checks
+    if (flying) {
+      const left = p.dur - G.t;
+      if (!cue.catch && left <= CATCH_LEAD) {
+        cue.catch = true;
+        const h = hgtOf(p.y);
+        catcher.play(h > 1.05 ? 'catch_pitch_high' : h < 0.55 ? 'catch_pitch_low' : 'catch_pitch', { fade: 0.08 });
+        const base = cue.catcherBase !== undefined ? cue.catcherBase : 0;
+        cue.stepFrom = catcher.root.position.x;
+        cue.stepTo = base + THREE.MathUtils.clamp(latOf(p.x) - base, -0.25, 0.25) * 0.85;
+      }
+    }
+    // the swing is timed to contact. The era's flights are short (0.2-0.4 s), shorter than the swing clip
+    // from load to contact (0.7 s), so the clip starts during the windup: the load and stride show before
+    // the bat comes through instead of the batter jumping into the middle of his swing at release
+    if (p && (p.swing === 'full' || p.swing === 'check') && !cue.swing && (flying || ph === 'windup')) {
+      const toContact = flying ? p.dur - G.t : C.TIMING.windup - G.t + p.dur;
+      if (flying || toContact <= SWING_CONTACT / SWING_TS) {
+        cue.swing = true;
+        const from = Math.max(0, SWING_CONTACT - toContact * SWING_TS);
+        cue.swingAction = batter.play('swing', { timeScale: SWING_TS, fade: 0.12, from });
+      }
+    }
+    // the swing runs on past the catch: a check swing freezes short of contact, a full swing at extension
+    if (p && cue.swingAction && !cue.swingAction.paused && cue.swingAction.time >= (p.swing === 'check' ? CHECK_STOP : SWING_HOLD)) { cue.swingAction.paused = true; cue.holdT = 0; }
+    // the finish holds through the call, then the batter settles back into his stance (the frozen pose is the model's worst angle)
+    if (p && cue.swingAction && cue.swingAction.paused && cue.holdT !== undefined) { cue.holdT += dt; if (cue.holdT > 1.0) { cue.holdT = undefined; batter.play('batting_stance', { loop: true, fade: 0.5 }); } }
+    // after contact the front foot plants pointing at the mound (the clip leaves it square to the plate)
+    if (p && p.swing === 'full' && cue.swingAction && cue.swingAction.time > 0.95) aimFrontFoot(THREE.MathUtils.clamp((cue.swingAction.time - 0.95) / 0.15, 0, 1));
+    // the umpire breathes: a slow sway of a few millimetres, so the picture is never dead still
+    breathT += dt;
+    if (crowdMat && crowdMat.userData.uTime) crowdMat.userData.uTime.value = breathT;
+    if (camMode === 'ump') { camera.position.y = CAM.y + Math.sin(breathT * 1.1) * 0.006; camera.position.x = -camSide * CAM.x + Math.sin(breathT * 0.7) * 0.004; camera.lookAt(CAM.look); }
+    composer.render();
+  }
+  let breathT = 0;
+
+  const api = {
+    active: false,
+    ready: loadAll(),
+    onEvent, frame,
+    debug() { return { batter, catcher, pitcher, camera, scene, ball, look: applyLook, renderer, crowdMat, setTier, tier: () => tier, composer }; },
+    show() { if (api.active) return; api.active = true; applyLook(getPalette() | 0); fit(); canvas.style.display = 'block'; canvas2d.style.visibility = 'hidden'; document.body.classList.add('hd'); },
+    hide() { if (!api.active) return; api.active = false; canvas.style.display = 'none'; canvas2d.style.visibility = ''; document.body.classList.remove('hd'); },
+  };
+  return api;
+}

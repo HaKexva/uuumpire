@@ -351,6 +351,11 @@
     timer: null, step: 0, nextTime: 0, waves: {}, noiseBuf: null,
     songs: {}, current: 'theme',
     tempo: 1,                        // playback speed multiplier (the game pushes it up with the crowd gauge)
+    // HD band: when set, tracks play through sampled instruments instead of the chip oscillators.
+    // { lead, horns, bass, drums } -> smplr-style players with start({ note, time, duration, velocity });
+    // drums is a kit with group names (kick / snare / hat) resolved by the game. null = chiptune.
+    hd: null,
+    setHd(map) { this.hd = map || null; },
     setTempo(mult) { this.tempo = Math.max(0.5, Math.min(2, mult || 1)); },
     get song() { return this.songs[this.current]; },
 
@@ -414,15 +419,23 @@
         for (const name in s.tracks) {
           const tr = s.tracks[name];
           const evs = tr.byStep.get(this.step % tr.total);
-          if (evs) for (const e of evs) this.play(tr.def, e, this.nextTime, s.stepDur / this.tempo);
+          if (evs) for (const e of evs) this.play(tr.def, e, this.nextTime, s.stepDur / this.tempo, name);
         }
         this.nextTime += s.stepDur / this.tempo;
         this.step = (this.step + 1) % s.totalSteps;
       }
     },
 
-    play(def, e, t, stepDur) {
+    play(def, e, t, stepDur, name) {
       const ctx = this.ctx;
+      const hd = this.hd && this.hd[name];
+      if (hd) {
+        try {
+          if (def.type === 'noise') { const n = hd.names && hd.names[e.hit]; if (n) hd.inst.start({ note: n, time: t, velocity: e.hit === 'h' ? 70 : 110 }); else this.drum(e.hit, t, def.vol); }
+          else hd.inst.start({ note: e.note, time: t, duration: Math.max(0.05, e.len * stepDur - 0.02), velocity: hd.velocity || 96 });
+        } catch (err) { /* a sample that is not there yet: skip the note */ }
+        return;
+      }
       if (def.type === 'noise') return this.drum(e.hit, t, def.vol);
       const o = ctx.createOscillator();
       const g = ctx.createGain();
