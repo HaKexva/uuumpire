@@ -12,6 +12,7 @@
     "node": ">=18"
   },
   "dependencies": {
+    "obscenity": "^0.4.6",
     "pg": "^8.12.0"
   }
 }
