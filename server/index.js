@@ -29,7 +29,8 @@ const C = require(CORE_PATH);
 
 const PORT = process.env.PORT || 8787;
 const TZ = process.env.BOARD_TZ || 'Asia/Taipei';
-const LIMIT = 20; // rows shown per board; anything outside both top-20s is pruned (see prune())
+const DAILY_LIMIT = 20;  // rows shown on the daily board
+const ALL_LIMIT = 100;   // rows shown on the all-time board; anything outside both tops is pruned (see prune())
 const PLAYS_FROM = process.env.PLAYS_FROM || '2026-10-18'; // the play counter starts on this Taipei day; earlier starts are not counted
 const RUN_TTL = 12 * 3600 * 1000; // a seed is good for one game started within this
 const REQUIRE_RUN = process.env.REQUIRE_RUN !== '0';
@@ -75,31 +76,31 @@ const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'nume
 async function top(period) {
   const day = today();
   if (!pool) {
-    const rows = mem.filter((r) => period !== 'daily' || r.day === day).sort((a, b) => b.score - a.score).slice(0, LIMIT);
+    const rows = mem.filter((r) => period !== 'daily' || r.day === day).sort((a, b) => b.score - a.score).slice(0, period === 'daily' ? DAILY_LIMIT : ALL_LIMIT);
     return { day, rows };
   }
   const q = period === 'daily'
-    ? { text: 'SELECT name, score, pitches, accuracy, streak, reaction, day FROM scores WHERE day = $1 ORDER BY score DESC, created_at ASC LIMIT $2', values: [day, LIMIT] }
-    : { text: 'SELECT name, score, pitches, accuracy, streak, reaction, day FROM scores ORDER BY score DESC, created_at ASC LIMIT $1', values: [LIMIT] };
+    ? { text: 'SELECT name, score, pitches, accuracy, streak, reaction, day FROM scores WHERE day = $1 ORDER BY score DESC, created_at ASC LIMIT $2', values: [day, DAILY_LIMIT] }
+    : { text: 'SELECT name, score, pitches, accuracy, streak, reaction, day FROM scores ORDER BY score DESC, created_at ASC LIMIT $1', values: [ALL_LIMIT] };
   const { rows } = await pool.query(q);
   return { day, rows };
 }
 
-// Keep only what can ever be shown again: the all-time top LIMIT and today's top LIMIT. A row that is
-// in neither will never appear on either board (yesterday's board is gone), so it goes. Runs after every
-// insert and at startup. Ties break the same way top() orders them (earlier submission first).
+// Keep only what can ever be shown again: the all-time top ALL_LIMIT and today's top DAILY_LIMIT. A row
+// that is in neither will never appear on either board (yesterday's board is gone), so it goes. Runs after
+// every insert and at startup. Ties break the same way top() orders them (earlier submission first).
 async function prune() {
   const day = today();
   if (!pool) {
     const byScore = (a, b) => b.score - a.score || a.created_at - b.created_at;
-    const keep = new Set([...mem].sort(byScore).slice(0, LIMIT).concat(mem.filter((r) => r.day === day).sort(byScore).slice(0, LIMIT)));
+    const keep = new Set([...mem].sort(byScore).slice(0, ALL_LIMIT).concat(mem.filter((r) => r.day === day).sort(byScore).slice(0, DAILY_LIMIT)));
     for (let i = mem.length - 1; i >= 0; i--) if (!keep.has(mem[i])) mem.splice(i, 1);
     return;
   }
   const { rowCount } = await pool.query(
     `DELETE FROM scores WHERE id NOT IN (SELECT id FROM scores ORDER BY score DESC, created_at ASC LIMIT $1)
-       AND id NOT IN (SELECT id FROM scores WHERE day = $2 ORDER BY score DESC, created_at ASC LIMIT $1)`, [LIMIT, day]);
-  if (rowCount) console.log('pruned', rowCount, 'rows outside the top', LIMIT);
+       AND id NOT IN (SELECT id FROM scores WHERE day = $2 ORDER BY score DESC, created_at ASC LIMIT $3)`, [ALL_LIMIT, day, DAILY_LIMIT]);
+  if (rowCount) console.log('pruned', rowCount, 'rows outside the top boards');
 }
 
 async function insert(rec) {
