@@ -1,18 +1,31 @@
-/* Profanity filter for leaderboard names. A curated multilingual blocklist (English + zh/zh-Hant,
-   with a little Japanese): the players are mostly TW/JP, so CJK matters and most npm filters are
-   English-only. Names are <= 12 chars, so we match substrings — a name containing any listed term is
-   rejected. CJK terms match literally. Latin terms compile to a regex that matches the word with its
-   consonants literal and each vowel standing for a vowel OR a censor symbol/digit, with optional
-   separators between letters, so f*ck, sh1t, $hit and f.u.c.k are all caught while consonant runs like
-   "Benz" are not. It is a blunt instrument, not a classifier: it will over-block the rare innocent word
-   that embeds a slur (e.g. "Scunthorpe" contains "cunt"), which on a 12-char handle field is a fair
-   trade. Add terms to either list as moderation turns them up. */
+/* Profanity filter for leaderboard names.
 
-const LATIN = [
-  'fuck', 'shit', 'bitch', 'cunt', 'asshole', 'bastard', 'slut', 'whore',
-  'dick', 'pussy', 'cock', 'wank', 'twat', 'nigger', 'nigga', 'faggot',
-  'retard', 'rape', 'jizz', 'dildo', 'nazi', 'hitler',
-];
+   English is handled by `obscenity` (MIT, zero runtime deps): it matches slurs and swears through
+   leetspeak, spacing, stretched letters and other obfuscation far better than a hand-rolled list, and
+   it whitelists the usual innocents (so "Scunthorpe" is fine). But it is English-only, so the manual
+   lists below carry the rest: CJK (zh-Hant / zh-Hans + a little Japanese — the players are mostly
+   TW/JP), matched literally as substrings, plus EXTRA for any term we want to block that obscenity's
+   dataset misses. Add to CJK / EXTRA as moderation turns up new names. */
+import {
+  RegExpMatcher, DataSet, englishDataset, englishRecommendedTransformers,
+  skipNonAlphabeticTransformer,
+} from 'obscenity';
+
+// obscenity's recommended transformers resolve leetspeak, confusables, case and duplicate letters.
+// We add skipNonAlphabeticTransformer (after leet, so digits still resolve) so "f.u.c.k" / "f u c k"
+// are caught too, and whitelist a couple of innocents its collapse-duplicates step trips on.
+const dataset = new DataSet()
+  .addAll(englishDataset)
+  .addPhrase((p) => p.addWhitelistedTerm('shiitake').addWhitelistedTerm('shitake'));
+
+const english = new RegExpMatcher({
+  ...dataset.build(),
+  blacklistMatcherTransformers: [
+    ...englishRecommendedTransformers.blacklistMatcherTransformers,
+    skipNonAlphabeticTransformer(),
+  ],
+  whitelistMatcherTransformers: englishRecommendedTransformers.whitelistMatcherTransformers,
+});
 
 const CJK = [
   // zh-Hant / zh-Hans
@@ -23,24 +36,22 @@ const CJK = [
   'まんこ', 'ちんこ', 'ちんちん',
 ];
 
-// a vowel slot accepts its own letter, that letter's leet digits, or a censor symbol (f*ck, sh1t) —
-// never a different vowel, so "cant" does not collide with "cunt". Separators sit between letters.
-const CENSOR = '*#.\\-_';
-const VMAP = { a: 'a4@', e: 'e3', i: 'i1!', o: 'o0', u: 'u' };
-const SEP = '[^a-z]*';
-// consonant-leet folding so $hit / 5hit / 7wat normalize before matching
+// extra Latin-script terms to block on top of obscenity's dataset (lowercased substring match after a
+// light leet fold). Keep these unambiguous; obscenity already covers the common English profanity.
+const EXTRA = [];
 function fold(s) {
-  return s.toLowerCase().replace(/\$/g, 's').replace(/5/g, 's').replace(/7/g, 't');
+  return s.toLowerCase()
+    .replace(/[4@]/g, 'a').replace(/3/g, 'e').replace(/[1!]/g, 'i').replace(/0/g, 'o')
+    .replace(/[5$]/g, 's').replace(/7/g, 't');
 }
-const LATIN_RE = LATIN.map((w) => {
-  const body = w.split('').map((c) => (VMAP[c] ? `[${VMAP[c]}${CENSOR}]` : c)).join(SEP);
-  return new RegExp(body);
-});
 
 export function isProfane(name) {
   const raw = String(name || '');
+  if (english.hasMatch(raw)) return true;
   for (const w of CJK) if (raw.includes(w)) return true;
-  const f = fold(raw);
-  for (const re of LATIN_RE) if (re.test(f)) return true;
+  if (EXTRA.length) {
+    const f = fold(raw);
+    for (const w of EXTRA) if (f.includes(w)) return true;
+  }
   return false;
 }
