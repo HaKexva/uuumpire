@@ -211,5 +211,6 @@ without a browser:
 - `assets/songs/` — imported ballpark tunes (JSON) + `index.json` pools.
 - `assets/uuumpire-theme.mid`, `assets/uuumpire-entry.mid`, `assets/uuumpire-ballgame.mid` — exported songs.
 - `fonts/Cubic_11.woff2` — [Cubic 11](https://github.com/ACh-K/Cubic-11) pixel font, SIL Open Font License (see `fonts/OFL.txt`).
+- `docs/SEASON2.md` — the Season 2 plan: level ladder 12–24, positions, pressure, pitchers, parks, and the HD-2D look (JS spike first, Godot as fallback, with the research).
 
 Best scores are stored in `localStorage`.
