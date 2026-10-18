@@ -604,7 +604,7 @@
   // --- save-a-miss: a timed true/false prompt on the 3rd miss past level 6 (once a game). A correct
   // answer refunds the miss and play goes on, but the run is then unranked (the server replay has no
   // notion of the reprieve, so a saved run cannot be verified -- it just does not go on the board).
-  const REPRIEVE_MS = 5000;     // time to answer
+  const REPRIEVE_MS = 3000;     // time to answer the save-a-miss question
   let saveUsed = false;         // a save was taken this game -> unranked
   let triviaBank = null;        // loaded from assets/trivia.json
   let reprieveActive = false;   // the prompt is up; STRIKE/BALL answer it instead of making a call
@@ -678,6 +678,7 @@
         showRevealTexts();
         setTimeout(() => { if (G.phase === 'reveal') el.btnReplay.classList.remove('hidden'); }, 350);
         break;
+      case 'reprieve': onReprieve(e); break;
       case 'over': onGameOver(e); break;
     }
   }
@@ -724,6 +725,7 @@
 
   // Pause (space / P / the || button). Freezes the game clock and the music; the scene stays drawn.
   function setPaused(on) {
+    if (reprieveActive) return; // no pausing while the save-a-miss clock is running
     if (currentScreen !== 'play') on = false;
     if (!game.setPaused(on)) return;
     el.pause.classList.toggle('show', G.paused);
@@ -733,10 +735,59 @@
     Sfx.init(); Sfx.select();
   }
 
-  function makeCall(call) { game.call(call); }
+  function makeCall(call) {
+    if (reprieveActive) { answerReprieve(call === 'strike'); return; } // STRIKE = 是, BALL = 否
+    game.call(call);
+  }
+
+  // ---- save-a-miss prompt ----
+  function cancelReprieve() {
+    reprieveActive = false; reprieveQ = null;
+    if (reprieveTimer) { cancelAnimationFrame(reprieveTimer); reprieveTimer = null; }
+    if (el.reprieve) el.reprieve.classList.add('hidden');
+  }
+  async function onReprieve() {
+    const bank = await loadTrivia();
+    if (!bank.length) { game.resolveReprieve(false); return; } // no questions available: just end
+    let i = Math.floor(Math.random() * bank.length);
+    if (bank.length > 1 && i === lastTriviaIdx) i = (i + 1) % bank.length; // avoid an immediate repeat
+    lastTriviaIdx = i; reprieveQ = bank[i]; reprieveActive = true;
+    const lang = settings.lang === 'en' ? 'en' : 'zh'; // bank has zh + en; zh covers zh/ja/nan
+    hideText();
+    el.reprieveQ.textContent = reprieveQ[lang] || reprieveQ.zh;
+    el.reprieve.classList.remove('hidden');
+    el.reprieveFill.style.width = '100%'; // start full, then drain
+    Sfx.init(); Sfx.select();
+    reprieveEnd = performance.now() + REPRIEVE_MS;
+    const tick = () => {
+      if (!reprieveActive) return;
+      const left = Math.max(0, reprieveEnd - performance.now());
+      el.reprieveFill.style.width = (left / REPRIEVE_MS * 100) + '%';
+      if (left <= 0) { answerReprieve(null); return; } // out of time = wrong
+      reprieveTimer = requestAnimationFrame(tick);
+    };
+    reprieveTimer = requestAnimationFrame(tick);
+  }
+  function answerReprieve(answerYes) {
+    if (!reprieveActive) return;
+    const correct = answerYes !== null && answerYes === !!reprieveQ.a;
+    cancelReprieve();
+    if (correct) {
+      saveUsed = true;             // a save was taken: this run is now unranked
+      game.resolveReprieve(true);  // refund the miss, play continues to the next pitch
+      const box = el.miss.querySelectorAll('i')[G.misses]; // the miss box just freed, Zelda-style
+      if (box) { box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop'); }
+      Sfx.heart();
+      showText(el.call, t('reprieve.safe'), 'small', 'party');
+      updateHud();
+    } else {
+      showText(el.call, t('reprieve.out'), 'small');
+      game.resolveReprieve(false); // miss stands -> game over
+    }
+  }
 
   // leave a game in progress (Escape, or EXIT TO TITLE on the pause overlay); the run is not recorded
-  function quitToTitle() { setPaused(false); Sfx.select(); Music.start('title'); showScreen('title'); }
+  function quitToTitle() { cancelReprieve(); setPaused(false); Sfx.select(); Music.start('title'); showScreen('title'); }
 
   // the call is in: sound, crowd, the umpire's style for this reveal, the texts
   function onResolve(r) {
@@ -798,7 +849,8 @@
     $('over-acc').textContent = s.accuracy + '%';
     $('over-streak').textContent = s.streak;
     $('over-react').textContent = s.reaction === null ? '-' : s.reaction.toFixed(2) + 's';
-    lastGame = Object.assign(s, { run: run ? run.run : null, log: runLog });
+    cancelReprieve();
+    lastGame = Object.assign(s, { run: run ? run.run : null, log: runLog, saved: saveUsed });
     Board.resetSubmit();
     Board.prepRun(); // a seed for the next game
     const prevBest = settings.records.length ? settings.records[0].score : 0;
@@ -1078,7 +1130,7 @@
   const QS = new URLSearchParams(LOCAL ? location.search : '');
   const SLOW = parseFloat(QS.get('slow')) || 1; // debug: ?slow=4 slows game time
   const DEBUG = QS.has('debug');               // debug: ?debug exposes window.__uu to pose frames
-  if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); render(); }, sfx: Sfx };
+  if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); render(); }, sfx: Sfx, reprieve: () => onReprieve() };
   let last = performance.now();
   function loop(now) {
     let dt = (now - last) / 1000;
@@ -1281,9 +1333,10 @@
     },
     resetSubmit() {
       const row = $('submit-row'), st = $('submit-status'), input = $('name-input'), btn = $('btn-submit');
-      const eligible = this.enabled && lastGame && lastGame.score > 0;
+      const eligible = this.enabled && lastGame && lastGame.score > 0 && !lastGame.saved;
       row.classList.toggle('hidden', !eligible || !lastGame.run);
-      st.textContent = eligible && !lastGame.run ? t('submit.norun') : ''; // played without a seed (offline at the start)
+      // a saved run is unranked (the server replay can't verify a reprieve); otherwise note a missing seed
+      st.textContent = lastGame && lastGame.saved ? t('submit.saved') : (eligible && !lastGame.run ? t('submit.norun') : '');
       input.value = settings.name || '';
       btn.disabled = false;
       this.busy = false;
