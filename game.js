@@ -17,7 +17,7 @@
   const { BALL_R, BATTER_H, BATTER_FEET_Y, MITT_REST, UNLOCKS } = C;
   // where the jersey number sits on each batter frame (stance, start, mid-swing, finish), in sprite design
   // units: the stance and start torsos are crouched 3 units lower; the finish shows his back square on
-  const BATTER_NUM = [[17, 36], [17, 36], [17, 33], [18, 28]];
+  const BATTER_NUM = [[17, 36], [17, 36], [17, 36], [17, 34], [17, 33], [18, 30], [18, 28]]; // one per batter frame
   const POS = { pitcher: [68, 33], catcher: [53, 138], batterR: [23, 78], batterL: [78, 78] }; // batter body ~6px off the zone edge
   const PLATE_Y = 150;                                  // front edge of home plate
   const STORE_KEY = 'uuumpire.v1';
@@ -36,6 +36,7 @@
     w: '#d8d8d8', z: '#c07050', L: '#5c94fc', l: '#0000a8',
     r: '#a80020', k: '#5a2800', o: '#f87858',
     J: '#fcfcfc', j: '#d8d8d8',                           // batter jersey + shade (recoloured per kit)
+    h: '#fff4c0',                                         // floodlight rim on the players' top edges
     t: '#0c5a30', T: '#063a1e',                           // team dark green + shade (darker than the grass)
   };
   // Batter kits: which palette keys the jersey (J/j), helmet (R/r/o), socks (B/l) and number take.
@@ -52,7 +53,7 @@
   // Monochrome mapping: palette key -> shade index (0 darkest .. 3 lightest)
   const SHADE_OF = {
     K: 0, W: 3, g: 2, d: 1, n: 0, N: 1, G: 3, R: 1, s: 2, B: 1, b: 1, c: 2, e: 1, E: 2, y: 3, p: 2, u: 2, m: 0,
-    w: 2, z: 1, L: 2, l: 0, r: 0, k: 0, o: 2, J: 3, j: 2, t: 1, T: 0,
+    w: 2, z: 1, L: 2, l: 0, r: 0, k: 0, o: 2, J: 3, j: 2, t: 1, T: 0, h: 3,
   };
 
   // Six selectable palettes. `css` feeds the UI custom properties, `pal` overrides scene colors,
@@ -63,7 +64,7 @@
       pal: {} },
     { name: 'DAY GAME', day: true,
       css: { night: '#0058f8', gold: '#fce06c', navy: '#0000a8', white: '#fcfcfc', red: '#f83800', gray: '#d8d8d8', dim: '#6888c0', ink: '#000000', panel: '#000040', btn: '#fcfcfc' },
-      pal: { n: '#3cbcfc', N: '#0058f8', u: '#0078f8', m: '#787878', e: '#00a800', E: '#58d854', b: '#c84c0c', c: '#e4a060', y: '#f8d878' } },
+      pal: { n: '#3cbcfc', N: '#0058f8', u: '#0078f8', m: '#787878', e: '#00a800', E: '#58d854', b: '#c84c0c', c: '#e4a060', y: '#f8d878', h: '#ffffff' } },
     { name: 'DOME',
       css: { night: '#1c1c1c', gold: '#3cbcfc', navy: '#0078a8', white: '#fcfcfc', red: '#f85898', gray: '#bcbcbc', dim: '#5c5c5c', ink: '#000000', panel: '#000000', btn: '#fcfcfc',
              // the stacked logo/call shadows need darker blues than this palette's mid-blue "navy"
@@ -129,8 +130,9 @@
     IMG = {
       // delivery frames: set, leg kick, cocked, release, follow-through (R = right-hander, L = mirrored)
       pitcher: {
-        OVERHAND:  frames(['pitcherSet', 'pitcherKick', 'pitcherCock', 'pitcherThrow', 'pitcherFollow']),
-        SUBMARINE: frames(['pitcherSetUnder', 'pitcherKick', 'pitcherCockUnder', 'pitcherThrowUnder', 'pitcherFollowUnder']),
+        // nine frames with the in-betweens: set, set-kick, kick, kick-cock, cock, cock-throw, throw, throw-follow, follow
+        OVERHAND:  frames(['pitcherSet', 'pitcherSetKick', 'pitcherKick', 'pitcherKickCock', 'pitcherCock', 'pitcherCockThrow', 'pitcherThrow', 'pitcherThrowFollow', 'pitcherFollow']),
+        SUBMARINE: frames(['pitcherSetUnder', 'pitcherSetKick', 'pitcherKick', 'pitcherKickCockUnder', 'pitcherCockUnder', 'pitcherCockThrowUnder', 'pitcherThrowUnder', 'pitcherThrowFollowUnder', 'pitcherFollowUnder']),
       },
       catcher: makeSprite(SPR.catcher),
       mitt: makeSprite(SPR.mitt),
@@ -139,7 +141,7 @@
       // stops here), finish (turned all the way round, bat across his back)
       // batter: [kit][size][hand][frame]
       batter: KITS.map((kit) => Object.fromEntries(Object.keys(BATTER_H).map((size) =>
-        [size, frames(['batter_' + size, 'batterStart_' + size, 'batterCheck_' + size, 'batterSwing_' + size], kit)]))),
+        [size, frames(['batter_' + size, 'batterStanceStart_' + size, 'batterStart_' + size, 'batterStartCheck_' + size, 'batterCheck_' + size, 'batterCheckSwing_' + size, 'batterSwing_' + size], kit)]))),
       // umpire call inset: ump[strike|ball][style] = frames (sprites.js ump_<call>_<style>_<n>)
       ump: (() => {
         const out = { strike: {}, ball: {} };
@@ -209,11 +211,14 @@
     x.fillStyle = PAL.G; x.fillRect(0, HORIZON + 1, W, 1);
     x.fillStyle = PAL.K; x.fillRect(0, HORIZON + 5, W, 1);
 
-    // grass with mowing stripes (bands get taller toward the viewer)
+    // grass with mowing stripes (bands get taller toward the viewer), with a sparse dither of the other
+    // green so the turf has grain instead of flat bands
     let yy = HORIZON + 6, band = 3, k = 0;
     while (yy < H) {
       x.fillStyle = (k % 2) ? PAL.e : PAL.E;
       x.fillRect(0, yy, W, band);
+      x.fillStyle = (k % 2) ? PAL.E : PAL.e;
+      for (let i = 0; i < W * band * 0.05; i++) x.fillRect((rnd() * W) | 0, yy + ((rnd() * band) | 0), 1, 1);
       yy += band; band += 1; k++;
     }
 
@@ -230,6 +235,9 @@
     // home plate dirt: a flat ellipse along the bottom (low camera, so it is heavily foreshortened)
     dirt(84, 200, 106, 60, PAL.b);
     dirt(84, 202, 102, 56, PAL.c);
+    // grain on the dirt: dark flecks, denser toward the plate where the footing is churned
+    x.fillStyle = PAL.b;
+    for (let i = 0; i < 260; i++) { const fx = (rnd() * W) | 0, fy = 146 + ((rnd() * rnd() * 46) | 0); if (x.getImageData(fx, fy, 1, 1).data[0] === parseInt(PAL.c.slice(1, 3), 16)) x.fillRect(fx, fy, 1, 1); }
 
     // foul lines from the plate corners to the wall
     const line = (x0, y0, x1, y1) => {
@@ -605,7 +613,7 @@
         break;
       }
       case 'windup': Sfx.windup(); break;
-      case 'pitch': hideText(); Sfx.whoosh(); break;
+      case 'pitch': hideText(); Sfx.whoosh(); spawnDust(G.pitch && G.pitch.hand === 'L' ? 72 : 96, 68, 0.45); break; // the lead foot lands on the mound
       case 'catch':
         Sfx.pop();
         spawnDust(e.x, e.y);
@@ -621,11 +629,11 @@
     }
   }
 
-  // Dust kicked up when the ball hits the mitt: a few short-lived pixels
-  function spawnDust(x, y) {
+  // Dust kicked up when the ball hits the mitt (or a foot lands): a few short-lived pixels. k scales the puff.
+  function spawnDust(x, y, k = 1) {
     for (let i = 0; i < 7; i++) {
-      V.particles.push({ x: x + (Math.random() - 0.5) * 4, y: y + (Math.random() - 0.5) * 4,
-        vx: (Math.random() - 0.5) * 50, vy: -10 - Math.random() * 30, life: 0.22 + Math.random() * 0.15, age: 0 });
+      V.particles.push({ x: x + (Math.random() - 0.5) * 4 * k, y: y + (Math.random() - 0.5) * 4 * k,
+        vx: (Math.random() - 0.5) * 50 * k, vy: (-10 - Math.random() * 30) * k, life: 0.22 + Math.random() * 0.15, age: 0 });
     }
   }
   function spawnConfetti() {
@@ -888,13 +896,15 @@
     }
   }
 
+  // the delivery over the 0.55 s windup and the flight: set, set-kick, kick, kick-cock, cock, cock-throw
+  // (the arm at the top as the windup ends), throw (the release, first frames of flight), throw-follow, follow
   function pitcherFrame() {
     const t = G.t;
     switch (G.phase) {
-      case 'windup': return t < 0.1 ? 0 : t < 0.35 ? 1 : 2;
-      case 'flight': return t < 0.12 ? 3 : 4;
-      case 'replay': return t < 0.12 ? 3 : 4;
-      case 'call': return t < 0.35 ? 4 : 0;
+      case 'windup': return t < 0.06 ? 0 : t < 0.14 ? 1 : t < 0.26 ? 2 : t < 0.36 ? 3 : t < 0.49 ? 4 : 5;
+      case 'flight': return t < 0.06 ? 6 : t < 0.14 ? 7 : 8;
+      case 'replay': return t < 0.06 ? 6 : t < 0.14 ? 7 : 8;
+      case 'call': return t < 0.35 ? 8 : 0;
       default: return 0;
     }
   }
@@ -907,13 +917,30 @@
     // both swings begin the same way: the bat comes off the shoulder, then the barrel comes round toward
     // us as the ball arrives. A check swing holds there; a full swing goes on round to the finish, back
     // square to us with the bat across it, so the two are unmistakable once the call is up.
-    if (tt < 0.68) return 0;
-    if (tt < 0.82) return 1;
-    if (p.swing === 'check') return 2;
-    if ((flying && tt < 1) || (G.phase === 'replay' && G.t < p.dur + 0.06) || (G.phase === 'call' && G.t < 0.12)) return 2;
-    return 3;
+    // frames: 0 stance, 1 stance-start, 2 start, 3 start-check, 4 check (mid-swing), 5 check-swing, 6 finish
+    if (tt < 0.62) return 0;
+    if (tt < 0.70) return 1;
+    if (tt < 0.78) return 2;
+    if (tt < 0.86) return 3;
+    if (p.swing === 'check') return 4;
+    if ((flying && tt < 1) || (G.phase === 'replay' && G.t < p.dur + 0.06) || (G.phase === 'call' && G.t < 0.12)) return 4;
+    if ((G.phase === 'replay' && G.t < p.dur + 0.14) || (G.phase === 'call' && G.t < 0.2)) return 5;
+    return 6;
   }
 
+  // a flat shadow ellipse on the ground under a player, in the ground's darker tone (palette-pure)
+  function groundShadow(cx, cy, rx, ry, col) {
+    ctx.fillStyle = col;
+    for (let j = -ry; j <= ry; j++) { const w = Math.round(Math.sqrt(1 - (j * j) / (ry * ry + 0.5)) * rx); ctx.fillRect(Math.round(cx) - w, Math.round(cy) + j, w * 2 + 1, 1); }
+  }
+  // the ball's streak: the trail points joined into a dim smear, so a fastball reads as a line, not beads
+  function drawStreak() {
+    const pts = V.trail.concat(G.ball ? [G.ball] : []);
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)));
+      for (let k = 0; k < n; k++) fillCircle(a.x + (b.x - a.x) * k / n, a.y + (b.y - a.y) * k / n, Math.max(1, a.r * 0.7), PAL.g);
+    }
+  }
   // ground shadow under a ball in flight: its height above the ground is the gap between ball and shadow
   function drawBallShadow(b, tt) {
     const gy = 70 + (168 - 70) * tt;           // mound base to plate front
@@ -938,7 +965,8 @@
     const disco = G.level >= 10 && G.phase !== 'idle';
     if (disco) drawDiscoField();
 
-    // pitcher: set -> kick -> cocked (windup), release -> follow-through (flight)
+    // pitcher: set -> kick -> cocked (windup), release -> follow-through (flight), on a shadow on the mound
+    groundShadow(84, 69, 9, 2, PAL.b);
     const pf = IMG.pitcher[G.pitch ? G.pitch.form : 'OVERHAND'][G.pitch ? G.pitch.hand : 'R'];
     ctx.drawImage(pf[pitcherFrame()], POS.pitcher[0], POS.pitcher[1]);
 
@@ -950,6 +978,7 @@
     // cleats on the ground line; righty keeps his plate-side edge, lefty his (mirrored) plate-side edge
     const bx = left ? POS.batterL[0] : POS.batterR[0] + IMG.batter[0].mid.R[0].width - bimg.width;
     const by = BATTER_FEET_Y - bimg.height + 2;
+    groundShadow(left ? bx + bimg.width - 28 : bx + 28, BATTER_FEET_Y + 1, 15, 3, PAL.b); // under his cleats (the body is the plate-side 30 design columns)
     ctx.drawImage(bimg, bx, by);
     // jersey number on his back, centred on BATTER_NUM[frame] (sprite design units)
     if (G.pitch) {
@@ -975,6 +1004,7 @@
     // ball (+ shadow, trail)
     if ((G.phase === 'flight' || G.phase === 'replay') && G.ball) {
       drawBallShadow(G.ball, Math.min(1, G.t / G.pitch.dur));
+      drawStreak();
       for (const tr of V.trail) drawBall(tr, true);
       drawBall(G.ball, false, Math.floor(G.t * G.pitch.spin));
     } else if (G.phase === 'call' && G.ball) {

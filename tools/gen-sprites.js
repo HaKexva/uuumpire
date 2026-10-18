@@ -55,6 +55,19 @@ function grid(w0, h0, S = 1) {
     },
     // replace ch a with b inside a rect
     recolor(x0, y0, x1, y1, a, b) { for (let y = X(y0); y < X(y1 + 1); y++) for (let x = X(x0); x < X(x1 + 1); x++) if (get(x, y) === a) put(x, y, b); },
+    // floodlight rim: the top edge of every solid area takes a pale highlight (lit from above). Thin
+    // strokes (bats, seams, outlines) are skipped so they keep their colour. Call before outline().
+    rim(ch = 'h') {
+      const marks = [];
+      for (let y = 1; y < h; y++) for (let x = 0; x < w; x++) {
+        const c = get(x, y);
+        if (c === '.' || c === 'K' || c === ch) continue;
+        if (get(x, y - 1) !== '.') continue;                                   // not a top edge
+        if (get(x, y + 1) === '.' || get(x, y + 2) === '.') continue;          // too thin to light
+        marks.push([x, y]);
+      }
+      for (const [x, y] of marks) put(x, y, ch);
+    },
     // 1px black outline around everything drawn so far (NES/SFC look)
     outline() {
       const marks = [];
@@ -143,6 +156,22 @@ function batterLegsStance(s) {
   s.rect(20, 60, 33, 62, 'm'); s.rect(20, 61, 33, 61, 'g'); s.rect(32, 60, 33, 61, 'g'); // front cleat, farther: two rows up
 }
 
+// Halfway from the stance to the open swing legs (the in-between of start and mid-swing): every shape
+// averaged, the front leg straightening, the back knee turning in and the back heel just lifting.
+function batterLegsHalf(s) {
+  s.poly([[18, 40], [26.5, 40], [29, 50], [21.5, 50]], 'W');             // front thigh
+  s.poly([[21.5, 50], [29, 50], [29, 59], [22, 59]], 'W');               // front shin
+  s.ellipse(10.75, 43.75, 4.5, 4, 'W');                                   // hip
+  s.poly([[7, 40.5], [16, 40.5], [18.5, 50.5], [11.5, 50.5]], 'W');      // back thigh, knee turning in
+  s.poly([[11.5, 50.5], [18.5, 50.5], [15, 58], [9, 58]], 'W');          // back shin, heel coming up
+  s.recolor(6, 40, 8, 58, 'W', 'w'); s.recolor(20, 40, 22, 59, 'W', 'w');
+  s.line(12, 50.5, 18, 50.5, 'w'); s.line(22, 50, 28, 50, 'w');          // knees
+  s.rect(9, 56, 15, 60, 'B'); s.recolor(9, 56, 9, 60, 'B', 'l');         // back stirrup
+  s.rect(22, 57, 29, 61, 'B'); s.recolor(22, 57, 22, 61, 'B', 'l');      // front stirrup
+  s.poly([[9, 59], [15, 59], [17, 63], [11, 63]], 'm'); s.line(13, 60, 15, 62, 'g'); // back foot rolling onto its toe
+  s.rect(21, 61, 33, 63, 'm'); s.rect(21, 62, 33, 62, 'g'); s.rect(32, 61, 33, 62, 'g'); // front cleat planted
+}
+
 // Swing legs: hips opened to the pitcher. Front leg braced straight toward the plate, back knee turned in
 // and the back heel up, pivoted on the toe.
 function batterLegsOpen(s) {
@@ -219,7 +248,24 @@ function batterStance(sc = 1) {
   u.rect(17, 15, 20, 18, 'z');                                          // neck
   batterHead(u, 18, 10, 0);
   batterLegsStance(s);
-  s.outline();
+  s.rim(); s.outline();
+  return s.rows();
+}
+
+// In-between of the stance and the start: the hands have begun to drop off the shoulder, the bat tipping
+// back; body and legs still the stance.
+function batterStanceStart(sc = 1) {
+  const s = grid(BW, BH, NEAR * sc), u = shifted(s, CROUCH);
+  const g = batGrip(u, [18, 21], [5, 3]);
+  batterTorso(u, 1);
+  g.bat();
+  arm(u, [11, 21], [4, 23], g.fistB, { sleeve: 4.6 });                  // back arm: elbow dropping back
+  arm(u, [26, 20], [26, 30], g.fistA, { sleeve: 3.8, fore: 3 });
+  g.fists();
+  u.rect(17, 15, 20, 18, 'z');
+  batterHead(u, 18, 10, 0);
+  batterLegsStance(s);
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -237,7 +283,25 @@ function batterStart(sc = 1) {
   u.rect(17, 15, 20, 18, 'z');
   batterHead(u, 18, 10, 1);
   batterLegsStance(s);
-  s.outline();
+  s.rim(); s.outline();
+  return s.rows();
+}
+
+// In-between of the start and mid-swing: the hips are opening (half legs), the hands are out in front and
+// the barrel is sweeping over the plate, pointing away up to the right before it comes round at us.
+function batterStartCheck(sc = 1) {
+  const s = grid(BW, BH, NEAR * sc), u = shifted(s, 1);
+  batterTorso(u, 2);
+  const A = [28, 26], B = [30, 28];
+  arm(u, [12, 21], [12, 26], B);                                        // back arm: elbow in, forearm out to the top hand
+  arm(u, [27, 20], [29, 25], A, { sleeve: 3.8, fore: 3 });              // front arm reaching out
+  u.line(31, 27, 44, 16, 'c', 3); u.line(31.7, 26.3, 44.7, 15.3, 'b', 1); // barrel sweeping over the plate
+  u.rect(26, 26, 28, 28, 'b');                                          // knob behind the hands
+  for (const f of [A, B]) { u.ellipse(f[0], f[1], 2.2, 2.1, 'm'); u.put(f[0] - 1, f[1] - 1, 'g'); }
+  u.rect(18, 15, 21, 18, 'z');
+  batterHead(u, 19, 10, 1);
+  batterLegsHalf(s);
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -257,7 +321,24 @@ function batterCheck(sc = 1) {
   s.rect(19, 15, 22, 18, 'z');
   batterHead(s, 20, 10, 1);
   batterLegsOpen(s);
-  s.outline();
+  s.rim(); s.outline();
+  return s.rows();
+}
+
+// In-between of mid-swing and the finish: he has turned his back to us, the hands are coming round
+// low past the front shoulder and the bat is heading up and away, not yet across the back.
+function batterCheckSwing(sc = 1) {
+  const s = grid(BW, BH, NEAR * sc);
+  batterTorsoBack(s);
+  const g = batGrip(s, [15, 18], [4, 8]);
+  arm(s, [28, 20], [22, 17], g.fistB);                                  // right arm coming across
+  arm(s, [9, 20], [7, 19], g.fistA, { sleeve: 3.8, fore: 3 });
+  g.bat();
+  g.fists();
+  s.rect(16, 15, 21, 18, 's'); s.rect(16, 18, 21, 18, 'z');
+  batterHeadBack(s, 18, 10, true);
+  batterLegsFinish(s);
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -308,7 +389,7 @@ function batterSwing(sc = 1) {
   s.rect(16, 15, 21, 18, 's'); s.rect(16, 18, 21, 18, 'z');             // back of the neck
   batterHeadBack(s, 18, 10, true);
   batterLegsFinish(s);
-  s.outline();
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -371,7 +452,7 @@ function catcher() {
   s.ellipse(22, 5.5, 8, 5.5, 'N');
   s.rect(16, 2, 17, 3, 'L'); s.rect(15, 3, 15, 4, 'L');
   s.rect(17, 7, 26, 7, 'g'); s.rect(18, 8, 25, 8, 'g'); s.rect(21, 8, 22, 8, 'K');
-  s.outline();
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -411,7 +492,22 @@ function pitcherSet() {
   glove(s, 10, 17, 3, 3);   // glove at the belt, hand in it
   s.rect(13, 16, 14, 18, 's');
   pitcherHead(s, 8, 1);
-  s.outline();
+  s.rim(); s.outline();
+  return s.rows();
+}
+
+function pitcherSetKick() {                              // in-between: the lead knee coming up, glove rising
+  const s = grid(PW, PH, PITCHER_SCALE);
+  jersey(s, 6, 17, 12, 21);
+  s.rect(7, 22, 16, 22, 'm');
+  s.rect(8, 23, 11, 26, 'g'); s.recolor(8, 23, 8, 26, 'g', 'd');
+  s.rect(7, 27, 11, 27, 'K');
+  s.rect(13, 22, 18, 24, 'g');                           // lead thigh halfway up
+  s.rect(16, 25, 18, 26, 'g'); s.rect(15, 27, 19, 27, 'K');
+  glove(s, 10, 15.5, 3, 3);
+  s.rect(13, 15, 14, 17, 's');
+  pitcherHead(s, 8, 1);
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -426,7 +522,23 @@ function pitcherKick() {                                 // balanced on the back
   glove(s, 10, 14, 3, 3);   // glove + hand up at the chest
   s.rect(13, 13, 14, 15, 's');
   pitcherHead(s, 8, 1);
-  s.outline();
+  s.rim(); s.outline();
+  return s.rows();
+}
+
+function pitcherKickCock() {                             // in-between: the stride landing, the arm swinging back, glove going out
+  const s = grid(PW, PH, PITCHER_SCALE);
+  jersey(s, 6, 17, 12, 21, 1);
+  s.rect(8, 22, 16, 22, 'm');
+  s.rect(7, 23, 10, 26, 'g'); s.recolor(7, 23, 7, 26, 'g', 'd');
+  s.poly([[14, 23], [17, 23], [20, 25], [17, 25]], 'g');              // lead leg halfway out toward us
+  s.rect(6, 27, 10, 27, 'K'); s.rect(16, 26, 20, 26, 'K');
+  s.line(6, 14, 4, 11, 'W', 3);                                        // upper arm swinging back
+  s.line(4, 11, 3, 8, 's', 2);
+  s.rect(2, 6, 4, 8, 's');                                             // ball hand
+  glove(s, 14, 16, 3.2, 3);
+  pitcherHead(s, 8, 1);
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -442,7 +554,24 @@ function pitcherCock() {                                 // stride, arm cocked b
   s.rect(2, 3, 4, 5, 's');                                             // hand with the ball
   glove(s, 17, 17, 3.5, 3);        // glove thrust at the batter (big, close)
   pitcherHead(s, 8, 1);
-  s.outline();
+  s.rim(); s.outline();
+  return s.rows();
+}
+
+function pitcherCockThrow() {                            // in-between: the arm at the top, lead foot planted
+  const s = grid(PW, PH, PITCHER_SCALE);
+  jersey(s, 7, 18, 12, 21, 1);
+  s.rect(9, 22, 18, 22, 'm');
+  s.rect(8, 23, 11, 26, 'g'); s.recolor(8, 23, 8, 26, 'g', 'd');
+  s.rect(7, 27, 11, 27, 'K');
+  s.poly([[15, 23], [18, 23], [23, 27], [20, 27]], 'g');
+  s.rect(19, 27, 23, 27, 'K');
+  s.line(7, 13, 4.5, 8.5, 'W', 3);                                     // arm up and back
+  s.line(4.5, 8.5, 4, 3, 's', 2);
+  s.rect(3, 1, 5, 3, 's');
+  glove(s, 17, 16.5, 3, 2.8);
+  pitcherHead(s, 9, 1);
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -459,7 +588,22 @@ function pitcherThrow() {                                // release: arm over th
   s.rect(4, 1, 6, 3, 's');                                             // ball hand (release point)
   glove(s, 17, 16, 2.5, 2.5);      // glove tucked in
   pitcherHead(s, 9, 2);
-  s.outline();
+  s.rim(); s.outline();
+  return s.rows();
+}
+
+function pitcherThrowFollow() {                          // in-between: the arm coming down across the body, bending forward
+  const s = grid(PW, PH, PITCHER_SCALE);
+  jersey(s, 7, 18, 14, 22, 1);
+  s.rect(9, 23, 18, 23, 'm');
+  s.rect(9, 24, 12, 25, 'g'); s.rect(8, 26, 12, 26, 'K');             // back foot coming off the rubber
+  s.poly([[15, 24], [18, 24], [23, 27], [20, 27]], 'g');
+  s.rect(19, 27, 23, 27, 'K');
+  s.line(8, 14, 13, 20, 'W', 3);                                       // arm down in front
+  s.line(12, 19, 15, 23, 's', 2); s.rect(14, 22, 16, 24, 's');
+  glove(s, 13, 17.5, 2.5, 2.5);
+  pitcherHead(s, 10, 4);
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -474,7 +618,7 @@ function pitcherFollow() {                               // bent forward, arm sw
   s.line(14, 21, 19, 25, 's', 2); s.rect(18, 24, 20, 26, 's');         // hand finishing at the far hip
   glove(s, 9, 19, 2.5, 2.5);                                     // glove tucked
   pitcherHead(s, 10, 5);
-  s.outline();
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -489,7 +633,22 @@ function pitcherSetUnder() {
   glove(s, 10, 19, 3, 2.6);
   s.rect(13, 18, 14, 20, 's');
   pitcherHead(s, 8, 4);
-  s.outline();
+  s.rim(); s.outline();
+  return s.rows();
+}
+
+function pitcherKickCockUnder() {                        // in-between: dropping from the kick, the arm starting back low
+  const s = grid(PW, PH, PITCHER_SCALE);
+  jersey(s, 6, 17, 14, 22, 1);
+  s.rect(8, 23, 17, 23, 'm');
+  s.rect(8, 24, 11, 26, 'g');
+  s.poly([[14, 24], [17, 24], [21, 27], [18, 27]], 'g');
+  s.rect(7, 27, 11, 27, 'K'); s.rect(18, 27, 22, 27, 'K');
+  s.line(7, 17, 3, 18, 'W', 3);                                        // arm swinging down and back
+  s.line(3, 18, 1, 17, 's', 2);
+  glove(s, 14, 17, 3.3, 2.8);
+  pitcherHead(s, 9, 4);
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -504,7 +663,23 @@ function pitcherCockUnder() {                            // dropped low, arm swu
   s.line(2, 20, 0, 19, 's', 2);
   glove(s, 17, 19, 3.5, 3);
   pitcherHead(s, 9, 6);
-  s.outline();
+  s.rim(); s.outline();
+  return s.rows();
+}
+
+function pitcherCockThrowUnder() {                       // in-between: the arm at the bottom of its swing, behind the knee
+  const s = grid(PW, PH, PITCHER_SCALE);
+  jersey(s, 7, 19, 17, 23, 1);
+  s.rect(8, 24, 18, 24, 'm');
+  s.rect(8, 25, 11, 26, 'g');
+  s.poly([[15, 25], [18, 25], [22, 27], [19, 27]], 'g');
+  s.rect(7, 27, 11, 27, 'K'); s.rect(18, 27, 22, 27, 'K');
+  s.line(8, 19, 4, 23, 'W', 3);
+  s.line(4, 23, 2, 24, 's', 2);
+  s.rect(1, 23, 2, 24, 's');
+  glove(s, 18, 19.5, 2.8, 2.6);
+  pitcherHead(s, 10, 5);
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -520,7 +695,22 @@ function pitcherThrowUnder() {                           // release at the knee,
   s.rect(3, 25, 4, 26, 's');                                           // ball hand (release point)
   glove(s, 18.5, 20, 2.2, 2.4);
   pitcherHead(s, 10, 5);
-  s.outline();
+  s.rim(); s.outline();
+  return s.rows();
+}
+
+function pitcherThrowFollowUnder() {                     // in-between: the arm sweeping across, still low
+  const s = grid(PW, PH, PITCHER_SCALE);
+  jersey(s, 7, 19, 16, 23, 1);
+  s.rect(8, 24, 18, 24, 'm');
+  s.rect(8, 25, 11, 26, 'g');
+  s.poly([[15, 25], [18, 25], [22, 27], [19, 27]], 'g');
+  s.rect(7, 27, 11, 27, 'K'); s.rect(18, 27, 23, 27, 'K');
+  s.line(9, 19, 15, 20, 'W', 3);
+  s.line(14, 20, 19, 18, 's', 2); s.rect(18, 17, 20, 19, 's');
+  glove(s, 14, 21, 2.4, 2.4);
+  pitcherHead(s, 10, 5);
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -535,7 +725,7 @@ function pitcherFollowUnder() {                          // arm whipped up and a
   s.line(17, 15, 21, 13, 's', 2); s.rect(20, 11, 22, 13, 's');
   glove(s, 9, 21, 2.3, 2.3);
   pitcherHead(s, 10, 5);
-  s.outline();
+  s.rim(); s.outline();
   return s.rows();
 }
 
@@ -612,19 +802,29 @@ const OUT = {
   mitt: mitt(),
   umpHand: umpHand(),
   catcher: catcher(),
+  // the delivery, nine frames: set, set-kick, kick, kick-cock, cock, cock-throw, throw, throw-follow, follow
   pitcherSet: pitcherSet(),
+  pitcherSetKick: pitcherSetKick(),
   pitcherKick: pitcherKick(),
+  pitcherKickCock: pitcherKickCock(),
   pitcherCock: pitcherCock(),
+  pitcherCockThrow: pitcherCockThrow(),
   pitcherThrow: pitcherThrow(),
+  pitcherThrowFollow: pitcherThrowFollow(),
   pitcherFollow: pitcherFollow(),
   pitcherSetUnder: pitcherSetUnder(),
+  pitcherKickCockUnder: pitcherKickCockUnder(),
   pitcherCockUnder: pitcherCockUnder(),
+  pitcherCockThrowUnder: pitcherCockThrowUnder(),
   pitcherThrowUnder: pitcherThrowUnder(),
+  pitcherThrowFollowUnder: pitcherThrowFollowUnder(),
   pitcherFollowUnder: pitcherFollowUnder(),
-  // batter height variants (the strike zone follows: knees to mid-chest). Keys: batter_<size>, batterCheck_<size>...
+  // batter height variants (the strike zone follows: knees to mid-chest). Seven frames each: stance,
+  // stance-start, start, start-check, check (mid-swing), check-swing, swing (finish)
   ...Object.fromEntries(Object.entries(BATTER_SIZES).flatMap(([size, sc]) => [
-    ["batter_" + size, batterStance(sc)], ["batterStart_" + size, batterStart(sc)],
-    ["batterCheck_" + size, batterCheck(sc)], ["batterSwing_" + size, batterSwing(sc)],
+    ["batter_" + size, batterStance(sc)], ["batterStanceStart_" + size, batterStanceStart(sc)], ["batterStart_" + size, batterStart(sc)],
+    ["batterStartCheck_" + size, batterStartCheck(sc)], ["batterCheck_" + size, batterCheck(sc)],
+    ["batterCheckSwing_" + size, batterCheckSwing(sc)], ["batterSwing_" + size, batterSwing(sc)],
   ])),
 };
 

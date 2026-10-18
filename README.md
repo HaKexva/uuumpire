@@ -202,9 +202,10 @@ without a browser:
 - `index.html`, `style.css`, `core.js`, `game.js` — the game (vanilla JS, canvas at 168x192, integer-scaled). `i18n.js` — UI strings.
 - `server/` — leaderboard API (Node + Postgres) for Railway.
 - `sprites.js` — pixel art as text (one char per pixel, keys map to the palette). Pitcher (overhand + submarine), catcher, mitt, batter, umpire.
-- `tools/gen-sprites.js` — shape-based rasterizer for the batter (stance, start, mid-swing, finish; posed after the
-  behind-the-plate batters in Baseball Stars 2 and Clutch Hitter), catcher, mitt
-  and pitcher (set, kick, cocked, release, follow-through; overhand + submarine) frames. Plate-side sprites are
+- `tools/gen-sprites.js` — shape-based rasterizer for the batter (seven frames: stance, start, mid-swing, finish and
+  the in-betweens; posed after the behind-the-plate batters in Baseball Stars 2 and Clutch Hitter), catcher, mitt
+  and pitcher (nine frames: set, kick, cocked, release, follow-through and the in-betweens; overhand + submarine).
+  Every player gets a floodlight rim (palette key `h`) on his top edges. Plate-side sprites are
   rasterized at `NEAR` = 1.4x their design size (the umpire's eye is right behind the catcher); the pitcher is 1x.
   `--write` splices them into `sprites.js`. Edit the shapes there, not the rows.
 - `music.js` — song data + chiptune player. `tools/export-midi.js` — MIDI exporter. `tools/import-midi.js` — MIDI → song JSON importer.
