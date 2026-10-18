@@ -481,6 +481,11 @@ button { font-family: inherit; }
 .records li.empty { list-style: none; color: var(--g-dim); margin-left: -28px; }
 .btn-back { margin-top: 4px; }
 
+/* leaderboard pager (all-time keeps 100, shown 20 per page) */
+.board-pager { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.board-pager .pg-label { font-size: 16px; color: var(--g-gold); min-width: 3.5em; text-align: center; }
+.board-pager .game-btn[disabled] { opacity: .35; pointer-events: none; box-shadow: none; transform: translate(3px, 3px); }
+
 @media (max-width: 400px) {
   .game-logo { font-size: 36px; }
   .menu-item { font-size: 18px; gap: 8px; padding: 6px 6px; }
@@ -489,4 +494,20 @@ button { font-family: inherit; }
   .controls { gap: 10px; }
   .call-text { font-size: 36px; }
   .judge-text { font-size: 24px; }
+}
+
+/* keep a full 20-row page on screen without the page scrolling. The board rows shrink on short
+   or narrow viewports; only the leaderboard list (.records.board) is touched, not other screens. */
+@media (max-width: 440px), (max-height: 760px) {
+  .screen { gap: 10px; }
+  .section-title { margin-top: 8px; font-size: 24px; }
+  .board-panel { min-height: 0; padding-top: 8px; padding-bottom: 8px; }
+  .records.board { font-size: 14px; }
+  .records.board li { padding: 1px 0; }
+  .records.board li .who { gap: 5px; }
+  .records.board li .who .meta { font-size: 11px; }
+}
+@media (max-height: 640px) {
+  .records.board { font-size: 12px; }
+  .records.board li .who .meta { font-size: 10px; }
 }
