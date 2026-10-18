@@ -72,14 +72,15 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   scene.fog = new THREE.Fog(0x06082a, 90, 220);
   // the stage is portrait (168:192): a tall window on the same width of plate, aimed low so the
   // horizon sits high like the pixel scene's
-  const camera = new THREE.PerspectiveCamera(68, 168 / 192, 0.1, 400);
+  const camera = new THREE.PerspectiveCamera(62, 168 / 192, 0.1, 400);
   // the umpire-cam, as on the broadcast: the eye in the slot (the gap between catcher and batter, on the
   // batter's side of the catcher's head), above the crown of the helmet, the horizon a third of the way
   // down. Same picture for both batters, mirrored.
-  // A step and a half behind the plate with a 68° lens: the zone frame fills a third of the height instead
-  // of the whole lower half, and the plate shows at the bottom of the frame. The eye stays above the
-  // catcher's helmet (it would hide the low outside corner from any lower seat this far back).
-  const CAM = { x: 0.45, y: 1.62, z: 1.5, look: new THREE.Vector3(0, 0.25, -6), fov: 68 };
+  // 1.6 m behind the plate with a 62° lens, aimed so the whole plate sits in the bottom tenth of the
+  // frame under the zone: the frame fills a third of the height instead of the whole lower half. The
+  // eye stays above the catcher's helmet (it would hide the low outside corner from any lower seat
+  // this far back). Measured: plate 88-100% of the height, zone 48-80%, horizon 28%.
+  const CAM = { x: 0.45, y: 1.7, z: 1.6, look: new THREE.Vector3(0, -0.1, -6), fov: 62 };
   // the ABS review: the centre-field broadcast camera, long lens, the zone frame face-on
   const ABS_CAM = { pos: new THREE.Vector3(1.6, 2.4, -11.0), look: new THREE.Vector3(0, 0.8, -0.2), fov: 24 };
   let camMode = 'ump';
@@ -196,6 +197,18 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   const bar = new THREE.MeshBasicMaterial({ color: 0xf8b800, transparent: true, opacity: 1 });
   for (const [sx, sy, px, py] of [[1, 0.018, 0, 0.5], [1, 0.018, 0, -0.5], [0.018, 1, 0.5, 0], [0.018, 1, -0.5, 0]]) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.02), bar); m.scale.set(sx, sy, 1); m.position.set(px, py, 0); zoneBox.add(m);
+  }
+  // the frame's foot: two posts from its bottom corners down to a sill across the middle of the plate,
+  // so from the slot the frame reads as standing over the plate instead of floating beside it
+  const zoneFoot = new THREE.Group(); scene.add(zoneFoot);
+  const footBar = new THREE.MeshBasicMaterial({ color: 0xf8b800, transparent: true, opacity: 0.5 });
+  const footL = new THREE.Mesh(new THREE.BoxGeometry(0.012, 1, 0.012), footBar), footR = footL.clone(), sill = new THREE.Mesh(new THREE.BoxGeometry(1, 0.012, 0.012), footBar);
+  zoneFoot.add(footL, footR, sill);
+  function placeFoot() {
+    const hw = zoneBox.scale.x / 2, bottom = zoneBox.position.y - zoneBox.scale.y / 2, ground = 0.03;
+    footL.scale.y = footR.scale.y = bottom - ground;
+    footL.position.set(-hw, (bottom + ground) / 2, PLATE_Z); footR.position.set(hw, (bottom + ground) / 2, PLATE_Z);
+    sill.scale.x = hw * 2; sill.position.set(0, ground, PLATE_Z);
   }
   // the reveal: the ball back at the crossing point inside a blinking ring, and the ABS tick to the nearest edge
   const ring = new THREE.Mesh(new THREE.TorusGeometry(R_REAL * 1.7, 0.008, 8, 28), new THREE.MeshBasicMaterial({ color: 0xf8b800 })); scene.add(ring);
@@ -576,6 +589,7 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     // frame is the real zone, not the grown boundary the rules test against the ball's centre
     zoneBox.scale.set((z.x1 - z.x0) * M_LAT + 2 * GROW_X, (z.y1 - z.y0) * M_VERT + 2 * GROW_Y, 1);
     zoneBox.position.set(0, (hgtOf(z.y0) + hgtOf(z.y1)) / 2, PLATE_Z);
+    placeFoot();
   }
 
   function onEvent(type, e) {
@@ -638,9 +652,9 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
     // level 12 keeps the zone up through the pitch as a guide; from 13 it only comes back at the reveal,
     // so the catcher's framing can sell a ball as a strike
     const guide = G.level === firstLevel && (ph === 'windup' || flying || ph === 'call');
-    zoneBox.visible = reveal || guide;
+    zoneBox.visible = zoneFoot.visible = reveal || guide;
     if (camMode === 'abs') setCam('ump');
-    bar.opacity = reveal ? 1 : 0.55;
+    bar.opacity = reveal ? 1 : 0.55; footBar.opacity = reveal ? 0.5 : 0.3;
     // reveal: the ball where it really crossed, a ring blinking gold (strike) / white (ball) like the pixel
     // scene, and the ABS tick from the ball to the nearest zone edge when the readout is on
     // once the call is in, the catcher gets out of the way: only the ball where it crossed, and the tick
