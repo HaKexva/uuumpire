@@ -163,6 +163,32 @@ async function pruneRuns() {
   if (!pool) { for (const [id, r] of memRuns) if (r.used || r.created_at < since) memRuns.delete(id); return; }
   await pool.query('DELETE FROM runs WHERE used = 1 OR created_at < $1', [since]);
 }
+// Human-plausibility gate on the call log. The replay already proved the log plays to the submitted
+// score; this rejects logs that reach it in a way no human hand could. core.js ships to the browser and
+// the run's seed is handed to the client, so a script can read each pitch's answer off the seed and dump
+// a flawless, machine-timed log that replays perfectly ("the seed oracle"). The replay cannot tell that
+// log from a real one -- the answer is the same -- so these checks look at *how* it was produced instead.
+// This raises the bar; it does not (and by design cannot) stop a bot that mimics human timing and misses.
+const UNIFORM_MIN = 15;   // only judge timing spread once there are this many real calls
+const UNIFORM_STD = 0.01; // s: tighter call-to-call spread than any human hand holds over a whole game
+function plausible(log, rec) {
+  const ts = [];
+  for (const e of log) {
+    if (!Array.isArray(e) || e[0] == null || typeof e[1] !== 'number') continue; // a pitch left to the clock has no call
+    ts.push(e[1]);
+  }
+  // 100% accuracy can only mean a flawless full season: a shorter perfect game never reaches game-over
+  // and so can never be submitted. No human has ever won one on the board; calling every blind pitch of
+  // the nasty levels right is the oracle's signature. A cheat must now miss at least once to get on.
+  if (rec.accuracy >= 100) return 'perfect';
+  if (ts.length >= UNIFORM_MIN) {                    // machine-even call timing across the game
+    const m = ts.reduce((a, b) => a + b, 0) / ts.length;
+    const sd = Math.sqrt(ts.reduce((a, b) => a + (b - m) * (b - m), 0) / ts.length);
+    if (sd < UNIFORM_STD) return 'uniform';
+  }
+  return null;
+}
+
 // why a submitted score is not the one its log plays to (null = it is)
 async function verify(rec, body) {
   if (body.run === undefined && body.log === undefined && !REQUIRE_RUN) return null;
@@ -173,6 +199,8 @@ async function verify(rec, body) {
   if (r.score !== rec.score || r.pitches !== rec.pitches || r.accuracy !== rec.accuracy || r.streak !== rec.streak) return 'score';
   if ((r.reaction === null) !== (rec.reaction === null) || (r.reaction !== null && Math.abs(r.reaction - rec.reaction) > 0.002)) return 'reaction';
   if (Date.now() - run.created_at < r.seconds * 1000 * 0.9) return 'clock'; // played faster than the game runs
+  const bad = plausible(Array.isArray(body.log) ? body.log : [], rec); // human-plausibility of the call log
+  if (bad) return bad;
   return null;
 }
 
