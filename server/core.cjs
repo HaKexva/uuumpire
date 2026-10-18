@@ -47,7 +47,9 @@
     fineEdge: 3.8, finePts: 50,                   // edge pitch bonus (px from the zone edge)
     quick: 0.6, quickPts: 30,                     // quick call bonus (s)
     late: 0.3, latePts: 50,                       // held call bonus: a correct call inside the last 0.3 s of the window
-    swingLevel: 4, framingLevel: 5, submarineLevel: 3, discoLevel: 10,
+    swingLevel: 4, framingLevel: 5, submarineLevel: 3, nastyLevel: 6, discoLevel: 10,
+    breakGain: 1.1,   // every pitch but the four-seamer moves this much more than its table says
+    nastyWeight: 1.2, // a nasty pitch (level 6+) comes this many times as often as an ordinary type
   };
   // What each level adds (the UI shows lvl.<level>). Levels not listed just get faster/tighter.
   const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro' };
@@ -100,16 +102,20 @@
     return level >= RULES.submarineLevel && (rng || Math.random)() < 0.3 ? 'SUBMARINE' : 'OVERHAND';
   }
 
+  // the weight each type carries at a level (0 = not yet in the arsenal)
+  function typeWeight(t, level) {
+    if (level < t.minLv) return 0;
+    let w = t.w;
+    if (t.name === 'FOURSEAM') w += Math.max(0, 5 - level); // early levels: mostly fastballs
+    if (t.minLv >= RULES.nastyLevel) w *= RULES.nastyWeight;  // the nasty stuff shows up more than its share
+    return w;
+  }
   function pickType(level, rng) {
-    // early levels: mostly fastballs; the arsenal opens up with level
-    const pool = [];
-    for (const t of PITCH_TYPES) {
-      if (level < t.minLv) continue;
-      let w = t.w;
-      if (t.name === 'FOURSEAM') w += Math.max(0, 5 - level);
-      for (let i = 0; i < w; i++) pool.push(t);
-    }
-    return R(rng || Math.random).pick(pool);
+    // one draw over the weighted arsenal (one rng call, like the old pool pick, so replays stay exact)
+    const ws = PITCH_TYPES.map((t) => typeWeight(t, level));
+    let r = (rng || Math.random)() * ws.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < ws.length; i++) { r -= ws[i]; if (r < 0) return PITCH_TYPES[i]; }
+    return PITCH_TYPES[0];
   }
 
   function isStrikeAt(zone, x, y) {
@@ -166,14 +172,16 @@
     const form = pickForm(level, rng);
     const hand = sgn(); // +1 right-hander: arm on the umpire's left (-x), glove side = +x
     const dir = type.side === 'glove' ? hand : type.side === 'arm' ? -hand : sgn();
-    let bx = rnd(type.bx[0], type.bx[1]) * dir;
-    let by = rnd(type.by[0], type.by[1]);
-    const hump = type.hump ? rnd(type.hump[0], type.hump[1]) : 0;
+    // breaking balls move a bit more than the table says; the four-seamer is the straight reference
+    const gain = type.name === 'FOURSEAM' ? 1 : RULES.breakGain;
+    let bx = rnd(type.bx[0], type.bx[1]) * dir * gain;
+    let by = rnd(type.by[0], type.by[1]) * gain;
+    const hump = type.hump ? rnd(type.hump[0], type.hump[1]) * gain : 0;
     // speed creeps up with level, then jumps from level 10 on
     let speed = Math.round(rnd(type.speed[0], type.speed[1]) + Math.min(level, 8) + Math.max(0, level - 9) * 3);
     // knuckleball: no spin, flutters side to side on the way in (sin terms vanish at t=1, so it still lands on target)
     const wob = type.wobble ? {
-      ax: rnd(type.wobble[0], type.wobble[1]) * sgn(), ay: rnd(type.wobble[0], type.wobble[1]) * 0.6 * sgn(),
+      ax: rnd(type.wobble[0], type.wobble[1]) * gain * sgn(), ay: rnd(type.wobble[0], type.wobble[1]) * 0.6 * gain * sgn(),
       nx: pick([2, 3]), ny: pick([2, 3, 4]),
     } : null;
     if (form === 'SUBMARINE') {
@@ -513,7 +521,7 @@
 
   return {
     BALL_R, BATTER_H, BATTER_FEET_Y, IN_PER_PX, RELEASE, MITT_REST, TIMING, RULES, UNLOCKS, PROFILE, PITCH_TYPES,
-    zoneFor, levelFor, callWindowFor, pickForm, pickType, isStrikeAt, edgeDistance, genPitch, ballPos,
+    zoneFor, levelFor, callWindowFor, pickForm, pickType, typeWeight, isStrikeAt, edgeDistance, genPitch, ballPos,
     scoreCall, moodAfter, absInfo, createGame, seededRng, replayRun,
   };
 });
