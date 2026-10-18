@@ -109,8 +109,8 @@ plausibility (max 400 pts per pitch, 12 posts per minute per IP) and names are 1
   summary; a run is single-use, expires after 12 h, and a game that took less wall-clock time than it has game
   time is refused. On top of the replay, a human-plausibility gate (`plausible()`) rejects a log that reaches
   its score in a way no hand could: a flawless full season (`perfect` — 100% accuracy is only reachable by
-  winning every blind pitch, which no human has done), machine-even call timing (`uniform`), or several
-  superhuman-fast calls (`tooquick`). Rejections answer 400 `{ error: 'rejected', why }` and are logged.
+  winning every blind pitch, which no human has done) or machine-even call timing (`uniform`). Rejections
+  answer 400 `{ error: 'rejected', why }` and are logged.
   This stops posted-by-hand scores and the trivial seed oracle (read each pitch's answer off the seed, since
   `core.js` is public, and dump a perfect log); it cannot stop a bot that plays the game with human-like
   misses and timing — that needs a server-authoritative design where the seed never reaches the client.

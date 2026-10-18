@@ -167,20 +167,14 @@ async function pruneRuns() {
 // a flawless, machine-timed log that replays perfectly ("the seed oracle"). The replay cannot tell that
 // log from a real one -- the answer is the same -- so these checks look at *how* it was produced instead.
 // This raises the bar; it does not (and by design cannot) stop a bot that mimics human timing and misses.
-const REACT_FLOOR = 0.10; // s: no one reacts to the catch faster than this. An anticipated call made during
-                          //    flight logs t = 0 exactly, so 0 < t < floor is a too-fast post-catch call.
-const FLOOR_MAX = 3;      // this many too-fast calls is a script, not a stray frame near the catch
 const UNIFORM_MIN = 15;   // only judge timing spread once there are this many real calls
 const UNIFORM_STD = 0.01; // s: tighter call-to-call spread than any human hand holds over a whole game
 function plausible(log, rec) {
   const ts = [];
-  let fast = 0;
   for (const e of log) {
     if (!Array.isArray(e) || e[0] == null || typeof e[1] !== 'number') continue; // a pitch left to the clock has no call
     ts.push(e[1]);
-    if (e[1] > 0 && e[1] < REACT_FLOOR) fast++;
   }
-  if (fast >= FLOOR_MAX) return 'tooquick';          // several superhuman-fast calls
   // 100% accuracy can only mean a flawless full season: a shorter perfect game never reaches game-over
   // and so can never be submitted. No human has ever won one on the board; calling every blind pitch of
   // the nasty levels right is the oracle's signature. A cheat must now miss at least once to get on.
