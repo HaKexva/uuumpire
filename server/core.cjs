@@ -42,7 +42,7 @@
     firstPitch: 0.9, nextPitch: 0.35, levelUp: 2.4, congrats: 3.6, // delay before the next windup
   };
   const RULES = {
-    misses: 3, pitchesPerLevel: 5, maxLevel: 11, moodMax: 5,
+    misses: 3, pitchesPerLevel: 5, maxLevel: 11, moodMax: 5, reprieveMinLevel: 6,
     base: 100, streakStep: 0.1, streakCap: 10,   // x1.0 .. x2.0
     fineEdge: 3.8, finePts: 50,                   // edge pitch bonus (px from the zone edge)
     quick: 0.6, quickPts: 30,                     // quick call bonus (s)
@@ -335,6 +335,10 @@
     opts = opts || {};
     const rng = opts.rng || Math.random;
     const kits = opts.kits || 1;
+    // the save-a-miss reprieve is opt-in (the live game turns it on; replayRun never does, so the
+    // deterministic replay the server verifies with is unchanged). It can fire once per game.
+    const reprieveOn = !!opts.reprieve;
+    let reprieveUsed = false;
     const emit = (type, data) => { if (opts.onEvent) opts.onEvent(type, data || {}); };
     const G = {
       phase: 'idle', t: 0, paused: false,
@@ -416,7 +420,7 @@
     }
 
     function update(dt) {
-      if (G.paused || G.phase === 'idle' || G.phase === 'over') return;
+      if (G.paused || G.phase === 'idle' || G.phase === 'over' || G.phase === 'reprieve') return;
       G.t += G.phase === 'replay' ? dt * TIMING.replaySpeed : dt;
       switch (G.phase) {
         case 'windup':
@@ -470,8 +474,14 @@
         case 'reveal':
           if (G.t >= TIMING.reveal) {
             if (G.misses >= RULES.misses) {
-              G.phase = 'over';
-              emit('over', summary());
+              if (reprieveOn && !reprieveUsed && G.level > RULES.reprieveMinLevel && G.pitchIndex + 1 < RULES.maxLevel * RULES.pitchesPerLevel) {
+                reprieveUsed = true; // one shot a game: hold for the save-a-miss prompt instead of ending
+                G.phase = 'reprieve'; G.t = 0;
+                emit('reprieve', { level: G.level });
+              } else {
+                G.phase = 'over';
+                emit('over', summary());
+              }
             } else if (G.pitchIndex + 1 >= RULES.maxLevel * RULES.pitchesPerLevel) {
               // the last pitch of the last level is in: the season is complete
               G.phase = 'over';
@@ -513,10 +523,26 @@
       return true;
     }
 
+    // answer to the save-a-miss prompt. saved=true refunds the miss and play continues to the next
+    // pitch (same hand-off as a normal reveal); otherwise the game ends. Only valid while 'reprieve'.
+    function resolveReprieve(saved) {
+      if (G.phase !== 'reprieve') return false;
+      if (saved) {
+        G.misses = Math.max(0, G.misses - 1);
+        G.pitchIndex++;
+        const next = levelFor(G.pitchIndex), up = next > G.level;
+        startWindup(up ? (next === RULES.discoLevel + 1 ? TIMING.congrats : TIMING.levelUp) : TIMING.nextPitch, up);
+      } else {
+        G.phase = 'over';
+        emit('over', summary());
+      }
+      return true;
+    }
+
     // fraction of the call window left (1 = just caught, 0 = too late)
     const callRemain = () => (G.phase === 'call' ? Math.max(0, 1 - G.t / G.callWindow) : 0);
 
-    return { state: G, start, startWindup, update, call, replay, setPaused, summary, callRemain };
+    return { state: G, start, startWindup, update, call, replay, setPaused, summary, callRemain, resolveReprieve };
   }
 
   return {

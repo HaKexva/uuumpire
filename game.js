@@ -410,6 +410,7 @@
     windup() { this.tone(220, 0.08, { vol: 0.07 }); },
     whoosh() { this.tone(900, 0.35, { type: 'sawtooth', vol: 0.07, slide: 180 }); },
     pop() { this.tone(140, 0.1, { vol: 0.2, slide: 60 }); this.tone(1200, 0.03, { type: 'triangle', vol: 0.11 }); },
+    heart() { for (let i = 0; i < 4; i++) this.tone([1047, 1319, 1568, 2093][i], i < 3 ? 0.07 : 0.28, { vol: 0.05, delay: i * 0.07 }); }, // a miss saved: Zelda-ish container chime
     good() { this.tone(660, 0.08); this.tone(880, 0.12, { delay: 0.08 }); this.tone(1320, 0.18, { delay: 0.17 }); },
     bad() { this.tone(200, 0.18, { type: 'sawtooth', vol: 0.05 }); this.tone(150, 0.3, { type: 'sawtooth', vol: 0.05, delay: 0.15 }); },
     strikeCall() { this.tone(520, 0.06, { vol: 0.05 }); this.tone(780, 0.1, { vol: 0.05, delay: 0.06 }); },
@@ -559,6 +560,7 @@
     pause: $('pause-text'), btnPause: $('btn-pause'), btnReplay: $('btn-replay'), btnQuit: $('btn-quit'), crowd: $('hud-crowd'), langLabel: $('lang-label'),
     info: $('pitch-info'), count: $('pitch-count'), timer: $('timer-fill'),
     btnStrike: $('btn-strike'), btnBall: $('btn-ball'), stage: $('stage'),
+    reprieve: $('reprieve'), reprieveQ: $('reprieve-q'), reprieveFill: $('reprieve-fill'),
     titleBest: $('title-best'), soundLabel: $('sound-label'), musicLabel: $('music-label'),
     paletteLabel: $('palette-label'),
   };
@@ -591,13 +593,28 @@
   // it before the score goes on the board (core.replayRun). No server, no seed: the game still plays
   // on Math.random, it just cannot be submitted.
   let runRng = Math.random, run = null, runLog = [];
-  const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent, rng: () => runRng() });
+  const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent, rng: () => runRng(), reprieve: true });
   const G = game.state;      // phase, t, pitch, score, streak, misses, mood, ball, mitt, zone, result ...
   const ZONE = G.zone;       // sized per batter by the core; same object for the whole game
   const V = {                // view state: nothing here changes a call or a point
     shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null,
   };
   let lastGame = null;       // summary of the last game (game-over screen, leaderboard submit)
+
+  // --- save-a-miss: a timed true/false prompt on the 3rd miss past level 6 (once a game). A correct
+  // answer refunds the miss and play goes on, but the run is then unranked (the server replay has no
+  // notion of the reprieve, so a saved run cannot be verified -- it just does not go on the board).
+  const REPRIEVE_MS = 5000;     // time to answer
+  let saveUsed = false;         // a save was taken this game -> unranked
+  let triviaBank = null;        // loaded from assets/trivia.json
+  let reprieveActive = false;   // the prompt is up; STRIKE/BALL answer it instead of making a call
+  let reprieveQ = null, reprieveTimer = null, reprieveEnd = 0, lastTriviaIdx = -1;
+  async function loadTrivia() {
+    if (triviaBank) return triviaBank;
+    try { const r = await fetch(assetUrl('assets/trivia.json')); triviaBank = (await r.json()).q || []; }
+    catch (e) { triviaBank = []; }
+    return triviaBank;
+  }
 
   let starting = false;
   async function newGame() {
@@ -607,6 +624,7 @@
     starting = false;
     runRng = run ? C.seededRng(run.seed) : Math.random;
     runLog = [];
+    saveUsed = false; cancelReprieve(); loadTrivia(); // the save-a-miss bank is ready by the time level 7 comes
     Object.assign(V, { shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null });
     el.pause.classList.remove("show"); el.btnPause.classList.remove("pressed");
     hideText();
