@@ -1,0 +1,61 @@
+{
+  "title": "La Cucaracha (trad.)",
+  "bpm": 162,
+  "stepsPerBar": 8,
+  "key": "C",
+  "source": "candidate",
+  "tracks": {
+    "lead": {
+      "type": "pulse", "duty": 0.5, "vol": 0.05,
+      "bars": [
+        "c5 c5 c5 . f5 . a5 .",
+        "f5 . . . - - - -",
+        "c5 c5 c5 . f5 . a5 .",
+        "f5 . . . - - - -",
+        "a5 . a5 . g5 . g5 .",
+        "f5 . f5 . e5 . - -",
+        "g5 . g5 . f5 . f5 .",
+        "e5 . . . c5 . - -"
+      ]
+    },
+    "harmony": {
+      "type": "pulse", "duty": 0.25, "vol": 0.03,
+      "bars": [
+        "- e4 - g4 - e4 - g4",
+        "- e4 - g4 - e4 - g4",
+        "- e4 - g4 - e4 - g4",
+        "- e4 - g4 - e4 - g4",
+        "- a3 - c4 - a3 - c4",
+        "- e4 - g4 - e4 - g4",
+        "- d4 - g4 - d4 - g4",
+        "- e4 - g4 - e4 - g4"
+      ]
+    },
+    "bass": {
+      "type": "triangle", "vol": 0.1,
+      "bars": [
+        "c3 . g3 . c3 . g3 .",
+        "c3 . g3 . c3 . g3 .",
+        "c3 . g3 . c3 . g3 .",
+        "c3 . g3 . c3 . g3 .",
+        "f2 . c3 . f2 . c3 .",
+        "c3 . g3 . c3 . g3 .",
+        "g2 . d3 . g2 . d3 .",
+        "c3 . g3 . c3 . c3 ."
+      ]
+    },
+    "drums": {
+      "type": "noise", "vol": 0.038,
+      "bars": [
+        "K h h h S h h h",
+        "K h S h K h S h",
+        "K h h h S h h h",
+        "K h S h K h S h",
+        "K h S h K h S h",
+        "K h S h K h S h",
+        "K h S h K h S h",
+        "K h S h K h S S"
+      ]
+    }
+  }
+}

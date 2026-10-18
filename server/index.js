@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import pg from 'pg';
+import { isProfane } from './profanity.js';
 
 // core.js is the game itself. `railway up` ships server/ alone, so the pre-commit hook keeps a copy
 // here as server/core.cjs (this package is type: module, so a .js copy would not load with require);
@@ -259,6 +260,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJson(req);
       const rec = validate(body);
       if (!rec) return send(res, 400, { error: 'bad score' });
+      if (isProfane(rec.name)) return send(res, 400, { error: 'name not allowed' });
       const why = await verify(rec, body);
       if (why) { console.log(`rejected ${rec.name} ${rec.score} (${why}) from ${ip}`); return send(res, 400, { error: 'rejected', why }); }
       const ranks = await insert(rec);
