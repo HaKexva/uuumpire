@@ -472,10 +472,20 @@
   // theme plus the loaded ballpark tunes), picked per game. start() with no name resumes the current song.
   const TITLE_SONGS = ['entry', 'ballgame'];
   const PLAY_SONGS = ['theme'];
+  const LV11_BGM = 'assets/lv11.mp3'; // produced track (not chiptune note data) that takes the PA on the final level
+  const EXT_VOL = 0.6;                // a produced track is far hotter than the synth; tame it to sit with the SFX
+  const assetUrl = (f) => f + (window.UU_V ? '?v=' + window.UU_V : '');
   const Music = {
     get player() { return window.UUMusic ? window.UUMusic.Player : null; },
+    mode: 'chip',          // 'chip' = the synth in music.js; 'ext' = a produced <audio> track (level 11)
+    ext: null, extSrc: null, lastPlay: null,
     start(song) {
       Sfx.init(); Sfx.resume();
+      if (song === undefined) {              // resume whatever is current (tab back in, unpause)
+        if (this.mode === 'ext') { this.resumeExt(); return; }
+      } else if (this.mode === 'ext') {      // leaving the produced track for a chiptune song
+        this.stopExt(); this.mode = 'chip';
+      }
       const p = this.player;
       if (!p || !settings.music) return;
       if (song === 'title') {
@@ -483,13 +493,41 @@
         if (p.playing && TITLE_SONGS.includes(p.current)) return; // already on a menu song: keep it
         song = pick(TITLE_SONGS);
       } else if (song === 'play') {
-        song = pick(PLAY_SONGS);
+        // a fresh gameplay tune, different from the one just playing (so the 3-level rotation never repeats back to back)
+        const pool = PLAY_SONGS.length > 1 ? PLAY_SONGS.filter((s) => s !== this.lastPlay) : PLAY_SONGS;
+        song = pick(pool);
+        this.lastPlay = song;
       }
       p.setEnabled(true); p.start(song);
     },
-    stop() { const p = this.player; if (p) p.stop(); },
-    tempo(mult) { const p = this.player; if (p) p.setTempo(mult); },
-    apply() { const p = this.player; if (!p) return; p.setEnabled(settings.music); if (settings.music) p.start(); },
+    // a produced audio file on loop: the synth can't play an mp3, so the final-level anthem runs on its own
+    // <audio> element. The two never overlap -- starting one stops the other.
+    preloadExt(file) { // warm the buffer at game start so level 11 does not stutter when it begins
+      const src = assetUrl(file);
+      if (!this.ext) { this.ext = new Audio(); this.ext.loop = true; this.ext.preload = 'auto'; }
+      if (this.extSrc !== src) { this.ext.src = src; this.extSrc = src; }
+    },
+    startExt(file) {
+      Sfx.init(); Sfx.resume();
+      this.stopChip();
+      this.mode = 'ext';
+      this.preloadExt(file);
+      if (!settings.music) return;           // muted: stay in ext mode, silent, until MUSIC is turned on
+      this.ext.currentTime = 0;
+      this.ext.volume = EXT_VOL;
+      this.ext.play().catch(() => {});       // a 404 (asset not yet added) or an autoplay block just leaves it silent
+    },
+    resumeExt() { if (settings.music && this.ext && this.extSrc) { this.ext.volume = EXT_VOL; this.ext.play().catch(() => {}); } },
+    stopExt() { if (this.ext) { this.ext.pause(); this.ext.currentTime = 0; } },
+    stopChip() { const p = this.player; if (p) p.stop(); },
+    stop() { this.stopChip(); if (this.ext) this.ext.pause(); }, // pause, keeping position: resumed on tab-back / unpause
+    tempo(mult) { const p = this.player; if (p) p.setTempo(mult); }, // the produced track ignores the crowd tempo
+    apply() { // the MUSIC menu toggle
+      const p = this.player; if (!p) return;
+      p.setEnabled(settings.music);
+      if (this.mode === 'ext') { if (settings.music) this.resumeExt(); else if (this.ext) this.ext.pause(); return; }
+      if (settings.music) p.start();
+    },
   };
   // don't lose a pitch to a tab switch, another window taking focus, or a system overlay
   // (iOS Screen Distance "too close" warning fires no visibilitychange; it does take focus / stall frames)
@@ -576,6 +614,7 @@
     showScreen('play');
     Music.tempo(1);
     Music.start('play');
+    Music.preloadExt(LV11_BGM); // buffer the final-level anthem now so it is ready by level 11
     game.start();
     updateHud();
   }
@@ -590,7 +629,11 @@
         hideText();
         el.btnReplay.classList.add('hidden');
         if (e.levelUp) Sfx.levelUp();
-        if (e.levelUp && e.level >= C.RULES.discoLevel) Music.start('disco'); // level 10: the disco inning takes over the PA
+        // swap the gameplay tune every 3 levels (levels 1, 4, 7...); level 1 starts in newGame. Disco (10)
+        // and the level-11 anthem are excluded -- they have their own tracks below.
+        if (e.levelUp && e.level < C.RULES.discoLevel && (e.level - 1) % 3 === 0) Music.start('play');
+        if (e.levelUp && e.level === C.RULES.discoLevel) Music.start('disco'); // level 10: the disco inning takes over the PA
+        if (e.levelUp && e.level === C.RULES.maxLevel) Music.startExt(LV11_BGM); // level 11: the produced anthem takes over
         if (e.congrats) { // cleared the disco inning
           showText(el.call, t('congrats'), 'small', 'party');
           showText(el.bonus, t('congrats.sub'), '', 'wobble');

@@ -1,0 +1,61 @@
+{
+  "title": "Ode to Joy (Beethoven, 1824)",
+  "bpm": 142,
+  "stepsPerBar": 8,
+  "key": "C",
+  "source": "candidate",
+  "tracks": {
+    "lead": {
+      "type": "pulse", "duty": 0.5, "vol": 0.05,
+      "bars": [
+        "e5 . e5 . f5 . g5 .",
+        "g5 . f5 . e5 . d5 .",
+        "c5 . c5 . d5 . e5 .",
+        "e5 . . . d5 . d5 .",
+        "e5 . e5 . f5 . g5 .",
+        "g5 . f5 . e5 . d5 .",
+        "c5 . c5 . d5 . e5 .",
+        "d5 . . . c5 . c5 ."
+      ]
+    },
+    "harmony": {
+      "type": "pulse", "duty": 0.25, "vol": 0.03,
+      "bars": [
+        "- e4 - g4 - e4 - g4",
+        "- d4 - g4 - d4 - g4",
+        "- e4 - g4 - e4 - g4",
+        "- d4 - g4 - d4 - g4",
+        "- e4 - g4 - e4 - g4",
+        "- d4 - g4 - d4 - g4",
+        "- e4 - g4 - e4 - g4",
+        "- d4 - g4 - d4 - g4"
+      ]
+    },
+    "bass": {
+      "type": "triangle", "vol": 0.1,
+      "bars": [
+        "c3 . g3 . c3 . g3 .",
+        "g2 . d3 . g2 . d3 .",
+        "c3 . g3 . c3 . g3 .",
+        "g2 . d3 . g2 . d3 .",
+        "c3 . g3 . c3 . g3 .",
+        "g2 . d3 . g2 . d3 .",
+        "c3 . g3 . c3 . g3 .",
+        "g2 . d3 . c3 . c3 ."
+      ]
+    },
+    "drums": {
+      "type": "noise", "vol": 0.038,
+      "bars": [
+        "K h S h K h S h",
+        "K h S h K h S h",
+        "K h S h K h S h",
+        "K h S h K h S S",
+        "K h S h K h S h",
+        "K h S h K h S h",
+        "K h S h K h S h",
+        "K h S h K h S S"
+      ]
+    }
+  }
+}
