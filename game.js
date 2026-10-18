@@ -1132,6 +1132,7 @@
   const RUN_WAIT = 1500; // ms a game start waits for a seed at most
   const LOCAL_SKIP_RUN = LOCAL && !QS.has('api'); // a local page without ?api= plays unranked, no seed request
   const BOARD_PAGE = 20; // rows per leaderboard page; all-time keeps up to 100, so up to 5 pages
+  const PAGINATE_FROM = '2026-10-21'; // all-time pages go live this Taipei day; until then only the top 20 show
   const Board = {
     period: 'daily',
     busy: false,
@@ -1180,6 +1181,10 @@
         status.textContent = '';
         if (!data.scores.length) { list.innerHTML = ''; status.textContent = t('board.empty'); this.renderPager(); return; }
         this.all = data.scores;
+        // all-time pagination releases on PAGINATE_FROM (Taipei): before that day the board still shows
+        // only the top 20, even though the server keeps 100. data.day is the server's Taipei date, so the
+        // switch does not depend on the player's clock. On/after the day the full 100 paginate.
+        if (period === 'all' && data.day && data.day < PAGINATE_FROM) this.all = this.all.slice(0, BOARD_PAGE);
         // open on the page that holds the player's own best, so a rank past page 1 is still seen
         const mine = (settings.name || '').trim();
         let idx = -1;
