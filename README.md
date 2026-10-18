@@ -107,8 +107,14 @@ plausibility (max 400 pts per pitch, 12 posts per minute per IP) and names are 1
 - `POST /api/scores` `{ name, score, pitches, accuracy, streak, reaction, lang, run, log }`. The server replays the
   log on the run's seed with `core.js` (`replayRun`) and takes the score only if the replay produces the same
   summary; a run is single-use, expires after 12 h, and a game that took less wall-clock time than it has game
-  time is refused. Rejections answer 400 `{ error: 'rejected', why }` and are logged. This stops posted-by-hand
-  scores, not a bot that plays the game. `REQUIRE_RUN=0` on the server accepts bare scores (old clients).
+  time is refused. On top of the replay, a human-plausibility gate (`plausible()`) rejects a log that reaches
+  its score in a way no hand could: a flawless full season (`perfect` — 100% accuracy is only reachable by
+  winning every blind pitch, which no human has done), machine-even call timing (`uniform`), or several
+  superhuman-fast calls (`tooquick`). Rejections answer 400 `{ error: 'rejected', why }` and are logged.
+  This stops posted-by-hand scores and the trivial seed oracle (read each pitch's answer off the seed, since
+  `core.js` is public, and dump a perfect log); it cannot stop a bot that plays the game with human-like
+  misses and timing — that needs a server-authoritative design where the seed never reaches the client.
+  `REQUIRE_RUN=0` on the server accepts bare scores (old clients).
 - Offline, or when the seed does not arrive within 1.5 s, the game starts anyway on `Math.random`; the
   game-over screen then says the game is not eligible for the board instead of showing the name box.
 - The game submits from the game-over screen (name is remembered) and shows TODAY / ALL TIME from the title menu.
