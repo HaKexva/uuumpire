@@ -481,6 +481,11 @@ button { font-family: inherit; }
 .records li.empty { list-style: none; color: var(--g-dim); margin-left: -28px; }
 .btn-back { margin-top: 4px; }
 
+/* leaderboard pager (all-time keeps 100, shown 20 per page) */
+.board-pager { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.board-pager .pg-label { font-size: 16px; color: var(--g-gold); min-width: 3.5em; text-align: center; }
+.board-pager .game-btn[disabled] { opacity: .35; pointer-events: none; box-shadow: none; transform: translate(3px, 3px); }
+
 @media (max-width: 400px) {
   .game-logo { font-size: 36px; }
   .menu-item { font-size: 18px; gap: 8px; padding: 6px 6px; }
