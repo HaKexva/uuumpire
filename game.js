@@ -975,7 +975,9 @@
 
   function render() {
     ctx.save();
-    if (V.shake > 0) ctx.translate(rndInt(3) - 1, rndInt(3) - 1);
+    // V.shake decays in updateView, which is skipped while paused; render still runs, so without the
+    // !G.paused guard a bad call right before a pause would jitter the frozen scene forever.
+    if (V.shake > 0 && !G.paused) ctx.translate(rndInt(3) - 1, rndInt(3) - 1);
     ctx.drawImage(BG, 0, 0);
     drawCrowd();
     const disco = G.level >= 10 && G.phase !== 'idle';
