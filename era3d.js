@@ -72,20 +72,21 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
   scene.fog = new THREE.Fog(0x06082a, 90, 220);
   // the stage is portrait (168:192): a tall window on the same width of plate, aimed low so the
   // horizon sits high like the pixel scene's
-  const camera = new THREE.PerspectiveCamera(78, 168 / 192, 0.1, 400);
-  // the umpire's eye: right above the catcher's helmet, a small step to the open side (the slot);
-  // 1.85 m up and 1 m behind the plate is the lowest eye that still sees the bottom of the zone over the helmet
+  const camera = new THREE.PerspectiveCamera(68, 168 / 192, 0.1, 400);
   // the umpire-cam, as on the broadcast: the eye in the slot (the gap between catcher and batter, on the
-  // batter's side of the catcher's head), chin at the crown of the helmet, a very wide lens, the horizon a
-  // third of the way down. Same picture for both batters, mirrored.
-  const CAM = { x: 0.35, y: 1.58, z: 0.85, look: new THREE.Vector3(0, 0.3, -6) }; // just above and behind the helmet: only mask and mitt in the near corner
+  // batter's side of the catcher's head), above the crown of the helmet, the horizon a third of the way
+  // down. Same picture for both batters, mirrored.
+  // A step and a half behind the plate with a 68° lens: the zone frame fills a third of the height instead
+  // of the whole lower half, and the plate shows at the bottom of the frame. The eye stays above the
+  // catcher's helmet (it would hide the low outside corner from any lower seat this far back).
+  const CAM = { x: 0.45, y: 1.62, z: 1.5, look: new THREE.Vector3(0, 0.25, -6), fov: 68 };
   // the ABS review: the centre-field broadcast camera, long lens, the zone frame face-on
   const ABS_CAM = { pos: new THREE.Vector3(1.6, 2.4, -11.0), look: new THREE.Vector3(0, 0.8, -0.2), fov: 24 };
   let camMode = 'ump';
   function setCam(mode) {
     camMode = mode;
     // the broadcast camera sits on the side away from the batter, or he would stand between it and the plate
-    { camera.position.set(-camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(CAM.look); camera.fov = 78; }
+    { camera.position.set(-camSide * CAM.x, CAM.y, CAM.z); camera.lookAt(CAM.look); camera.fov = CAM.fov; }
     camera.updateProjectionMatrix();
   }
   let camSide = 1;
@@ -605,8 +606,11 @@ export function createEra3D({ C, game, stage, canvas2d, assetsBase = '../uuumpir
       // framing is shown a beat late (0.12 s after the catch, over 0.3 s): the umpire gets a look at the
       // true crossing before the mitt drags the ball toward the zone
       // the tug is a few centimetres in the rules' pixels: shown 1.2x so the eye catches the mitt moving
+      // only once the ball is caught: in flight G.ball is the ball in the air, and a mitt aimed past it
+      // flinched upward every pitch (and stuck up by the umpire's ear whenever the game paused mid-flight)
       const fk = (ph === 'call' ? THREE.MathUtils.clamp((G.t - 0.12) / 0.3, 0, 1) : 1) * FRAME_GAIN;
-      const fx = G.ball ? p.x + (G.ball.x - p.x) * fk : p.x, fy = G.ball ? p.y + (G.ball.y - p.y) * fk : p.y;
+      const framed = (caught || reveal) && G.ball;
+      const fx = framed ? p.x + (G.ball.x - p.x) * fk : p.x, fy = framed ? p.y + (G.ball.y - p.y) * fk : p.y;
       const gx = latOf(fx), gy = hgtOf(fy);
       cue.shownX = gx; cue.shownY = gy;
       const k = caught ? 1 : reveal ? 0 : THREE.MathUtils.clamp(1 - (p.dur - G.t) / CATCH_LEAD, 0, 1);

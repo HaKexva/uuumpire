@@ -356,7 +356,11 @@
     // drums is a kit with group names (kick / snare / hat) resolved by the game. null = chiptune.
     hd: null,
     setHd(map) { this.hd = map || null; },
-    setTempo(mult) { this.tempo = Math.max(0.5, Math.min(2, mult || 1)); },
+    setTempo(mult) {
+      this.tempo = Math.max(0.5, Math.min(2, mult || 1));
+      const el = this.audio[this.current];
+      if (el) el.playbackRate = this.tempo;
+    },
     get song() { return this.songs[this.current]; },
 
     attach(ctx) {
@@ -387,17 +391,37 @@
       SONGS[key] = song;
       if (this.ctx) this.songs[key] = buildSong(song);
     },
-    has(key) { return !!SONGS[key]; },
+    // an audio file as a song (assets/songs/<key>.mp3, say): looped through the same master bus, so
+    // start / stop / enable work the same and tempo changes the rate with the pitch kept. Resolves
+    // false when the file is not there (the song then simply is not in the pool).
+    audio: {},
+    addAudio(key, url) {
+      return new Promise((resolve) => {
+        const el = new Audio();
+        el.loop = true; el.preload = 'auto';
+        el.addEventListener('canplaythrough', () => { this.audio[key] = el; resolve(true); }, { once: true });
+        el.addEventListener('error', () => resolve(false), { once: true });
+        el.src = url;
+      });
+    },
+    has(key) { return !!SONGS[key] || !!this.audio[key]; },
 
     // start(name): play that song from the top (no-op if it is already the one playing)
     start(name) {
       if (!this.ctx || !this.enabled) return;
-      const key = name && this.songs[name] ? name : this.current;
+      const key = name && (this.songs[name] || this.audio[name]) ? name : this.current;
       if (this.playing && key === this.current) return;
       this.stop();
       this.current = key;
       if (this.ctx.state === 'suspended') this.ctx.resume();
       this.playing = true;
+      const el = this.audio[key];
+      if (el) {
+        if (!el.node) { el.node = this.ctx.createMediaElementSource(el); el.node.connect(this.master); }
+        el.currentTime = 0; el.playbackRate = this.tempo;
+        el.play().catch(() => {});
+        return;
+      }
       this.step = 0;
       this.nextTime = this.ctx.currentTime + 0.05;
       this.timer = setInterval(() => this.schedule(), 25);
@@ -406,6 +430,8 @@
       this.playing = false;
       if (this.timer) clearInterval(this.timer);
       this.timer = null;
+      const el = this.audio[this.current];
+      if (el) el.pause();
     },
     setEnabled(on) {
       this.enabled = on;

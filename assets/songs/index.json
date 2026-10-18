@@ -21,8 +21,7 @@
     "stars-and-stripes",
     "liberty-bell"
   ],
-  "hd": [
-    "rally-brass",
-    "chance-theme"
-  ]
+  "audio": {
+    "l11": "l11.mp3"
+  }
 }

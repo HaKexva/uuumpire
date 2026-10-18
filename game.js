@@ -479,7 +479,6 @@
   // theme plus the loaded ballpark tunes), picked per game. start() with no name resumes the current song.
   const TITLE_SONGS = ['entry', 'ballgame'];
   const PLAY_SONGS = ['theme'];
-  const HD_SONGS = [];       // the 3D era's cheer songs (assets/songs index "hd"): brass rally tunes, CPBL / NPB style
   const Music = {
     get player() { return window.UUMusic ? window.UUMusic.Player : null; },
     start(song) {
@@ -491,7 +490,7 @@
         if (p.playing && TITLE_SONGS.includes(p.current)) return; // already on a menu song: keep it
         song = pick(TITLE_SONGS);
       } else if (song === 'play') {
-        song = pick(G.level >= ERA3D_LEVEL && HD_SONGS.length ? HD_SONGS : PLAY_SONGS); // from level 12 the PA plays the cheer songs
+        song = pick(PLAY_SONGS); // the 3D era included: the chip band carries every ballpark
       }
       p.setEnabled(true); p.start(song);
     },
@@ -570,7 +569,6 @@
   let era3d = null, era3dLoading = null;
   function loadEra3D() {
     if (era3dLoading) return era3dLoading;
-    loadHdBand();
     era3dLoading = import('./era3d.js?v=' + (window.UU_V || '')).then((m) => {
       era3d = m.createEra3D({ C, game, stage: el.stage, canvas2d: canvas, assetsBase: window.UU_ERA3D_ASSETS || '../uuumpire-3d/assets/', firstLevel: ERA3D_LEVEL, getPalette: () => uiPalette() });
       if (G.pitch) era3d.onEvent('next', { pitch: G.pitch, level: G.level, pitchIndex: G.pitchIndex, levelUp: false }); // the pitch already set up before the module arrived
@@ -595,7 +593,7 @@
     const PRE_MS = tease.length * TEASE_MS + HEARTS_MS;
     const started = performance.now(), MIN_MS = 3800, MAX_MS = 20000 + PRE_MS;
     let ready = false;
-    Promise.all([loadEra3D(), loadHdBand()]).then(() => { ready = true; });
+    loadEra3D().then(() => { ready = true; });
     let done = false;
     const finish = () => {
       if (done) return;
@@ -609,7 +607,7 @@
           showText(el.call, t('level.n', e.level), '');
           showText(el.bonus, t('lvl.' + e.level), '');
           setTimeout(() => Sfx.crowd('cheer', 1), 150);
-          Music.stop(); if (Music.player) Music.player.setHd(hdBand); Music.start('play'); // the new ballpark has its own PA: the cheer songs on the brass band
+          Music.stop(); Music.start('play'); // the new ballpark's PA: back to the ballpark tunes on the chip band
         }
         game.setPaused(false);
       }, 400);
@@ -642,28 +640,6 @@
       b.classList.add('pop'); Sfx.heart();
     }, 250 + i * 800));
   }
-  // The HD band (the-woodshed's recipe): smplr soundfonts from the CDN, a brass section for the cheer songs.
-  // Loaded with the models; if it fails or is late the chip player carries the same songs.
-  let hdBand = null, hdBandLoading = null;
-  function loadHdBand() {
-    if (hdBandLoading) return hdBandLoading;
-    Sfx.init();
-    const P = Music.player;
-    if (!P || !P.ctx) return Promise.resolve(null);
-    hdBandLoading = import('https://cdn.jsdelivr.net/npm/smplr@1.0.0/+esm').then(async (m) => {
-      const ctx = P.ctx, dest = P.master;
-      const sf = (instrument, volume) => new m.Soundfont(ctx, { instrument, volume, destination: dest });
-      const lead = sf('trumpet', 95), horns = sf('trombone', 70), bass = sf('tuba', 110);
-      const kit = new m.DrumMachine(ctx, { instrument: 'TR-808', volume: 90, destination: dest });
-      await Promise.all([lead.load, horns.load, bass.load, kit.load].map((p) => p && p.catch ? p.catch(() => null) : p));
-      const groups = (kit.getGroupNames && kit.getGroupNames()) || [];
-      const find = (re) => groups.find((g) => re.test(g));
-      const names = { K: find(/kick|bd/i), S: find(/snare|sd/i), h: find(/hat|hh/i) };
-      hdBand = { lead: { inst: lead, velocity: 100 }, horns: { inst: horns, velocity: 80 }, bass: { inst: bass, velocity: 100 }, drums: { inst: kit, names } };
-      return hdBand;
-    }).catch((e) => { console.warn('HD band unavailable, chip band plays', e); return null; });
-    return hdBandLoading;
-  }
   // show the 3D scene when its level is on and it is loaded (now, or as soon as the models land)
   function syncEra3D() {
     if (G.level < ERA3D_LEVEL || currentScreen !== 'play') { if (era3d) era3d.hide(); return; }
@@ -691,7 +667,6 @@
     el.info.textContent = ' ';
     showScreen('play');
     Music.tempo(1);
-    if (Music.player) Music.player.setHd(null); // a new run starts in the chip era
     Music.stop();
     Music.start('play');
     game.start();
@@ -715,7 +690,8 @@
         hideText();
         el.btnReplay.classList.add('hidden');
         if (e.levelUp) Sfx.levelUp();
-        if (e.levelUp && e.level >= C.RULES.discoLevel) Music.start('disco'); // level 10: the disco inning takes over the PA
+        // level 10: the disco inning takes over the PA; level 11 has its own track when assets/songs ships one (index.json "audio")
+        if (e.levelUp && e.level >= C.RULES.discoLevel && e.level < ERA3D_LEVEL) Music.start(e.level === ERA3D_LEVEL - 1 && Music.player && Music.player.has('l11') ? 'l11' : 'disco');
         if (e.levelUp && e.level === ERA3D_LEVEL) { eraTransition(e); updateHud(); break; } // level 11 cleared: the ballpark changes
         if (e.congrats) { // cleared the disco inning
           showText(el.call, t('congrats'), 'small', 'party');
@@ -805,7 +781,7 @@
   function makeCall(call) { game.call(call); }
 
   // leave a game in progress (Escape, or EXIT TO TITLE on the pause overlay); the run is not recorded
-  function quitToTitle() { setPaused(false); Sfx.select(); if (Music.player) Music.player.setHd(null); Music.stop(); Music.start('title'); showScreen('title'); if (era3d) era3d.hide(); }
+  function quitToTitle() { setPaused(false); Sfx.select(); Music.stop(); Music.start('title'); showScreen('title'); if (era3d) era3d.hide(); }
 
   // the call is in: sound, crowd, the umpire's style for this reveal, the texts
   function onResolve(r) {
@@ -1456,7 +1432,8 @@
       .then((song) => { if (window.UUMusic) { window.UUMusic.Player.addSong(key, song); pool.push(key); } });
     for (const key of index.play || []) addTask(key.toUpperCase(), loadSong(key, PLAY_SONGS));
     for (const key of index.title || []) addTask(key.toUpperCase(), loadSong(key, TITLE_SONGS));
-    for (const key of index.hd || []) addTask(key.toUpperCase(), loadSong(key, HD_SONGS));
+    // audio tracks (mp3) load in the background: nothing waits on a few megabytes, the song is just absent until it lands
+    for (const key in index.audio || {}) if (window.UUMusic) window.UUMusic.Player.addAudio(key, 'assets/songs/' + index.audio[key] + V);
     total = tasks.length; show();
     await Promise.all(tasks);
     fill.style.width = '100%'; text.textContent = t('loading.done');
