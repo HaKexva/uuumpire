@@ -1163,6 +1163,7 @@
     },
     async show(period) {
       this.period = period;
+      const token = (this.req = (this.req || 0) + 1); // every click supersedes the one before it
       document.querySelectorAll('#screen-board .tab').forEach((b) => b.classList.toggle('active', b.dataset.period === period));
       const list = $('board-list'), status = $('board-status');
       list.innerHTML = '';
@@ -1170,7 +1171,8 @@
       if (!this.enabled) return;
       try {
         const data = await this.fetchJson('/api/scores?period=' + period);
-        if (this.period !== period) return;
+        if (token !== this.req) return; // a later click won; drop this stale response (even same tab)
+        list.innerHTML = ''; // clear again right before rendering, in case a raced response left rows
         status.textContent = '';
         if (!data.scores.length) { status.textContent = t('board.empty'); return; }
         const mine = (settings.name || '').trim();
@@ -1192,7 +1194,7 @@
         }
         this.fitNames();
       } catch (e) {
-        if (this.period === period) status.textContent = t('board.offline');
+        if (token === this.req) status.textContent = t('board.offline');
       }
     },
     // a name wider than its column (narrow phones) slides back and forth so the whole thing can be read
