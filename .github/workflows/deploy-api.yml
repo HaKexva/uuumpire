@@ -38,7 +38,7 @@ jobs:
         run: |
           sleep 20
           for i in 1 2 3 4 5 6; do
-            if curl -fsS https://api-production-c3f4.up.railway.app/api/health | grep -q '"ok":true'; then exit 0; fi
+            if curl -fsS https://api-production-c3f4.up.railway.app/health | grep -q '"ok":true'; then exit 0; fi
             sleep 10
           done
           echo "API did not come back healthy" >&2
