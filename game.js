@@ -1131,9 +1131,12 @@
   const API_BASE = (new URLSearchParams(location.search).get('api') || 'https://api-production-c3f4.up.railway.app').replace(/\/$/, '');
   const RUN_WAIT = 1500; // ms a game start waits for a seed at most
   const LOCAL_SKIP_RUN = LOCAL && !QS.has('api'); // a local page without ?api= plays unranked, no seed request
+  const BOARD_PAGE = 20; // rows per leaderboard page; all-time keeps up to 100, so up to 5 pages
+  const PAGINATE_FROM = '2026-10-21'; // all-time pages go live this Taipei day; until then only the top 20 show
   const Board = {
     period: 'daily',
     busy: false,
+    all: [], page: 0,
     enabled: !!API_BASE,
     // a seed per game (POST /api/runs). Fetched ahead on the title screen so PLAY BALL does not wait;
     // takeRun() hands it over, or waits at most RUN_WAIT for one, or gives null (offline: play unranked)
@@ -1169,35 +1172,67 @@
       document.querySelectorAll('#screen-board .tab').forEach((b) => b.classList.toggle('active', b.dataset.period === period));
       const list = $('board-list'), status = $('board-status');
       list.innerHTML = '';
+      this.all = []; this.page = 0; this.renderPager();
       status.textContent = this.enabled ? t('board.loading') : t('board.offline');
       if (!this.enabled) return;
       try {
         const data = await this.fetchJson('/api/scores?period=' + period);
         if (token !== this.req) return; // a later click won; drop this stale response (even same tab)
-        list.innerHTML = ''; // clear again right before rendering, in case a raced response left rows
         status.textContent = '';
-        if (!data.scores.length) { status.textContent = t('board.empty'); return; }
+        if (!data.scores.length) { list.innerHTML = ''; status.textContent = t('board.empty'); this.renderPager(); return; }
+        this.all = data.scores;
+        // all-time pagination releases on PAGINATE_FROM (Taipei): before that day the board still shows
+        // only the top 20, even though the server keeps 100. data.day is the server's Taipei date, so the
+        // switch does not depend on the player's clock. On/after the day the full 100 paginate.
+        if (period === 'all' && data.day && data.day < PAGINATE_FROM) this.all = this.all.slice(0, BOARD_PAGE);
+        // open on the page that holds the player's own best, so a rank past page 1 is still seen
         const mine = (settings.name || '').trim();
-        for (const s of data.scores) {
-          const li = document.createElement('li');
-          if (mine && s.name === mine && lastGame && s.score === lastGame.score) li.className = 'me';
-          const who = document.createElement('span'); who.className = 'who';
-          // names are shown as typed: translate="no" keeps browser page translation off them
-          const rk = document.createElement('span'); rk.className = 'rk' + (s.rank <= 3 ? ' m' + s.rank : '');
-          if (s.rank <= 3) rk.innerHTML = MEDAL_FILL + MEDAL_HOLLOW; // one of the two shows, per palette
-          rk.appendChild(document.createTextNode(ordinal(s.rank)));
-          const nm = document.createElement('span'); nm.className = 'nm'; nm.translate = false;
-          const nmIn = document.createElement('span'); nmIn.className = 'nm-in'; nmIn.textContent = s.name; nm.appendChild(nmIn);
-          const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy, s.reaction === null || s.reaction === undefined ? '-' : Number(s.reaction).toFixed(2));
-          who.appendChild(rk); who.appendChild(nm); who.appendChild(meta);
-          const b = document.createElement('b'); b.textContent = s.score;
-          li.appendChild(who); li.appendChild(b);
-          list.appendChild(li);
-        }
-        this.fitNames();
+        let idx = -1;
+        if (mine && lastGame) idx = this.all.findIndex((s) => s.name === mine && s.score === lastGame.score);
+        this.page = idx >= 0 ? Math.floor(idx / BOARD_PAGE) : 0;
+        this.renderList();
       } catch (e) {
-        if (token === this.req) status.textContent = t('board.offline');
+        if (token === this.req) { this.all = []; this.renderPager(); status.textContent = t('board.offline'); }
       }
+    },
+    renderList() {
+      const list = $('board-list');
+      list.innerHTML = '';
+      const mine = (settings.name || '').trim();
+      for (const s of this.all.slice(this.page * BOARD_PAGE, this.page * BOARD_PAGE + BOARD_PAGE)) {
+        const li = document.createElement('li');
+        if (mine && s.name === mine && lastGame && s.score === lastGame.score) li.className = 'me';
+        const who = document.createElement('span'); who.className = 'who';
+        // names are shown as typed: translate="no" keeps browser page translation off them
+        const rk = document.createElement('span'); rk.className = 'rk' + (s.rank <= 3 ? ' m' + s.rank : '');
+        if (s.rank <= 3) rk.innerHTML = MEDAL_FILL + MEDAL_HOLLOW; // one of the two shows, per palette
+        rk.appendChild(document.createTextNode(ordinal(s.rank)));
+        const nm = document.createElement('span'); nm.className = 'nm'; nm.translate = false;
+        const nmIn = document.createElement('span'); nmIn.className = 'nm-in'; nmIn.textContent = s.name; nm.appendChild(nmIn);
+        const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy, s.reaction === null || s.reaction === undefined ? '-' : Number(s.reaction).toFixed(2));
+        who.appendChild(rk); who.appendChild(nm); who.appendChild(meta);
+        const b = document.createElement('b'); b.textContent = s.score;
+        li.appendChild(who); li.appendChild(b);
+        list.appendChild(li);
+      }
+      this.renderPager();
+      this.fitNames();
+    },
+    renderPager() {
+      const pager = $('board-pager');
+      if (!pager) return;
+      const pages = Math.ceil(this.all.length / BOARD_PAGE);
+      if (pages <= 1) { pager.classList.add('hidden'); return; }
+      pager.classList.remove('hidden');
+      $('pg-label').textContent = (this.page + 1) + ' / ' + pages;
+      pager.querySelector('.pg-prev').disabled = this.page <= 0;
+      pager.querySelector('.pg-next').disabled = this.page >= pages - 1;
+    },
+    turnPage(d) {
+      const pages = Math.ceil(this.all.length / BOARD_PAGE);
+      const p = Math.min(Math.max(this.page + d, 0), pages - 1);
+      if (p === this.page) return;
+      this.page = p; Sfx.select(); this.renderList();
     },
     // a name wider than its column (narrow phones) slides back and forth so the whole thing can be read
     fitNames() {
@@ -1264,6 +1299,8 @@
   $('btn-submit').addEventListener('click', () => Board.submit());
   $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); Board.submit(); } e.stopPropagation(); });
   document.querySelectorAll('#screen-board .tab').forEach((b) => b.addEventListener('click', () => { Sfx.select(); Board.show(b.dataset.period); }));
+  $('board-pager').querySelector('.pg-prev').addEventListener('click', () => Board.turnPage(-1));
+  $('board-pager').querySelector('.pg-next').addEventListener('click', () => Board.turnPage(1));
 
   // play buttons
   const press = (btn, call) => {
