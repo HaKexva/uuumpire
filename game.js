@@ -857,9 +857,11 @@
     $('over-streak').textContent = s.streak;
     $('over-react').textContent = s.reaction === null ? '-' : s.reaction.toFixed(2) + 's';
     cancelReprieve();
+    s.level = G.level; // the level the run ended on (the feedback box opens from level 6)
     lastGame = Object.assign(s, { run: run ? run.run : null, log: runLog });
     Board.resetSubmit();
     Board.prepRun(); // a seed for the next game
+    Feedback.reset();
     const prevBest = settings.records.length ? settings.records[0].score : 0;
     const isBest = s.score > prevBest && s.score > 0;
     $('over-newbest').classList.toggle('hidden', !isBest);
@@ -1368,6 +1370,46 @@
       }
     },
   };
+  // A general feedback box on the game-over screen for anyone who ended on level 6 or beyond (where the
+  // game gets hard): a 1-5 star rating plus a free-text line, sent with the run's score and level; the dev
+  // reads it with the admin token (README). Both a rating and some text are required to send. Entirely
+  // optional, and only shown when the board API is reachable.
+  const FEEDBACK_LEVEL = 6;
+  const Feedback = {
+    busy: false,
+    rating: 0,
+    paint() {
+      const stars = $('fb-stars').querySelectorAll('.fb-star');
+      stars.forEach((s, i) => s.classList.toggle('on', i < this.rating));
+    },
+    setRating(n) { this.rating = n; this.paint(); if ($('fb-status').textContent === t('fb.need')) $('fb-status').textContent = ''; },
+    reset() {
+      const show = Board.enabled && lastGame && (lastGame.level >= FEEDBACK_LEVEL || (DEBUG && QS.has('fb')));
+      $('fb-box').classList.toggle('hidden', !show);
+      this.rating = 0; this.paint();
+      $('fb-text').value = ''; $('fb-status').textContent = ''; $('btn-fb-send').disabled = false; this.busy = false;
+    },
+    async send() {
+      if (this.busy || !lastGame) return;
+      const message = $('fb-text').value.trim().slice(0, 500);
+      if (!this.rating || !message) { $('fb-status').textContent = t('fb.need'); if (!message) $('fb-text').focus(); return; }
+      this.busy = true; $('btn-fb-send').disabled = true; $('fb-status').textContent = t('submit.sending');
+      try {
+        await Board.fetchJson('/api/feedback', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, rating: this.rating, name: settings.name || '', lang: settings.lang, score: lastGame.score, level: lastGame.level, pitches: lastGame.pitches, accuracy: lastGame.accuracy }),
+        });
+        $('fb-status').textContent = t('fb.sent'); Sfx.good();
+        setTimeout(() => { if (this.busy) $('fb-box').classList.add('hidden'); }, 1500);
+      } catch (e) {
+        $('fb-status').textContent = t('fb.fail');
+        this.busy = false; $('btn-fb-send').disabled = false;
+      }
+    },
+  };
+  $('fb-stars').querySelectorAll('.fb-star').forEach((s) => s.addEventListener('click', () => { Sfx.select(); Feedback.setRating(+s.dataset.rate); }));
+  $('btn-fb-send').addEventListener('click', () => Feedback.send());
+  $('fb-text').addEventListener('keydown', (e) => e.stopPropagation()); // typing must not call pitches or restart
   // 7x7 pixel stars for the top three: filled (gold / silver / bronze) or hollow (Game Boy's bronze, where
   // three shades are not enough for three medals). CSS picks which one shows.
   const MEDAL_FILL = '<svg class="medal fill" viewBox="0 0 7 7" aria-hidden="true"><path d="M3 0h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM0 6h1v1h-1zM6 6h1v1h-1z"/></svg>';

@@ -7,6 +7,9 @@
    POST /api/runs                         -> { run, seed }   a seed for one game (replayed on submit)
    POST /api/scores { name, score, pitches, accuracy, streak, reaction, lang, run, log }
                                           -> { ok, rankDaily, rankAll }  or 400 { error }
+   POST /api/feedback { message, rating, score, level, pitches, accuracy, name, lang }
+                                          -> { ok }        a rating + line from a player who reached level 6+
+   GET  /api/feedback?limit=100           -> { feedback: [...] }  newest first; header x-admin-token (ADMIN_TOKEN)
 
    Anti-cheat: a score must come with the run id the game was started on and its call log; the server
    replays the log on that seed with core.js (replayRun) and only takes the score the replay produces.
@@ -41,6 +44,7 @@ const pool = process.env.DATABASE_URL
   ? new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.PGSSL === 'disable' ? false : { rejectUnauthorized: false } })
   : null;
 const mem = []; // fallback when no database is configured (dev)
+const memFeedback = [];
 const memPlays = new Map(); // day -> games started (dev fallback)
 const memRuns = new Map(); // id -> { seed, created_at, used }
 
@@ -60,6 +64,20 @@ async function init() {
   )`);
   await pool.query('CREATE INDEX IF NOT EXISTS scores_day_score ON scores (day, score DESC)');
   await pool.query('CREATE INDEX IF NOT EXISTS scores_score ON scores (score DESC)');
+  await pool.query(`CREATE TABLE IF NOT EXISTS feedback (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    score INTEGER,
+    level INTEGER,
+    pitches INTEGER,
+    accuracy INTEGER,
+    rating INTEGER,
+    lang TEXT,
+    message TEXT NOT NULL,
+    ua TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`);
+  await pool.query('ALTER TABLE feedback ADD COLUMN IF NOT EXISTS rating INTEGER'); // for a table created before ratings
   await pool.query('CREATE TABLE IF NOT EXISTS plays (day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)');
   await pool.query(`CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY,
@@ -220,6 +238,26 @@ function validate(b) {
   return { name, score: Math.round(score), pitches: Math.round(pitches), accuracy: Math.round(accuracy), streak: Math.round(streak), reaction, lang };
 }
 
+// a player's rating + line, with the run it came from. message and rating are what they enter.
+function validateFeedback(b) {
+  if (!b || typeof b !== 'object') return null;
+  const message = String(b.message || '').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim().slice(0, 500);
+  if (!message) return null;
+  const num = (v, lo, hi) => { const n = Number(v); return Number.isFinite(n) && n >= lo && n <= hi ? Math.round(n) : null; };
+  const name = String(b.name || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 12) || null;
+  const lang = ['en', 'zh', 'ja', 'nan'].includes(b.lang) ? b.lang : null;
+  return { message, name, lang, rating: num(b.rating, 1, 5), score: num(b.score, 0, 1000000), level: num(b.level, 1, 99), pitches: num(b.pitches, 0, 1000), accuracy: num(b.accuracy, 0, 100) };
+}
+async function addFeedback(rec, ua) {
+  if (!pool) { memFeedback.unshift({ id: memFeedback.length + 1, ...rec, ua, created_at: new Date().toISOString() }); return; }
+  await pool.query('INSERT INTO feedback (name, score, level, pitches, accuracy, rating, lang, message, ua) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+    [rec.name, rec.score, rec.level, rec.pitches, rec.accuracy, rec.rating, rec.lang, rec.message, ua]);
+}
+async function listFeedback(limit) {
+  if (!pool) return memFeedback.slice(0, limit);
+  return (await pool.query('SELECT id, name, score, level, pitches, accuracy, rating, lang, message, ua, created_at FROM feedback ORDER BY created_at DESC LIMIT $1', [limit])).rows;
+}
+
 const hits = new Map(); // ip -> [timestamps]
 function limited(ip) {
   const now = Date.now();
@@ -234,7 +272,7 @@ function limited(ip) {
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, x-admin-token',
   'Access-Control-Max-Age': '86400',
 };
 function send(res, status, body) {
@@ -259,6 +297,20 @@ const server = http.createServer(async (req, res) => {
       const period = url.searchParams.get('period') === 'all' ? 'all' : 'daily';
       const { day, rows } = await top(period);
       return send(res, 200, { period, day, scores: rows.map((r, i) => ({ rank: i + 1, ...r })) });
+    }
+    if (url.pathname === '/api/feedback' && req.method === 'POST') {
+      const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+      if (limited(ip)) return send(res, 429, { error: 'slow down' });
+      const rec = validateFeedback(await readJson(req));
+      if (!rec) return send(res, 400, { error: 'bad feedback' });
+      await addFeedback(rec, String(req.headers['user-agent'] || '').slice(0, 200));
+      return send(res, 200, { ok: true });
+    }
+    // the dev reads feedback with the admin token (only when ADMIN_TOKEN is set)
+    if (url.pathname === '/api/feedback' && req.method === 'GET' && process.env.ADMIN_TOKEN) {
+      if (req.headers['x-admin-token'] !== process.env.ADMIN_TOKEN) return send(res, 403, { error: 'forbidden' });
+      const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 100));
+      return send(res, 200, { feedback: await listFeedback(limit) });
     }
     if (url.pathname === '/api/plays' && req.method === 'GET') return send(res, 200, await plays());
     if (url.pathname === '/api/plays' && req.method === 'POST') {
