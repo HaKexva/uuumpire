@@ -12,7 +12,7 @@
   // ------------------------------------------------------------
   const SONG = {
     title: 'UUUMPIRE Theme (Play Ball!)',
-    bpm: 168,
+    bpm: 151,
     stepsPerBar: 8,
     tracks: {
       lead: {
@@ -207,7 +207,7 @@
   // Chords: Am F G Am | Dm E Am E
   const DISCO = {
     title: 'UUUMPIRE Level 10 (Hyper Disco)',
-    bpm: 188,
+    bpm: 169,
     stepsPerBar: 8,
     tracks: {
       lead: {
@@ -274,7 +274,7 @@
   // replacement for the old produced mp3. 8 bars, loops. Chords: Em C G D | Em C D B
   const LV11 = {
     title: 'UUUMPIRE Level 11 (Hyper Anthem)',
-    bpm: 196,
+    bpm: 176,
     stepsPerBar: 8,
     tracks: {
       lead: {
