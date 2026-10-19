@@ -429,7 +429,7 @@ button { font-family: inherit; }
 .submit-status { margin: 6px 0 0; min-height: 14px; color: var(--g-gold); }
 .submit-row.hidden, .submit-status.hidden { display: none; }
 /* feedback box (game over, runs that reached level 6+) */
-.fb-box { margin: 12px 0 14px; text-align: left; }
+.fb-box { margin: 12px 0 14px; padding: 10px 12px; text-align: left; }
 .fb-box.hidden { display: none; }
 .fb-hint { margin: 4px 0 6px; }
 .fb-stars { display: flex; gap: 4px; margin: 2px 0 8px; }
