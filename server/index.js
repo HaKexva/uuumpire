@@ -2,20 +2,42 @@
 
    GET  /health                           -> { ok: true }
    GET  /api/scores?period=daily|all      -> { period, day, scores: [{ rank, name, score, pitches, accuracy, streak, reaction, day }] }
-   POST /api/scores { name, score, pitches, accuracy, streak, reaction, lang }
-                                          -> { ok, rankDaily, rankAll }
+   POST /api/plays                        -> { ok, counted }   one more game started today (PLAY BALL clicked)
+   GET  /api/plays                        -> { day, today, total, from }
+   POST /api/runs                         -> { run, seed }   a seed for one game (replayed on submit)
+   POST /api/scores { name, score, pitches, accuracy, streak, reaction, lang, run, log }
+                                          -> { ok, rankDaily, rankAll }  or 400 { error }
    POST /api/feedback { message, rating, score, level, pitches, accuracy, name, lang }
                                           -> { ok }        a rating + line from a player who reached level 6+
    GET  /api/feedback?limit=100           -> { feedback: [...] }  newest first; header x-admin-token (ADMIN_TOKEN)
 
+   Anti-cheat: a score must come with the run id the game was started on and its call log; the server
+   replays the log on that seed with core.js (replayRun) and only takes the score the replay produces.
+   A run is single-use and expires after RUN_TTL. REQUIRE_RUN=0 accepts bare scores (old clients).
+
    "Today" is the Asia/Taipei calendar day (the players are mostly in TW/JP). CORS is open: the game is a
    static page on another origin and nothing here is sensitive. */
 import http from 'node:http';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
 import pg from 'pg';
+import { isProfane } from './profanity.js';
+
+// core.js is the game itself. `railway up` ships server/ alone, so the pre-commit hook keeps a copy
+// here as server/core.cjs (this package is type: module, so a .js copy would not load with require);
+// a repo checkout prefers the original one directory up.
+const require = createRequire(import.meta.url);
+const CORE_PATH = fs.existsSync(new URL('../core.js', import.meta.url)) ? '../core.js' : './core.cjs';
+const C = require(CORE_PATH);
 
 const PORT = process.env.PORT || 8787;
 const TZ = process.env.BOARD_TZ || 'Asia/Taipei';
-const LIMIT = 20; // rows shown per board; anything outside both top-20s is pruned (see prune())
+const DAILY_LIMIT = 20;  // rows shown on the daily board
+const ALL_LIMIT = 100;   // rows shown on the all-time board; anything outside both tops is pruned (see prune())
+const PLAYS_FROM = process.env.PLAYS_FROM || '2026-10-18'; // the play counter starts on this Taipei day; earlier starts are not counted
+const RUN_TTL = 12 * 3600 * 1000; // a seed is good for one game started within this
+const REQUIRE_RUN = process.env.REQUIRE_RUN !== '0';
 
 // ---- storage -------------------------------------------------------------
 const pool = process.env.DATABASE_URL
@@ -23,6 +45,8 @@ const pool = process.env.DATABASE_URL
   : null;
 const mem = []; // fallback when no database is configured (dev)
 const memFeedback = [];
+const memPlays = new Map(); // day -> games started (dev fallback)
+const memRuns = new Map(); // id -> { seed, created_at, used }
 
 async function init() {
   if (!pool) { console.log('no DATABASE_URL: using in-memory scores'); return; }
@@ -54,6 +78,14 @@ async function init() {
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`);
   await pool.query('ALTER TABLE feedback ADD COLUMN IF NOT EXISTS rating INTEGER'); // for a table created before ratings
+  await pool.query('CREATE TABLE IF NOT EXISTS plays (day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)');
+  await pool.query(`CREATE TABLE IF NOT EXISTS runs (
+    id TEXT PRIMARY KEY,
+    seed INTEGER NOT NULL,
+    created_at BIGINT NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0
+  )`);
+  await pruneRuns();
   console.log('postgres ready');
   await prune();
 }
@@ -63,31 +95,31 @@ const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'nume
 async function top(period) {
   const day = today();
   if (!pool) {
-    const rows = mem.filter((r) => period !== 'daily' || r.day === day).sort((a, b) => b.score - a.score).slice(0, LIMIT);
+    const rows = mem.filter((r) => period !== 'daily' || r.day === day).sort((a, b) => b.score - a.score).slice(0, period === 'daily' ? DAILY_LIMIT : ALL_LIMIT);
     return { day, rows };
   }
   const q = period === 'daily'
-    ? { text: 'SELECT name, score, pitches, accuracy, streak, reaction, day FROM scores WHERE day = $1 ORDER BY score DESC, created_at ASC LIMIT $2', values: [day, LIMIT] }
-    : { text: 'SELECT name, score, pitches, accuracy, streak, reaction, day FROM scores ORDER BY score DESC, created_at ASC LIMIT $1', values: [LIMIT] };
+    ? { text: 'SELECT name, score, pitches, accuracy, streak, reaction, day FROM scores WHERE day = $1 ORDER BY score DESC, created_at ASC LIMIT $2', values: [day, DAILY_LIMIT] }
+    : { text: 'SELECT name, score, pitches, accuracy, streak, reaction, day FROM scores ORDER BY score DESC, created_at ASC LIMIT $1', values: [ALL_LIMIT] };
   const { rows } = await pool.query(q);
   return { day, rows };
 }
 
-// Keep only what can ever be shown again: the all-time top LIMIT and today's top LIMIT. A row that is
-// in neither will never appear on either board (yesterday's board is gone), so it goes. Runs after every
-// insert and at startup. Ties break the same way top() orders them (earlier submission first).
+// Keep only what can ever be shown again: the all-time top ALL_LIMIT and today's top DAILY_LIMIT. A row
+// that is in neither will never appear on either board (yesterday's board is gone), so it goes. Runs after
+// every insert and at startup. Ties break the same way top() orders them (earlier submission first).
 async function prune() {
   const day = today();
   if (!pool) {
     const byScore = (a, b) => b.score - a.score || a.created_at - b.created_at;
-    const keep = new Set([...mem].sort(byScore).slice(0, LIMIT).concat(mem.filter((r) => r.day === day).sort(byScore).slice(0, LIMIT)));
+    const keep = new Set([...mem].sort(byScore).slice(0, ALL_LIMIT).concat(mem.filter((r) => r.day === day).sort(byScore).slice(0, DAILY_LIMIT)));
     for (let i = mem.length - 1; i >= 0; i--) if (!keep.has(mem[i])) mem.splice(i, 1);
     return;
   }
   const { rowCount } = await pool.query(
     `DELETE FROM scores WHERE id NOT IN (SELECT id FROM scores ORDER BY score DESC, created_at ASC LIMIT $1)
-       AND id NOT IN (SELECT id FROM scores WHERE day = $2 ORDER BY score DESC, created_at ASC LIMIT $1)`, [LIMIT, day]);
-  if (rowCount) console.log('pruned', rowCount, 'rows outside the top', LIMIT);
+       AND id NOT IN (SELECT id FROM scores WHERE day = $2 ORDER BY score DESC, created_at ASC LIMIT $3)`, [ALL_LIMIT, day, DAILY_LIMIT]);
+  if (rowCount) console.log('pruned', rowCount, 'rows outside the top boards');
 }
 
 async function insert(rec) {
@@ -106,6 +138,88 @@ async function insert(rec) {
   const a = await pool.query('SELECT COUNT(*)::int AS n FROM scores WHERE score > $1', [rec.score]);
   await prune();
   return { rankDaily: d.rows[0].n + 1, rankAll: a.rows[0].n + 1 };
+}
+
+// ---- play counter: one row per Taipei day, bumped when PLAY BALL is clicked ----------------------
+async function countPlay() {
+  const day = today();
+  if (day < PLAYS_FROM) return false;
+  if (!pool) { memPlays.set(day, (memPlays.get(day) || 0) + 1); return true; }
+  await pool.query('INSERT INTO plays (day, n) VALUES ($1, 1) ON CONFLICT (day) DO UPDATE SET n = plays.n + 1', [day]);
+  return true;
+}
+async function plays() {
+  const day = today();
+  if (!pool) { let total = 0; for (const n of memPlays.values()) total += n; return { day, today: memPlays.get(day) || 0, total, from: PLAYS_FROM }; }
+  const t = await pool.query('SELECT n FROM plays WHERE day = $1', [day]);
+  const a = await pool.query('SELECT COALESCE(SUM(n), 0)::int AS n FROM plays');
+  return { day, today: t.rows.length ? t.rows[0].n : 0, total: a.rows[0].n, from: PLAYS_FROM };
+}
+
+// ---- runs: a seed per game, replayed on submit ---------------------------
+async function newRun() {
+  const id = crypto.randomUUID(), seed = crypto.randomInt(1, 2147483647), now = Date.now();
+  if (!pool) { memRuns.set(id, { seed, created_at: now, used: 0 }); if (memRuns.size > 20000) await pruneRuns(); }
+  else { await pool.query('INSERT INTO runs (id, seed, created_at) VALUES ($1,$2,$3)', [id, seed, now]); if (Math.random() < 0.02) await pruneRuns(); }
+  return { run: id, seed };
+}
+// the run, marked used; null when unknown, already used or expired
+async function takeRun(id) {
+  if (typeof id !== 'string' || id.length > 64) return null;
+  const since = Date.now() - RUN_TTL;
+  if (!pool) {
+    const r = memRuns.get(id);
+    if (!r || r.used || r.created_at < since) return null;
+    r.used = 1;
+    return r;
+  }
+  const q = await pool.query('UPDATE runs SET used = 1 WHERE id = $1 AND used = 0 AND created_at > $2 RETURNING seed, created_at', [id, since]);
+  return q.rows[0] ? { seed: q.rows[0].seed, created_at: Number(q.rows[0].created_at) } : null;
+}
+async function pruneRuns() {
+  const since = Date.now() - RUN_TTL;
+  if (!pool) { for (const [id, r] of memRuns) if (r.used || r.created_at < since) memRuns.delete(id); return; }
+  await pool.query('DELETE FROM runs WHERE used = 1 OR created_at < $1', [since]);
+}
+// Human-plausibility gate on the call log. The replay already proved the log plays to the submitted
+// score; this rejects logs that reach it in a way no human hand could. core.js ships to the browser and
+// the run's seed is handed to the client, so a script can read each pitch's answer off the seed and dump
+// a flawless, machine-timed log that replays perfectly ("the seed oracle"). The replay cannot tell that
+// log from a real one -- the answer is the same -- so these checks look at *how* it was produced instead.
+// This raises the bar; it does not (and by design cannot) stop a bot that mimics human timing and misses.
+const UNIFORM_MIN = 15;   // only judge timing spread once there are this many real calls
+const UNIFORM_STD = 0.01; // s: tighter call-to-call spread than any human hand holds over a whole game
+function plausible(log, rec) {
+  const ts = [];
+  for (const e of log) {
+    if (!Array.isArray(e) || e[0] === 'save' || e[0] == null || typeof e[1] !== 'number') continue; // a reprieve answer / a pitch left to the clock has no call time
+    ts.push(e[1]);
+  }
+  // 100% accuracy can only mean a flawless full season: a shorter perfect game never reaches game-over
+  // and so can never be submitted. No human has ever won one on the board; calling every blind pitch of
+  // the nasty levels right is the oracle's signature. A cheat must now miss at least once to get on.
+  if (rec.accuracy >= 100) return 'perfect';
+  if (ts.length >= UNIFORM_MIN) {                    // machine-even call timing across the game
+    const m = ts.reduce((a, b) => a + b, 0) / ts.length;
+    const sd = Math.sqrt(ts.reduce((a, b) => a + (b - m) * (b - m), 0) / ts.length);
+    if (sd < UNIFORM_STD) return 'uniform';
+  }
+  return null;
+}
+
+// why a submitted score is not the one its log plays to (null = it is)
+async function verify(rec, body) {
+  if (body.run === undefined && body.log === undefined && !REQUIRE_RUN) return null;
+  const run = await takeRun(body.run);
+  if (!run) return 'run';
+  const r = C.replayRun(run.seed, body.log);
+  if (!r) return 'log';
+  if (r.score !== rec.score || r.pitches !== rec.pitches || r.accuracy !== rec.accuracy || r.streak !== rec.streak) return 'score';
+  if ((r.reaction === null) !== (rec.reaction === null) || (r.reaction !== null && Math.abs(r.reaction - rec.reaction) > 0.002)) return 'reaction';
+  if (Date.now() - run.created_at < r.seconds * 1000 * 0.9) return 'clock'; // played faster than the game runs
+  const bad = plausible(Array.isArray(body.log) ? body.log : [], rec); // human-plausibility of the call log
+  if (bad) return bad;
+  return null;
 }
 
 // ---- validation + rate limit --------------------------------------------
@@ -168,7 +282,7 @@ function send(res, status, body) {
 function readJson(req) {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', (c) => { data += c; if (data.length > 4096) { reject(new Error('too large')); req.destroy(); } });
+    req.on('data', (c) => { data += c; if (data.length > 16384) { reject(new Error('too large')); req.destroy(); } });
     req.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch (e) { reject(e); } });
     req.on('error', reject);
   });
@@ -198,6 +312,12 @@ const server = http.createServer(async (req, res) => {
       const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get('limit'), 10) || 100));
       return send(res, 200, { feedback: await listFeedback(limit) });
     }
+    if (url.pathname === '/api/plays' && req.method === 'GET') return send(res, 200, await plays());
+    if (url.pathname === '/api/plays' && req.method === 'POST') {
+      const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+      if (limited(ip)) return send(res, 429, { error: 'slow down' });
+      return send(res, 200, { ok: true, counted: await countPlay() });
+    }
     // moderation: POST /api/admin/delete { name } with header x-admin-token (only when ADMIN_TOKEN is set)
     if (url.pathname === '/api/admin/delete' && req.method === 'POST' && process.env.ADMIN_TOKEN) {
       if (req.headers['x-admin-token'] !== process.env.ADMIN_TOKEN) return send(res, 403, { error: 'forbidden' });
@@ -209,11 +329,20 @@ const server = http.createServer(async (req, res) => {
       else { const before = mem.length; for (let i = mem.length - 1; i >= 0; i--) if (mem[i].name === name) mem.splice(i, 1); removed = before - mem.length; }
       return send(res, 200, { ok: true, removed });
     }
+    if (url.pathname === '/api/runs' && req.method === 'POST') {
+      const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+      if (limited(ip)) return send(res, 429, { error: 'slow down' });
+      return send(res, 200, await newRun());
+    }
     if (url.pathname === '/api/scores' && req.method === 'POST') {
       const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
       if (limited(ip)) return send(res, 429, { error: 'slow down' });
-      const rec = validate(await readJson(req));
+      const body = await readJson(req);
+      const rec = validate(body);
       if (!rec) return send(res, 400, { error: 'bad score' });
+      if (isProfane(rec.name)) return send(res, 400, { error: 'name not allowed' });
+      const why = await verify(rec, body);
+      if (why) { console.log(`rejected ${rec.name} ${rec.score} (${why}) from ${ip}`); return send(res, 400, { error: 'rejected', why }); }
       const ranks = await insert(rec);
       return send(res, 200, { ok: true, ...ranks });
     }
@@ -224,5 +353,5 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-init().then(() => server.listen(PORT, () => console.log('uuumpire api on :' + PORT)))
+init().then(() => server.listen(PORT, () => console.log(`uuumpire api on :${PORT} (core ${CORE_PATH}, runs ${REQUIRE_RUN ? 'required' : 'optional'})`)))
   .catch((e) => { console.error('init failed', e); process.exit(1); });

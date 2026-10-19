@@ -1,0 +1,98 @@
+{
+ "title": "When the Saints Go Marching In (trad.)",
+ "bpm": 224,
+ "stepsPerBar": 8,
+ "key": "G",
+ "source": "flutetunes.com tunes/when-the-saints-go-marching-in.mid",
+ "tracks": {
+  "lead": {
+   "type": "pulse",
+   "duty": 0.5,
+   "vol": 0.05,
+   "midiProgram": 56,
+   "bars": [
+    "g4 . b4 . c5 . d5 .",
+    ". . . . . . . .",
+    "g4 . b4 . c5 . d5 .",
+    ". . . . . . . .",
+    "g4 . b4 . c5 . d5 .",
+    ". . b4 . . . g4 .",
+    ". . b4 . . . a4 .",
+    ". . . . . . . .",
+    "b4 . b4 . a4 . g4 .",
+    ". . . . g4 . b4 .",
+    ". . d5 . . . d5 .",
+    "c5 . . . . . . .",
+    "c5 . b4 . c5 . d5 .",
+    ". . b4 . . . g4 .",
+    ". . a4 . . . g4 ."
+   ]
+  },
+  "harmony": {
+   "type": "pulse",
+   "duty": 0.5,
+   "vol": 0.028,
+   "midiProgram": 61,
+   "bars": [
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- e3 - g3 - e3 - g3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3",
+    "- b3 - d3 - b3 - d3"
+   ]
+  },
+  "bass": {
+   "type": "triangle",
+   "vol": 0.09,
+   "midiProgram": 58,
+   "bars": [
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "c2 - g2 - c2 - g2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -",
+    "g2 - d2 - g2 - d2 -"
+   ]
+  },
+  "drums": {
+   "type": "noise",
+   "vol": 0.035,
+   "bars": [
+    "K h S h K h S h",
+    "K h S h K h S h",
+    "K h S h K h S h",
+    "K h S h K h S S",
+    "K h S h K h S h",
+    "K h S h K h S h",
+    "K h S h K h S h",
+    "K h S h K h S S",
+    "K h S h K h S h",
+    "K h S h K h S h",
+    "K h S h K h S h",
+    "K h S h K h S S",
+    "K h S h K h S h",
+    "K h S h K h S h",
+    "K h S h K h S h"
+   ]
+  }
+ }
+}

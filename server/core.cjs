@@ -42,11 +42,14 @@
     firstPitch: 0.9, nextPitch: 0.35, levelUp: 2.4, congrats: 3.6, // delay before the next windup
   };
   const RULES = {
-    misses: 3, pitchesPerLevel: 5, maxLevel: 11, moodMax: 5,
+    misses: 3, pitchesPerLevel: 5, maxLevel: 11, moodMax: 5, reprieveMinLevel: 6,
     base: 100, streakStep: 0.1, streakCap: 10,   // x1.0 .. x2.0
     fineEdge: 3.8, finePts: 50,                   // edge pitch bonus (px from the zone edge)
     quick: 0.6, quickPts: 30,                     // quick call bonus (s)
-    swingLevel: 4, framingLevel: 5, submarineLevel: 3, discoLevel: 10,
+    late: 0.3, latePts: 50,                       // held call bonus: a correct call inside the last 0.3 s of the window
+    swingLevel: 4, framingLevel: 5, submarineLevel: 3, nastyLevel: 6, discoLevel: 10,
+    breakGain: 1.1,   // every pitch but the four-seamer moves this much more than its table says
+    nastyWeight: 1.2, // a nasty pitch (level 6+) comes this many times as often as an ordinary type
   };
   // What each level adds (the UI shows lvl.<level>). Levels not listed just get faster/tighter.
   const UNLOCKS = { 2: 'breaking', 3: 'submarine', 4: 'swings', 5: 'framing', 6: 'nasty', 7: 'faster', 10: 'pro' };
@@ -99,16 +102,20 @@
     return level >= RULES.submarineLevel && (rng || Math.random)() < 0.3 ? 'SUBMARINE' : 'OVERHAND';
   }
 
+  // the weight each type carries at a level (0 = not yet in the arsenal)
+  function typeWeight(t, level) {
+    if (level < t.minLv) return 0;
+    let w = t.w;
+    if (t.name === 'FOURSEAM') w += Math.max(0, 5 - level); // early levels: mostly fastballs
+    if (t.minLv >= RULES.nastyLevel) w *= RULES.nastyWeight;  // the nasty stuff shows up more than its share
+    return w;
+  }
   function pickType(level, rng) {
-    // early levels: mostly fastballs; the arsenal opens up with level
-    const pool = [];
-    for (const t of PITCH_TYPES) {
-      if (level < t.minLv) continue;
-      let w = t.w;
-      if (t.name === 'FOURSEAM') w += Math.max(0, 5 - level);
-      for (let i = 0; i < w; i++) pool.push(t);
-    }
-    return R(rng || Math.random).pick(pool);
+    // one draw over the weighted arsenal (one rng call, like the old pool pick, so replays stay exact)
+    const ws = PITCH_TYPES.map((t) => typeWeight(t, level));
+    let r = (rng || Math.random)() * ws.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < ws.length; i++) { r -= ws[i]; if (r < 0) return PITCH_TYPES[i]; }
+    return PITCH_TYPES[0];
   }
 
   function isStrikeAt(zone, x, y) {
@@ -165,14 +172,16 @@
     const form = pickForm(level, rng);
     const hand = sgn(); // +1 right-hander: arm on the umpire's left (-x), glove side = +x
     const dir = type.side === 'glove' ? hand : type.side === 'arm' ? -hand : sgn();
-    let bx = rnd(type.bx[0], type.bx[1]) * dir;
-    let by = rnd(type.by[0], type.by[1]);
-    const hump = type.hump ? rnd(type.hump[0], type.hump[1]) : 0;
+    // breaking balls move a bit more than the table says; the four-seamer is the straight reference
+    const gain = type.name === 'FOURSEAM' ? 1 : RULES.breakGain;
+    let bx = rnd(type.bx[0], type.bx[1]) * dir * gain;
+    let by = rnd(type.by[0], type.by[1]) * gain;
+    const hump = type.hump ? rnd(type.hump[0], type.hump[1]) * gain : 0;
     // speed creeps up with level, then jumps from level 10 on
     let speed = Math.round(rnd(type.speed[0], type.speed[1]) + Math.min(level, 8) + Math.max(0, level - 9) * 3);
     // knuckleball: no spin, flutters side to side on the way in (sin terms vanish at t=1, so it still lands on target)
     const wob = type.wobble ? {
-      ax: rnd(type.wobble[0], type.wobble[1]) * sgn(), ay: rnd(type.wobble[0], type.wobble[1]) * 0.6 * sgn(),
+      ax: rnd(type.wobble[0], type.wobble[1]) * gain * sgn(), ay: rnd(type.wobble[0], type.wobble[1]) * 0.6 * gain * sgn(),
       nx: pick([2, 3]), ny: pick([2, 3, 4]),
     } : null;
     if (form === 'SUBMARINE') {
@@ -241,14 +250,16 @@
   // ------------------------------------------------------------
   // Scoring and crowd
   // ------------------------------------------------------------
-  // Points for a correct call. streak counts this call. bonus lists the keys earned ('fine', 'quick').
-  function scoreCall(streak, pitch, reaction) {
+  // Points for a correct call. streak counts this call. bonus lists the keys earned ('fine', 'quick', 'late').
+  // window is the call window (s): a call within RULES.late of it was held to the last moment, like a real umpire's timing
+  function scoreCall(streak, pitch, reaction, window) {
     const mult = 1 + Math.min(streak - 1, RULES.streakCap) * RULES.streakStep;
     let pts = RULES.base * mult;
     const bonus = [];
     // framing never changes the call or the score: the ball is judged where it crossed the plate
     if (pitch.edgeDist < RULES.fineEdge && pitch.swing !== 'full') { pts += RULES.finePts; bonus.push('fine'); }
     if (reaction < RULES.quick) { pts += RULES.quickPts; bonus.push('quick'); }
+    if (window && reaction >= window - RULES.late) { pts += RULES.latePts; bonus.push('late'); }
     return { pts: Math.round(pts), mult, bonus };
   }
   // Crowd heat (0..moodMax): every correct call fills a cell, a miss knocks two out. Atmosphere only.
@@ -271,6 +282,54 @@
   // ------------------------------------------------------------
   // Game: the state machine
   // ------------------------------------------------------------
+  // Deterministic generator (mulberry32) so a game can be replayed from its seed: the leaderboard
+  // server hands the client a seed, the client plays on it and logs its calls, and the server plays
+  // the log back (replayRun) to check the score before it goes on the board.
+  function seededRng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = Math.imul(a ^ (a >>> 15), a | 1);
+      t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Plays a call log back on a seed. log: one entry per pitch, [call, t] with call 'strike' | 'ball'
+  // and t the seconds after the catch, or [null] for a pitch left to the clock. Returns the summary
+  // the game produced plus `seconds` of game time, or null when the log cannot be played (a call
+  // outside its window, a log longer or shorter than the game, ...). Frame length does not matter:
+  // every phase change resets the clock, so the call time is the only timing that reaches the score.
+  function replayRun(seed, log) {
+    if (!Array.isArray(log) || log.length > RULES.maxLevel * RULES.pitchesPerLevel + 1) return null;
+    // A save-a-miss run carries one ['save', 1|0] entry; reprieve is enabled only when the log has it, so
+    // logs without one replay exactly as before (three misses end the game, no reprieve phase to stall in).
+    const reprieve = log.some((e) => Array.isArray(e) && e[0] === 'save');
+    const game = createGame({ rng: seededRng(seed), kits: 1, reprieve });
+    const G = game.state;
+    const DT = 1 / 60, MAX_STEPS = 400000;
+    let steps = 0;
+    const stepUntil = (done) => { while (!done()) { if (steps++ > MAX_STEPS) return false; game.update(DT); } return true; };
+    const atStop = () => G.phase === 'call' || G.phase === 'over' || G.phase === 'reprieve';
+    game.start();
+    for (const e of log) {
+      if (!Array.isArray(e) || !stepUntil(atStop) || G.phase === 'over') return null;
+      if (G.phase === 'reprieve') { // the prompt is up: this entry must answer it
+        if (e[0] !== 'save') return null;
+        game.resolveReprieve(!!e[1]);
+        continue;
+      }
+      const call = e[0], t = e[1];
+      if (call === 'save') return null; // a save answer with no prompt pending
+      if (call === null) { if (!stepUntil(() => G.phase !== 'call')) return null; continue; }
+      if ((call !== 'strike' && call !== 'ball') || typeof t !== 'number' || !(t >= 0) || t >= G.callWindow) return null;
+      G.t = t;
+      if (!game.call(call)) return null;
+    }
+    if (!stepUntil(atStop) || G.phase !== 'over') return null; // the log stops before the game did
+    return Object.assign(game.summary(), { seconds: steps * DT });
+  }
+
   // createGame({ rng, kits, onEvent }) -> { state, start, update(dt), call(c), replay(), setPaused(on), summary() }
   // Phases: idle | windup | flight | call | reveal | replay | over. Events (type, data) in order of a pitch:
   //   next     { pitchIndex, level, levelUp, banner, congrats, pitch }  a pitch is set up (windup pending)
@@ -285,6 +344,10 @@
     opts = opts || {};
     const rng = opts.rng || Math.random;
     const kits = opts.kits || 1;
+    // the save-a-miss reprieve is opt-in (the live game turns it on; replayRun never does, so the
+    // deterministic replay the server verifies with is unchanged). It can fire once per game.
+    const reprieveOn = !!opts.reprieve;
+    let reprieveUsed = false;
     const emit = (type, data) => { if (opts.onEvent) opts.onEvent(type, data || {}); };
     const G = {
       phase: 'idle', t: 0, paused: false,
@@ -316,10 +379,15 @@
       emit('next', { pitchIndex: G.pitchIndex, level: G.level, levelUp: !!levelUp, banner, congrats: banner && G.level === RULES.discoLevel + 1, pitch: G.pitch });
     }
 
-    function start() {
+    function start(opts) {
+      // opts.level jumps the start to that level (dev aid; the server always replays from pitch 0,
+      // so a run begun mid-game will not verify and cannot rank).
+      const lvl = opts && opts.level ? Math.min(RULES.maxLevel, Math.max(1, opts.level | 0)) : 1;
+      const idx = (lvl - 1) * RULES.pitchesPerLevel;
+      reprieveUsed = false; // every game gets its own one-shot save (Play Again resets it too)
       Object.assign(G, {
-        phase: 'idle', t: 0, paused: false, pitchIndex: 0, score: 0, streak: 0, bestStreak: 0, misses: 0, correct: 0,
-        pitch: null, level: 1, userCall: null, result: null, ball: null,
+        phase: 'idle', t: 0, paused: false, pitchIndex: idx, score: 0, streak: 0, bestStreak: 0, misses: 0, correct: 0,
+        pitch: null, level: lvl, userCall: null, result: null, ball: null,
         mood: 0, reactSum: 0, reactN: 0, lastReaction: null,
       });
       G.mitt = { x: MITT_REST.x, y: MITT_REST.y };
@@ -346,7 +414,7 @@
         G.streak++;
         G.correct++;
         G.bestStreak = Math.max(G.bestStreak, G.streak);
-        ({ pts, mult, bonus } = scoreCall(G.streak, p, reaction));
+        ({ pts, mult, bonus } = scoreCall(G.streak, p, reaction, G.callWindow));
         G.score += pts;
       } else {
         G.streak = 0;
@@ -366,7 +434,7 @@
     }
 
     function update(dt) {
-      if (G.paused || G.phase === 'idle' || G.phase === 'over') return;
+      if (G.paused || G.phase === 'idle' || G.phase === 'over' || G.phase === 'reprieve') return;
       G.t += G.phase === 'replay' ? dt * TIMING.replaySpeed : dt;
       switch (G.phase) {
         case 'windup':
@@ -420,8 +488,14 @@
         case 'reveal':
           if (G.t >= TIMING.reveal) {
             if (G.misses >= RULES.misses) {
-              G.phase = 'over';
-              emit('over', summary());
+              if (reprieveOn && !reprieveUsed && G.level >= RULES.reprieveMinLevel && G.pitchIndex + 1 < RULES.maxLevel * RULES.pitchesPerLevel) {
+                reprieveUsed = true; // one shot a game: hold for the save-a-miss prompt instead of ending
+                G.phase = 'reprieve'; G.t = 0;
+                emit('reprieve', { level: G.level });
+              } else {
+                G.phase = 'over';
+                emit('over', summary());
+              }
             } else if (G.pitchIndex + 1 >= RULES.maxLevel * RULES.pitchesPerLevel) {
               // the last pitch of the last level is in: the season is complete
               G.phase = 'over';
@@ -463,15 +537,31 @@
       return true;
     }
 
+    // answer to the save-a-miss prompt. saved=true refunds the miss and play continues to the next
+    // pitch (same hand-off as a normal reveal); otherwise the game ends. Only valid while 'reprieve'.
+    function resolveReprieve(saved) {
+      if (G.phase !== 'reprieve') return false;
+      if (saved) {
+        G.misses = Math.max(0, G.misses - 1);
+        G.pitchIndex++;
+        const next = levelFor(G.pitchIndex), up = next > G.level;
+        startWindup(up ? (next === RULES.discoLevel + 1 ? TIMING.congrats : TIMING.levelUp) : TIMING.nextPitch, up);
+      } else {
+        G.phase = 'over';
+        emit('over', summary());
+      }
+      return true;
+    }
+
     // fraction of the call window left (1 = just caught, 0 = too late)
     const callRemain = () => (G.phase === 'call' ? Math.max(0, 1 - G.t / G.callWindow) : 0);
 
-    return { state: G, start, startWindup, update, call, replay, setPaused, summary, callRemain };
+    return { state: G, start, startWindup, update, call, replay, setPaused, summary, callRemain, resolveReprieve };
   }
 
   return {
     BALL_R, BATTER_H, BATTER_FEET_Y, IN_PER_PX, RELEASE, MITT_REST, TIMING, RULES, UNLOCKS, PROFILE, PITCH_TYPES,
-    zoneFor, levelFor, callWindowFor, pickForm, pickType, isStrikeAt, edgeDistance, genPitch, ballPos,
-    scoreCall, moodAfter, absInfo, createGame,
+    zoneFor, levelFor, callWindowFor, pickForm, pickType, typeWeight, isStrikeAt, edgeDistance, genPitch, ballPos,
+    scoreCall, moodAfter, absInfo, createGame, seededRng, replayRun,
   };
 });

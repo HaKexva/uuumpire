@@ -190,12 +190,23 @@ const count = (log, type) => log.filter((l) => l.type === type).length;
   ok(game.callRemain() > 0 && game.callRemain() < 1, 'call window remaining');
 }
 
+// patient umpire: holds every call to the last 0.2 s of the window
+{
+  const { G, log } = play((g) => { if (g.state.phase === 'call' && g.state.t >= g.state.callWindow - 0.2) g.call(g.state.pitch.strike ? 'strike' : 'ball'); }, { maxPitches: 90, seed: 7 });
+  const resolves = log.filter((l) => l.type === 'resolve').map((l) => l.e);
+  ok(G.misses === 0 && resolves.length > 50 && resolves.every((r) => r.correct && !r.timeout && r.bonus.includes('late')), `every held call pays the late bonus (${resolves.length} calls, ${G.misses} misses)`);
+}
+
 // scoring rules
 {
   const p = { edgeDist: 1, swing: 'none' };
   ok(C.scoreCall(1, p, 1).pts === 150 && C.scoreCall(1, p, 1).bonus.join() === 'fine', 'edge bonus');
   ok(C.scoreCall(1, { edgeDist: 1, swing: 'full' }, 1).pts === 100, 'no edge bonus on a swing');
   ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 0.2).pts === 130, 'quick bonus');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.85, 2.08).pts === 150 && C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.85, 2.08).bonus.join() === 'late', 'late bonus inside the last 0.3 s');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.7, 2.08).pts === 100, 'no late bonus 0.38 s before the deadline');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 0.5, 0.7).bonus.join() === 'quick,late', 'a tight window can pay both');
+  ok(C.scoreCall(1, { edgeDist: 9, swing: 'none' }, 1.9).pts === 100, 'no window given, no late bonus');
   ok(C.scoreCall(11, { edgeDist: 9, swing: 'none' }, 1).pts === 200 && C.scoreCall(50, { edgeDist: 9, swing: 'none' }, 1).mult === 2, 'x2 cap');
   ok(C.moodAfter(0, true) === 1 && C.moodAfter(5, true) === 5 && C.moodAfter(1, false) === 0 && C.moodAfter(5, false) === 3, 'crowd meter +1 / -2');
 }
@@ -219,6 +230,124 @@ const count = (log, type) => log.filter((l) => l.type === type).length;
     games++;
   }
   console.log(`  ${games} random games, ${overs} ended by three misses`);
+}
+
+// save-a-miss (reprieve): a one-shot miss refund from level 6 on, opt-in, reset every game
+console.log('save-a-miss');
+{
+  const mk = (reprieve) => C.createGame({ rng: mulberry32(21), kits: 6, reprieve });
+  const step = (game, done) => { let g = 0; while (!done() && g++ < 2e5) game.update(DT); };
+  const toStop = (game) => step(game, () => ['call', 'over', 'reprieve'].includes(game.state.phase));
+  const toHold = (game) => step(game, () => ['reprieve', 'over'].includes(game.state.phase));
+  const miss = (game) => { const s = game.state; game.call(s.pitch.strike ? 'ball' : 'strike'); };
+  const missThrice = (game) => { for (let i = 0; i < 3; i++) { toStop(game); if (game.state.phase === 'call') miss(game); } toHold(game); };
+
+  // opt-in: the default game (replayRun's, with no reprieve) still ends at three misses on level 6
+  { const game = mk(false); game.start({ level: 6 }); missThrice(game); ok(game.state.phase === 'over' && game.state.misses === 3, 'reprieve off: three misses end the game at level 6'); }
+
+  // level gate: on but below level 6 there is no prompt
+  { const game = mk(true); game.start({ level: 5 }); missThrice(game); ok(game.state.phase === 'over' && game.state.misses === 3, 'reprieve on but below level 6: still ends at three misses'); }
+
+  // level 6, reprieve on: the third miss holds for the prompt instead of ending
+  { const game = mk(true); game.start({ level: 6 }); missThrice(game); ok(game.state.phase === 'reprieve' && game.state.misses === 3, 'level 6, reprieve on: the third miss holds for the prompt'); ok(game.resolveReprieve(false) === true && game.state.phase === 'over', 'declining the prompt ends the game'); }
+
+  // a save refunds one miss, play continues, and it is one-shot (no second prompt that game)
+  {
+    const game = mk(true); game.start({ level: 6 }); missThrice(game);
+    ok(game.state.phase === 'reprieve', 'prompt is up before the save');
+    ok(game.resolveReprieve(true) === true && game.state.misses === 2, 'a save refunds one miss (3 -> 2)');
+    toStop(game); ok(game.state.phase !== 'over', 'play continues after a save');
+    let guard = 0; while (game.state.phase !== 'over' && guard++ < 2e6) { toStop(game); if (game.state.phase === 'call') miss(game); else break; }
+    toHold(game);
+    ok(game.state.phase === 'over' && game.state.misses === 3, 'the save is one-shot: the next three-miss ends the game, no second prompt');
+  }
+
+  // resolveReprieve does nothing outside the prompt
+  { const game = mk(true); game.start({ level: 6 }); ok(game.resolveReprieve(true) === false, 'resolveReprieve is ignored outside the prompt'); }
+
+  // regression: reprieveUsed resets on start(), so Play Again (same game object) gets a fresh save
+  {
+    const game = mk(true);
+    const toPrompt = () => { game.start({ level: 6 }); missThrice(game); return game.state.phase === 'reprieve'; };
+    const first = toPrompt();
+    game.resolveReprieve(true);            // use the save in game one
+    const second = toPrompt();             // Play Again on the same instance
+    ok(first && second, 'the one-shot save resets each game (Play Again / start restores it)');
+  }
+}
+
+// replay: a logged game plays back to the same summary; a doctored one does not
+console.log('replay');
+{
+  const seed = 4242;
+  const rng = mulberry32(99);
+  const log = [];
+  const game = C.createGame({ rng: C.seededRng(seed), kits: 6, onEvent: (type, e) => { if (type === 'resolve') log.push(e.timeout ? [null] : [e.call, e.reaction]); } });
+  game.start();
+  let guard = 0;
+  while (game.state.phase !== 'over' && guard++ < 2e6) {
+    const dt = 1 / 60 + rng() * 0.02; // uneven frames, like a browser
+    game.update(dt);
+    const s = game.state;
+    if (s.phase === 'call' && rng() < 0.08) game.call(rng() < 0.7 ? (s.pitch.strike ? 'strike' : 'ball') : (s.pitch.strike ? 'ball' : 'strike'));
+    if (s.phase === 'reveal' && rng() < 0.01) game.replay();
+  }
+  const want = game.summary();
+  const got = C.replayRun(seed, log);
+  ok(got && got.score === want.score && got.pitches === want.pitches && got.accuracy === want.accuracy && got.streak === want.streak, `replay reproduces the summary (${want.score} pts, ${want.pitches} pitches)`);
+  ok(got && near(got.reaction, want.reaction, 1e-9), 'replay reproduces the average reaction');
+  ok(got && got.seconds > 0, 'replay reports game time');
+  ok(want.score > 0 && log.length === want.pitches, 'the log has one entry per pitch');
+  ok(C.replayRun(seed + 1, log) === null || C.replayRun(seed + 1, log).score !== want.score, 'another seed does not play to the same score');
+  const late = log.map((e) => (e[0] === null ? e : [e[0], 99]));
+  ok(C.replayRun(seed, late) === null, 'a call after the window is refused');
+  ok(C.replayRun(seed, log.slice(0, -1)) === null, 'a log shorter than the game is refused');
+  ok(C.replayRun(seed, log.concat([['strike', 0.1]])) === null, 'a log longer than the game is refused');
+  ok(C.replayRun(seed, 'nope') === null && C.replayRun(seed, [['strike']]) === null, 'junk is refused');
+  const strikes = log.map((e) => (e[0] === null ? e : ['strike', 0.2]));
+  const r2 = C.replayRun(seed, strikes);
+  ok(r2 === null || r2.score !== want.score || r2.pitches !== want.pitches, 'changing the calls changes the outcome');
+}
+
+// replay of a save-a-miss run: a ['save', 1|0] entry is reproduced, so a saved game still ranks.
+// Played from the start (replayRun always begins at pitch 0): correct until level 6, then three misses
+// for the prompt, a save, then out.
+{
+  const seed = 777;
+  const log = [];
+  const game = C.createGame({ rng: C.seededRng(seed), kits: 6, reprieve: true, onEvent: (type, e) => { if (type === 'resolve') log.push(e.timeout ? [null] : [e.call, e.reaction]); } });
+  const G = game.state;
+  const stepTo = (p) => { let g = 0; while (!p() && g++ < 2e5) game.update(1 / 60); };
+  const atStop = () => ['call', 'over', 'reprieve'].includes(G.phase);
+  const call = (wrong) => { G.t = 0.3; game.call((G.pitch.strike ? !wrong : wrong) ? 'strike' : 'ball'); };
+  game.start();
+  stepTo(atStop);
+  while (G.level < C.RULES.reprieveMinLevel && G.phase === 'call') { call(false); stepTo(atStop); } // climb to level 6
+  ok(G.phase === 'call' && G.level === C.RULES.reprieveMinLevel, 'saved-run replay: reached level 6 clean');
+  call(true); stepTo(atStop);   // miss 1
+  call(true); stepTo(atStop);   // miss 2
+  call(true); stepTo(atStop);   // miss 3 -> the prompt
+  ok(G.phase === 'reprieve', 'saved-run replay: the game reaches the prompt');
+  const saveAt = log.length; log.push(['save', 1]); game.resolveReprieve(true); // keep the save in the log and refund
+  stepTo(atStop); call(false);  // a correct call after the save (scores)
+  stepTo(atStop); call(true);   // miss 3 again -> over (one-shot, no second prompt)
+  stepTo(atStop);
+  const want = game.summary();
+  ok(G.phase === 'over' && log.some((e) => e[0] === 'save'), 'saved game ends and the log carries the save entry');
+  const got = C.replayRun(seed, log);
+  ok(got && got.score === want.score && got.pitches === want.pitches && got.accuracy === want.accuracy && got.streak === want.streak, `a saved run replays to the same summary and ranks (${want.score} pts)`);
+  ok(C.replayRun(seed, [['save', 1]].concat(log)) === null, 'a save answer with no prompt pending is refused');
+  const declined = log.slice(0, saveAt).concat([['save', 0]]);
+  const rd = C.replayRun(seed, declined);
+  ok(rd && rd.pitches < want.pitches, 'declining the save ends the game there (fewer pitches)');
+}
+
+// the server ships with its own copy of core.js as core.cjs (pre-commit hook): it must be this one
+{
+  const fs = require('fs'), path = require('path');
+  const here = path.join(__dirname, '..');
+  const copy = path.join(here, 'server', 'core.cjs');
+  ok(fs.existsSync(copy) && fs.readFileSync(copy, 'utf8') === fs.readFileSync(path.join(here, 'core.js'), 'utf8'), 'server/core.cjs is a copy of core.js (run tools/install-hooks.sh)');
 }
 
 console.log(`${checks} checks, ${fails} failed`);

@@ -1,9 +1,13 @@
 #!/bin/sh
-# Installs the pre-commit hook that stamps version.json on every commit.
+# Installs the pre-commit hook: stamps version.json and copies core.js to server/core.cjs (Railway ships
+# server/ alone, and the leaderboard API replays games with it). Works from a worktree too.
 cd "$(git rev-parse --show-toplevel)" || exit 1
-cat > .git/hooks/pre-commit <<"EOF"
+HOOKS="$(git rev-parse --git-path hooks)"
+mkdir -p "$HOOKS"
+cat > "$HOOKS/pre-commit" <<"EOF"
 #!/bin/sh
 node tools/stamp.js >/dev/null && git add version.json
+cp core.js server/core.cjs && git add server/core.cjs
 EOF
-chmod +x .git/hooks/pre-commit
-echo "pre-commit hook installed"
+chmod +x "$HOOKS/pre-commit"
+echo "pre-commit hook installed in $HOOKS"

@@ -47,6 +47,7 @@
       <div class="panel-title" data-i18n="best">BEST CALL</div>
       <div id="title-best" class="best-score">0</div>
     </div>
+    <p id="title-plays" class="hint plays hidden"></p>
     <p class="hint" data-i18n="hint.controls">PC: ARROWS + ENTER / MOBILE: TAP</p>
     <p id="music-hint" class="hint music-hint hidden" data-i18n="hint.music">&#9834; TAP OR ANY KEY FOR MUSIC</p>
   </section>
@@ -69,6 +70,14 @@
       <div id="bonus-text" class="bonus-text"></div>
       <div id="abs-text" class="abs-text"></div>
       <div id="pause-text" class="pause-text"><span class="plate" data-i18n="paused">PAUSED</span></div>
+      <div id="reprieve" class="reprieve hidden">
+        <div class="reprieve-plate">
+          <p class="reprieve-title" data-i18n="reprieve.title">SAVE A MISS!</p>
+          <p id="reprieve-q" class="reprieve-q"></p>
+          <p class="reprieve-ans"><span class="rp-yes" data-i18n="reprieve.yes">STRIKE = 是</span><span class="rp-no" data-i18n="reprieve.no">BALL = 否</span></p>
+          <div class="reprieve-bar"><div id="reprieve-fill" class="reprieve-fill"></div></div>
+        </div>
+      </div>
       <button id="btn-replay" class="game-btn game-btn--sm replay-btn hidden" type="button" data-i18n="btn.replay">REPLAY</button>
       <button id="btn-quit" class="game-btn game-btn--sm quit-btn" type="button" data-i18n="btn.quit">EXIT TO TITLE</button>
     </div>
@@ -163,6 +172,11 @@
     <div class="game-panel text-panel board-panel">
       <ol id="board-list" class="records board"></ol>
       <p id="board-status" class="hint board-status"></p>
+    </div>
+    <div id="board-pager" class="board-pager hidden">
+      <button class="game-btn game-btn--sm pg-prev" type="button" aria-label="Previous page">‹</button>
+      <span id="pg-label" class="pg-label"></span>
+      <button class="game-btn game-btn--sm pg-next" type="button" aria-label="Next page">›</button>
     </div>
     <button class="game-btn btn-back" data-action="back" type="button" data-i18n="btn.back">BACK</button>
   </section>

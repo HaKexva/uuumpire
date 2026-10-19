@@ -216,6 +216,13 @@ button { font-family: inherit; }
   outline: 1px solid var(--g-dim);
 }
 .hud-value.miss i.on { background: var(--g-red); outline-color: var(--g-red); }
+/* a miss refunded by the save-a-miss prompt: the box pops back out like a Zelda heart container */
+.hud-value.miss i.pop { animation: miss-pop .55s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes miss-pop {
+  0% { transform: scale(0); background: var(--g-gold); outline-color: var(--g-gold); }
+  60% { transform: scale(1.5); background: var(--g-gold); outline-color: var(--g-gold); }
+  100% { transform: scale(1); }
+}
 
 .stage {
   position: relative;
@@ -279,6 +286,17 @@ button { font-family: inherit; }
   text-shadow: var(--g-call-shadow, 3px 3px 0 var(--g-navy), 6px 6px 0 var(--g-ink));
   animation: blink 1s steps(2, start) infinite;
 }
+/* save-a-miss prompt: fills the stage, but pointer-events:none so the real STRIKE/BALL buttons answer it */
+.reprieve { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 8px; pointer-events: none; z-index: 6; }
+.reprieve.hidden { display: none; }
+.reprieve-plate { background: rgba(1, 8, 30, 0.93); border: 3px solid var(--g-gold); box-shadow: 4px 4px var(--g-ink); padding: 10px 12px; max-width: 96%; text-align: center; line-height: 1.35; }
+.reprieve-title { margin: 0 0 7px; color: var(--g-gold); font-size: 14px; letter-spacing: 1px; }
+.reprieve-q { margin: 0 0 9px; color: var(--g-white); font-size: 18px; line-height: 1.4; }
+.reprieve-ans { margin: 0 0 9px; display: flex; gap: 12px; justify-content: center; font-size: 12px; }
+.reprieve-ans .rp-yes { color: var(--g-gold); }
+.reprieve-ans .rp-no { color: var(--g-white); }
+.reprieve-bar { height: 8px; background: var(--g-ink); border: 1px solid var(--g-dim); }
+.reprieve-fill { height: 100%; width: 100%; background: var(--g-gold); }
 /* the name of the umpire's call style, just above the call inset (bottom-right, 52px canvas = 104px) */
 .style-text {
   top: auto;
@@ -445,7 +463,22 @@ button { font-family: inherit; }
 .tab.active { opacity: 1; background: var(--g-btn-accent); }
 .board-panel { min-height: 120px; }
 .records.board li { gap: 8px; }
-.records.board li .who { flex: 1; display: flex; gap: 10px; min-width: 0; }
+.records.board li .who { flex: 1; display: flex; gap: 6px; min-width: 0; }
+/* the board list keeps only the gutter the medal star needs (the records list keeps its wider one) */
+.records.board { padding-left: 18px; }
+.records.board li .who .rk { --rk: var(--g-gray); color: var(--rk); flex-shrink: 0; min-width: 1.4em; position: relative; }
+/* the top three carry a medal star: gold, silver, bronze (a palette can override each). The star hangs in the
+   list's left padding so the rank column, and every name after it, stays where it is on a narrow screen */
+.records.board li .who .rk.m1 { --rk: var(--g-medal1, var(--g-gold)); }
+.records.board li .who .rk.m2 { --rk: var(--g-medal2, #dcdcdc); }
+.records.board li .who .rk.m3 { --rk: var(--g-medal3, #f0a060); }
+.records.board li .who .rk .medal { position: absolute; right: 100%; top: 50%; width: 14px; height: 14px; margin: -7px 4px 0 0; fill: currentColor; shape-rendering: crispEdges; }
+.records.board li .who .rk .medal.fill { display: inline-block; }
+.records.board li .who .rk .medal.hollow { display: none; }
+.records.board li .who .rk.m3 .medal.fill { display: var(--g-medal-fill, inline-block); }
+.records.board li .who .rk.m3 .medal.hollow { display: var(--g-medal-hollow, none); }
+.plays { margin: 4px 0 0; }
+.plays.hidden { display: none; }
 .records.board li .who .nm { overflow: hidden; white-space: nowrap; max-width: 11em; }
 .records.board li .who .nm-in { display: inline-block; }
 /* a name wider than its column slides left and back (--nm-dx / --nm-t set by Board.fitNames) */
@@ -456,7 +489,11 @@ button { font-family: inherit; }
 }
 @media (prefers-reduced-motion: reduce) { .records.board li .who .nm.scroll .nm-in { animation: none; } }
 .records.board li .who .meta { color: var(--g-gray); font-size: 13px; align-self: center; white-space: nowrap; flex-shrink: 0; }
-.records.board li.me { background: var(--g-hi-bg, var(--g-navy)); margin: 0 -8px; padding: 3px 8px; }
+/* the player's own row: a highlight bar. Palettes whose bar is dark (Game Boy) set hi-fg / hi-val so the text stays readable */
+.records.board li.me { background: var(--g-hi-bg, var(--g-navy)); color: var(--g-hi-fg, inherit); margin: 0 -8px; padding: 3px 8px; }
+.records.board li.me .who .rk { color: var(--g-hi-val, var(--rk)); }
+.records.board li.me .who .meta, .records.board li.me b { color: var(--g-hi-val, var(--g-gold)); }
+.records.board li.me .who .meta { color: var(--g-hi-val, var(--g-gray)); }
 .board-status { margin: 8px 0 0; }
 
 /* ---- howto / records ---- */
@@ -471,6 +508,11 @@ button { font-family: inherit; }
 .records li b { font-weight: normal; color: var(--g-gold); }
 .records li.empty { list-style: none; color: var(--g-dim); margin-left: -28px; }
 .btn-back { margin-top: 4px; }
+
+/* leaderboard pager (all-time keeps 100, shown 20 per page) */
+.board-pager { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.board-pager .pg-label { font-size: 16px; color: var(--g-gold); min-width: 3.5em; text-align: center; }
+.board-pager .game-btn[disabled] { opacity: .35; pointer-events: none; box-shadow: none; transform: translate(3px, 3px); }
 
 @media (max-width: 400px) {
   .game-logo { font-size: 36px; }

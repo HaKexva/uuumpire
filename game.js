@@ -76,7 +76,9 @@
              call: '#9bbc0f', 'call-ball': '#9bbc0f', overlay: '#9bbc0f', 'overlay-accent': '#9bbc0f', ok: '#9bbc0f', ng: '#9bbc0f',
              'call-shadow': '3px 3px 0 #0f380f', 'overlay-shadow': '2px 0 0 #0f380f, -2px 0 0 #0f380f, 0 2px 0 #0f380f, 0 -2px 0 #0f380f',
              // menu highlight bar: dark bar, light text (the page's "white" is the dark shade here)
-             'hi-bg': '#0f380f', 'hi-fg': '#9bbc0f', 'hi-val': '#8bac0f' },
+             'hi-bg': '#0f380f', 'hi-fg': '#9bbc0f', 'hi-val': '#8bac0f',
+             // medals in shades: dark star, mid star, hollow star
+             medal1: '#0f380f', medal2: '#306230', medal3: '#0f380f', 'medal-fill': 'none', 'medal-hollow': 'inline-block' },
       shades: ['#0f380f', '#306230', '#8bac0f', '#9bbc0f'] },
   ];
 
@@ -89,7 +91,7 @@
     const rs = document.documentElement.style;
     rs.setProperty('--g-btn-accent', p.css.gold);
     // optional per-palette overrides: clear them first so the CSS fallbacks apply again
-    for (const k of ['logo-shadow', 'call-shadow', 'text-shadow', 'overlay-shadow', 'call', 'call-ball', 'overlay', 'overlay-accent', 'ok', 'ng', 'hi-bg', 'hi-fg', 'hi-val']) rs.removeProperty('--g-' + k);
+    for (const k of ['logo-shadow', 'call-shadow', 'text-shadow', 'overlay-shadow', 'call', 'call-ball', 'overlay', 'overlay-accent', 'ok', 'ng', 'hi-bg', 'hi-fg', 'hi-val', 'medal1', 'medal2', 'medal3', 'medal-fill', 'medal-hollow']) rs.removeProperty('--g-' + k);
     for (const k in p.css) rs.setProperty('--g-' + k, p.css[k]);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', p.css.night);
@@ -408,6 +410,7 @@
     windup() { this.tone(220, 0.08, { vol: 0.07 }); },
     whoosh() { this.tone(900, 0.35, { type: 'sawtooth', vol: 0.07, slide: 180 }); },
     pop() { this.tone(140, 0.1, { vol: 0.2, slide: 60 }); this.tone(1200, 0.03, { type: 'triangle', vol: 0.11 }); },
+    heart() { for (let i = 0; i < 4; i++) this.tone([1047, 1319, 1568, 2093][i], i < 3 ? 0.07 : 0.28, { vol: 0.05, delay: i * 0.07 }); }, // a miss saved: Zelda-ish container chime
     good() { this.tone(660, 0.08); this.tone(880, 0.12, { delay: 0.08 }); this.tone(1320, 0.18, { delay: 0.17 }); },
     bad() { this.tone(200, 0.18, { type: 'sawtooth', vol: 0.05 }); this.tone(150, 0.3, { type: 'sawtooth', vol: 0.05, delay: 0.15 }); },
     strikeCall() { this.tone(520, 0.06, { vol: 0.05 }); this.tone(780, 0.1, { vol: 0.05, delay: 0.06 }); },
@@ -470,10 +473,20 @@
   // theme plus the loaded ballpark tunes), picked per game. start() with no name resumes the current song.
   const TITLE_SONGS = ['entry', 'ballgame'];
   const PLAY_SONGS = ['theme'];
+  const LV11_BGM = 'assets/lv11.mp3'; // produced track (not chiptune note data) that takes the PA on the final level
+  const EXT_VOL = 0.6;                // a produced track is far hotter than the synth; tame it to sit with the SFX
+  const assetUrl = (f) => f + (window.UU_V ? '?v=' + window.UU_V : '');
   const Music = {
     get player() { return window.UUMusic ? window.UUMusic.Player : null; },
+    mode: 'chip',          // 'chip' = the synth in music.js; 'ext' = a produced <audio> track (level 11)
+    ext: null, extSrc: null, lastPlay: null,
     start(song) {
       Sfx.init(); Sfx.resume();
+      if (song === undefined) {              // resume whatever is current (tab back in, unpause)
+        if (this.mode === 'ext') { this.resumeExt(); return; }
+      } else if (this.mode === 'ext') {      // leaving the produced track for a chiptune song
+        this.stopExt(); this.mode = 'chip';
+      }
       const p = this.player;
       if (!p || !settings.music) return;
       if (song === 'title') {
@@ -481,13 +494,41 @@
         if (p.playing && TITLE_SONGS.includes(p.current)) return; // already on a menu song: keep it
         song = pick(TITLE_SONGS);
       } else if (song === 'play') {
-        song = pick(PLAY_SONGS);
+        // a fresh gameplay tune, different from the one just playing (so the 3-level rotation never repeats back to back)
+        const pool = PLAY_SONGS.length > 1 ? PLAY_SONGS.filter((s) => s !== this.lastPlay) : PLAY_SONGS;
+        song = pick(pool);
+        this.lastPlay = song;
       }
       p.setEnabled(true); p.start(song);
     },
-    stop() { const p = this.player; if (p) p.stop(); },
-    tempo(mult) { const p = this.player; if (p) p.setTempo(mult); },
-    apply() { const p = this.player; if (!p) return; p.setEnabled(settings.music); if (settings.music) p.start(); },
+    // a produced audio file on loop: the synth can't play an mp3, so the final-level anthem runs on its own
+    // <audio> element. The two never overlap -- starting one stops the other.
+    preloadExt(file) { // warm the buffer at game start so level 11 does not stutter when it begins
+      const src = assetUrl(file);
+      if (!this.ext) { this.ext = new Audio(); this.ext.loop = true; this.ext.preload = 'auto'; }
+      if (this.extSrc !== src) { this.ext.src = src; this.extSrc = src; }
+    },
+    startExt(file) {
+      Sfx.init(); Sfx.resume();
+      this.stopChip();
+      this.mode = 'ext';
+      this.preloadExt(file);
+      if (!settings.music) return;           // muted: stay in ext mode, silent, until MUSIC is turned on
+      this.ext.currentTime = 0;
+      this.ext.volume = EXT_VOL;
+      this.ext.play().catch(() => {});       // a 404 (asset not yet added) or an autoplay block just leaves it silent
+    },
+    resumeExt() { if (settings.music && this.ext && this.extSrc) { this.ext.volume = EXT_VOL; this.ext.play().catch(() => {}); } },
+    stopExt() { if (this.ext) { this.ext.pause(); this.ext.currentTime = 0; } },
+    stopChip() { const p = this.player; if (p) p.stop(); },
+    stop() { this.stopChip(); if (this.ext) this.ext.pause(); }, // pause, keeping position: resumed on tab-back / unpause
+    tempo(mult) { const p = this.player; if (p) p.setTempo(mult); }, // the produced track ignores the crowd tempo
+    apply() { // the MUSIC menu toggle
+      const p = this.player; if (!p) return;
+      p.setEnabled(settings.music);
+      if (this.mode === 'ext') { if (settings.music) this.resumeExt(); else if (this.ext) this.ext.pause(); return; }
+      if (settings.music) p.start();
+    },
   };
   // don't lose a pitch to a tab switch, another window taking focus, or a system overlay
   // (iOS Screen Distance "too close" warning fires no visibilitychange; it does take focus / stall frames)
@@ -519,6 +560,7 @@
     pause: $('pause-text'), btnPause: $('btn-pause'), btnReplay: $('btn-replay'), btnQuit: $('btn-quit'), crowd: $('hud-crowd'), langLabel: $('lang-label'),
     info: $('pitch-info'), count: $('pitch-count'), timer: $('timer-fill'),
     btnStrike: $('btn-strike'), btnBall: $('btn-ball'), stage: $('stage'),
+    reprieve: $('reprieve'), reprieveQ: $('reprieve-q'), reprieveFill: $('reprieve-fill'),
     titleBest: $('title-best'), soundLabel: $('sound-label'), musicLabel: $('music-label'),
     paletteLabel: $('palette-label'),
   };
@@ -527,7 +569,7 @@
   function showScreen(name) {
     for (const k in screens) screens[k].classList.toggle('hidden', k !== name);
     currentScreen = name;
-    if (name === 'title') refreshTitle();
+    if (name === 'title') { refreshTitle(); Board.loadPlays(); Board.prepRun(); }
     if (name === 'records') renderRecords();
     if (name === 'play') fitCanvas();
   }
@@ -547,7 +589,11 @@
   // Game state: the simulation is core.js; this layer keeps the view-only state and turns core
   // events into sound, text and particles.
   // ------------------------------------------------------------
-  const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent });
+  // Each game plays on a seed from the leaderboard server and logs its calls, so the server can replay
+  // it before the score goes on the board (core.replayRun). No server, no seed: the game still plays
+  // on Math.random, it just cannot be submitted.
+  let runRng = Math.random, run = null, runLog = [];
+  const game = C.createGame({ kits: KITS.length, onEvent: onGameEvent, rng: () => runRng(), reprieve: true });
   const G = game.state;      // phase, t, pitch, score, streak, misses, mood, ball, mitt, zone, result ...
   const ZONE = G.zone;       // sized per batter by the core; same object for the whole game
   const V = {                // view state: nothing here changes a call or a point
@@ -555,7 +601,36 @@
   };
   let lastGame = null;       // summary of the last game (game-over screen, leaderboard submit)
 
-  function newGame() {
+  // --- save-a-miss: a timed true/false prompt on the 3rd miss from level 6 on (once a game). A correct
+  // answer refunds the miss and play goes on. The resolution is logged as a ['save', 1|0] entry, so the
+  // server replay (replayRun, reprieve enabled when a save entry is present) reproduces it and the run
+  // still ranks.
+  const REPRIEVE_MS = 6000;     // time to answer the save-a-miss question
+  let triviaBank = null;        // loaded from assets/trivia.json
+  let reprieveActive = false;   // the prompt is up; STRIKE/BALL answer it instead of making a call
+  let reprieveQ = null, reprieveTimer = null, reprieveEnd = 0, lastTriviaIdx = -1, triviaLoad = null;
+  // Preloaded in the boot load bar so the bank is always ready before anyone reaches the prompt. Dedupes
+  // concurrent callers and, on a failed fetch, clears the in-flight promise so a later call can retry
+  // (an empty bank is never cached as "loaded").
+  function loadTrivia() {
+    if (Array.isArray(triviaBank) && triviaBank.length) return Promise.resolve(triviaBank);
+    if (triviaLoad) return triviaLoad;
+    triviaLoad = fetch(assetUrl('assets/trivia.json'))
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((j) => { triviaBank = j.q || []; return triviaBank; })
+      .catch(() => { triviaBank = []; triviaLoad = null; return triviaBank; });
+    return triviaLoad;
+  }
+
+  let starting = false;
+  async function newGame() {
+    if (starting) return;
+    starting = true;
+    run = await Board.takeRun(); // prefetched on the title screen; bounded wait, null when offline
+    starting = false;
+    runRng = run ? C.seededRng(run.seed) : Math.random;
+    runLog = [];
+    cancelReprieve(); loadTrivia(); // bank is already preloaded in boot; this is a cheap no-op safety net
     Object.assign(V, { shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null });
     el.pause.classList.remove("show"); el.btnPause.classList.remove("pressed");
     hideText();
@@ -563,7 +638,8 @@
     showScreen('play');
     Music.tempo(1);
     Music.start('play');
-    game.start();
+    Music.preloadExt(LV11_BGM); // buffer the final-level anthem now so it is ready by level 11
+    game.start(START_LVL ? { level: START_LVL } : undefined);
     updateHud();
   }
 
@@ -577,7 +653,11 @@
         hideText();
         el.btnReplay.classList.add('hidden');
         if (e.levelUp) Sfx.levelUp();
-        if (e.levelUp && e.level >= C.RULES.discoLevel) Music.start('disco'); // level 10: the disco inning takes over the PA
+        // swap the gameplay tune every 3 levels (levels 1, 4, 7...); level 1 starts in newGame. Disco (10)
+        // and the level-11 anthem are excluded -- they have their own tracks below.
+        if (e.levelUp && e.level < C.RULES.discoLevel && (e.level - 1) % 3 === 0) Music.start('play');
+        if (e.levelUp && e.level === C.RULES.discoLevel) Music.start('disco'); // level 10: the disco inning takes over the PA
+        if (e.levelUp && e.level === C.RULES.maxLevel) Music.startExt(LV11_BGM); // level 11: the produced anthem takes over
         if (e.congrats) { // cleared the disco inning
           showText(el.call, t('congrats'), 'small', 'party');
           showText(el.bonus, t('congrats.sub'), '', 'wobble');
@@ -598,12 +678,13 @@
         spawnDust(e.x, e.y);
         if (!e.replay) V.flash = 0.06;
         break;
-      case 'resolve': onResolve(e); break;
+      case 'resolve': runLog.push(e.timeout ? [null] : [e.call, e.reaction]); onResolve(e); break;
       case 'replay': V.trail = []; hideText(); el.btnReplay.classList.add('hidden'); Sfx.select(); break;
       case 'replayEnd':
         showRevealTexts();
         setTimeout(() => { if (G.phase === 'reveal') el.btnReplay.classList.remove('hidden'); }, 350);
         break;
+      case 'reprieve': onReprieve(e); break;
       case 'over': onGameOver(e); break;
     }
   }
@@ -650,6 +731,7 @@
 
   // Pause (space / P / the || button). Freezes the game clock and the music; the scene stays drawn.
   function setPaused(on) {
+    if (reprieveActive) return; // no pausing while the save-a-miss clock is running
     if (currentScreen !== 'play') on = false;
     if (!game.setPaused(on)) return;
     el.pause.classList.toggle('show', G.paused);
@@ -659,10 +741,60 @@
     Sfx.init(); Sfx.select();
   }
 
-  function makeCall(call) { game.call(call); }
+  function makeCall(call) {
+    if (reprieveActive) { answerReprieve(call === 'strike'); return; } // STRIKE = 是, BALL = 否
+    game.call(call);
+  }
+
+  // ---- save-a-miss prompt ----
+  function cancelReprieve() {
+    reprieveActive = false; reprieveQ = null;
+    if (reprieveTimer) { cancelAnimationFrame(reprieveTimer); reprieveTimer = null; }
+    if (el.reprieve) el.reprieve.classList.add('hidden');
+  }
+  async function onReprieve() {
+    const bank = await loadTrivia();
+    if (!bank.length) { runLog.push(['save', 0]); game.resolveReprieve(false); return; } // no questions available: just end
+    let i = Math.floor(Math.random() * bank.length);
+    if (bank.length > 1 && i === lastTriviaIdx) i = (i + 1) % bank.length; // avoid an immediate repeat
+    lastTriviaIdx = i; reprieveQ = bank[i]; reprieveActive = true;
+    const lang = settings.lang === 'en' ? 'en' : 'zh'; // bank has zh + en; zh covers zh/ja/nan
+    hideText();
+    el.reprieveQ.textContent = reprieveQ[lang] || reprieveQ.zh;
+    el.reprieve.classList.remove('hidden');
+    el.reprieveFill.style.width = '100%'; // start full, then drain
+    Sfx.init(); Sfx.select();
+    reprieveEnd = performance.now() + REPRIEVE_MS;
+    const tick = () => {
+      if (!reprieveActive) return;
+      const left = Math.max(0, reprieveEnd - performance.now());
+      el.reprieveFill.style.width = (left / REPRIEVE_MS * 100) + '%';
+      if (left <= 0) { answerReprieve(null); return; } // out of time = wrong
+      reprieveTimer = requestAnimationFrame(tick);
+    };
+    reprieveTimer = requestAnimationFrame(tick);
+  }
+  function answerReprieve(answerYes) {
+    if (!reprieveActive) return;
+    const correct = answerYes !== null && answerYes === !!reprieveQ.a;
+    cancelReprieve();
+    if (correct) {
+      runLog.push(['save', 1]);    // logged so the server replay reproduces the refund and the run still ranks
+      game.resolveReprieve(true);  // refund the miss, play continues to the next pitch
+      const box = el.miss.querySelectorAll('i')[G.misses]; // the miss box just freed, Zelda-style
+      if (box) { box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop'); }
+      Sfx.heart();
+      showText(el.call, t('reprieve.safe'), 'small', 'party');
+      updateHud();
+    } else {
+      runLog.push(['save', 0]);    // the prompt was shown and failed/timed out: the replay ends here too
+      showText(el.call, t('reprieve.out'), 'small');
+      game.resolveReprieve(false); // miss stands -> game over
+    }
+  }
 
   // leave a game in progress (Escape, or EXIT TO TITLE on the pause overlay); the run is not recorded
-  function quitToTitle() { setPaused(false); Sfx.select(); Music.start('title'); showScreen('title'); }
+  function quitToTitle() { cancelReprieve(); setPaused(false); Sfx.select(); Music.start('title'); showScreen('title'); }
 
   // the call is in: sound, crowd, the umpire's style for this reveal, the texts
   function onResolve(r) {
@@ -724,9 +856,11 @@
     $('over-acc').textContent = s.accuracy + '%';
     $('over-streak').textContent = s.streak;
     $('over-react').textContent = s.reaction === null ? '-' : s.reaction.toFixed(2) + 's';
-    s.level = G.level; // the level the run ended on (the feedback box opens from the 3D era)
-    lastGame = s;
+    cancelReprieve();
+    s.level = G.level; // the level the run ended on (the feedback box opens from level 6)
+    lastGame = Object.assign(s, { run: run ? run.run : null, log: runLog });
     Board.resetSubmit();
+    Board.prepRun(); // a seed for the next game
     Feedback.reset();
     const prevBest = settings.records.length ? settings.records[0].score : 0;
     const isBest = s.score > prevBest && s.score > 0;
@@ -920,7 +1054,9 @@
 
   function render() {
     ctx.save();
-    if (V.shake > 0) ctx.translate(rndInt(3) - 1, rndInt(3) - 1);
+    // V.shake decays in updateView, which is skipped while paused; render still runs, so without the
+    // !G.paused guard a bad call right before a pause would jitter the frozen scene forever.
+    if (V.shake > 0 && !G.paused) ctx.translate(rndInt(3) - 1, rndInt(3) - 1);
     ctx.drawImage(BG, 0, 0);
     drawCrowd();
     const disco = G.level >= 10 && G.phase !== 'idle';
@@ -1003,7 +1139,8 @@
   const QS = new URLSearchParams(LOCAL ? location.search : '');
   const SLOW = parseFloat(QS.get('slow')) || 1; // debug: ?slow=4 slows game time
   const DEBUG = QS.has('debug');               // debug: ?debug exposes window.__uu to pose frames
-  if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); render(); }, sfx: Sfx };
+  const START_LVL = parseInt(QS.get('level'), 10) || 0; // debug: ?level=6 starts the game at level 6 (local only, unranked)
+  if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); render(); }, sfx: Sfx, reprieve: () => onReprieve() };
   let last = performance.now();
   function loop(now) {
     let dt = (now - last) / 1000;
@@ -1038,7 +1175,7 @@
     Sfx.init(); Sfx.resume();
     Music.start('title');
     switch (action) {
-      case 'start': Sfx.select(); newGame(); break;
+      case 'start': Sfx.select(); Board.countPlay(); newGame(); break;
       case 'sound': settings.sound = !settings.sound; Sfx.enabled = settings.sound; saveSettings(); Sfx.select(); refreshTitle(); break;
       case 'music': settings.music = !settings.music; saveSettings(); Music.apply(); Sfx.select(); refreshTitle(); break;
       case 'palette': settings.palette = (settings.palette + 1) % PALETTES.length; saveSettings(); applyPalette(settings.palette); Sfx.select(); refreshTitle(); break;
@@ -1072,10 +1209,34 @@
   // Leaderboard (server/ on Railway). API_BASE empty = feature hidden. ?api=http://localhost:8787 to test.
   // ------------------------------------------------------------
   const API_BASE = (new URLSearchParams(location.search).get('api') || 'https://api-production-c3f4.up.railway.app').replace(/\/$/, '');
+  const RUN_WAIT = 1500; // ms a game start waits for a seed at most
+  const LOCAL_SKIP_RUN = LOCAL && !QS.has('api'); // a local page without ?api= plays unranked, no seed request
+  const BOARD_PAGE = 20; // rows per leaderboard page; all-time keeps up to 100, so up to 5 pages
+  const PAGINATE_FROM = '2026-10-21'; // all-time pages go live this Taipei day; until then only the top 20 show
   const Board = {
     period: 'daily',
     busy: false,
+    all: [], page: 0,
     enabled: !!API_BASE,
+    // a seed per game (POST /api/runs). Fetched ahead on the title screen so PLAY BALL does not wait;
+    // takeRun() hands it over, or waits at most RUN_WAIT for one, or gives null (offline: play unranked)
+    runP: null,
+    prepRun() { if (this.enabled && !this.runP && !LOCAL_SKIP_RUN) this.runP = this.fetchRun(); },
+    async fetchRun() {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), RUN_WAIT);
+      try {
+        const r = await fetch(API_BASE + '/api/runs', { method: 'POST', signal: ctl.signal });
+        const j = r.ok ? await r.json() : null;
+        return j && typeof j.run === 'string' && typeof j.seed === 'number' ? j : null;
+      } catch (e) { return null; } finally { clearTimeout(timer); }
+    },
+    async takeRun() {
+      if (!this.enabled || LOCAL_SKIP_RUN) return null;
+      const p = this.runP || this.fetchRun();
+      this.runP = null;
+      return p;
+    },
     async fetchJson(path, opts) {
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), 6000);
@@ -1087,34 +1248,71 @@
     },
     async show(period) {
       this.period = period;
+      const token = (this.req = (this.req || 0) + 1); // every click supersedes the one before it
       document.querySelectorAll('#screen-board .tab').forEach((b) => b.classList.toggle('active', b.dataset.period === period));
       const list = $('board-list'), status = $('board-status');
       list.innerHTML = '';
+      this.all = []; this.page = 0; this.renderPager();
       status.textContent = this.enabled ? t('board.loading') : t('board.offline');
       if (!this.enabled) return;
       try {
         const data = await this.fetchJson('/api/scores?period=' + period);
-        if (this.period !== period) return;
+        if (token !== this.req) return; // a later click won; drop this stale response (even same tab)
         status.textContent = '';
-        if (!data.scores.length) { status.textContent = t('board.empty'); return; }
+        if (!data.scores.length) { list.innerHTML = ''; status.textContent = t('board.empty'); this.renderPager(); return; }
+        this.all = data.scores;
+        // all-time pagination releases on PAGINATE_FROM (Taipei): before that day the board still shows
+        // only the top 20, even though the server keeps 100. data.day is the server's Taipei date, so the
+        // switch does not depend on the player's clock. On/after the day the full 100 paginate.
+        if (period === 'all' && data.day && data.day < PAGINATE_FROM) this.all = this.all.slice(0, BOARD_PAGE);
+        // open on the page that holds the player's own best, so a rank past page 1 is still seen
         const mine = (settings.name || '').trim();
-        for (const s of data.scores) {
-          const li = document.createElement('li');
-          if (mine && s.name === mine && lastGame && s.score === lastGame.score) li.className = 'me';
-          const who = document.createElement('span'); who.className = 'who';
-          // names are shown as typed: translate="no" keeps browser page translation off them
-          const nm = document.createElement('span'); nm.className = 'nm'; nm.translate = false;
-          const nmIn = document.createElement('span'); nmIn.className = 'nm-in'; nmIn.textContent = s.name; nm.appendChild(nmIn);
-          const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy, s.reaction === null || s.reaction === undefined ? '-' : Number(s.reaction).toFixed(2));
-          who.appendChild(nm); who.appendChild(meta);
-          const b = document.createElement('b'); b.textContent = s.score;
-          li.appendChild(who); li.appendChild(b);
-          list.appendChild(li);
-        }
-        this.fitNames();
+        let idx = -1;
+        if (mine && lastGame) idx = this.all.findIndex((s) => s.name === mine && s.score === lastGame.score);
+        this.page = idx >= 0 ? Math.floor(idx / BOARD_PAGE) : 0;
+        this.renderList();
       } catch (e) {
-        if (this.period === period) status.textContent = t('board.offline');
+        if (token === this.req) { this.all = []; this.renderPager(); status.textContent = t('board.offline'); }
       }
+    },
+    renderList() {
+      const list = $('board-list');
+      list.innerHTML = '';
+      const mine = (settings.name || '').trim();
+      for (const s of this.all.slice(this.page * BOARD_PAGE, this.page * BOARD_PAGE + BOARD_PAGE)) {
+        const li = document.createElement('li');
+        if (mine && s.name === mine && lastGame && s.score === lastGame.score) li.className = 'me';
+        const who = document.createElement('span'); who.className = 'who';
+        // names are shown as typed: translate="no" keeps browser page translation off them
+        const rk = document.createElement('span'); rk.className = 'rk' + (s.rank <= 3 ? ' m' + s.rank : '');
+        if (s.rank <= 3) rk.innerHTML = MEDAL_FILL + MEDAL_HOLLOW; // one of the two shows, per palette
+        rk.appendChild(document.createTextNode(ordinal(s.rank)));
+        const nm = document.createElement('span'); nm.className = 'nm'; nm.translate = false;
+        const nmIn = document.createElement('span'); nmIn.className = 'nm-in'; nmIn.textContent = s.name; nm.appendChild(nmIn);
+        const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = t('board.row', s.pitches, s.accuracy, s.reaction === null || s.reaction === undefined ? '-' : Number(s.reaction).toFixed(2));
+        who.appendChild(rk); who.appendChild(nm); who.appendChild(meta);
+        const b = document.createElement('b'); b.textContent = s.score;
+        li.appendChild(who); li.appendChild(b);
+        list.appendChild(li);
+      }
+      this.renderPager();
+      this.fitNames();
+    },
+    renderPager() {
+      const pager = $('board-pager');
+      if (!pager) return;
+      const pages = Math.ceil(this.all.length / BOARD_PAGE);
+      if (pages <= 1) { pager.classList.add('hidden'); return; }
+      pager.classList.remove('hidden');
+      $('pg-label').textContent = (this.page + 1) + ' / ' + pages;
+      pager.querySelector('.pg-prev').disabled = this.page <= 0;
+      pager.querySelector('.pg-next').disabled = this.page >= pages - 1;
+    },
+    turnPage(d) {
+      const pages = Math.ceil(this.all.length / BOARD_PAGE);
+      const p = Math.min(Math.max(this.page + d, 0), pages - 1);
+      if (p === this.page) return;
+      this.page = p; Sfx.select(); this.renderList();
     },
     // a name wider than its column (narrow phones) slides back and forth so the whole thing can be read
     fitNames() {
@@ -1126,10 +1324,28 @@
         if (go) nm.style.setProperty('--nm-t', (2 + over / 20) + 's');
       }
     },
+    // games started today, on the title screen (the server counts PLAY BALL clicks from the launch day on)
+    playsAt: -1e9,
+    async loadPlays() {
+      const n = $('title-plays');
+      if (!this.enabled) return;
+      if (performance.now() - this.playsAt < 20000) return; // the title comes and goes; one fetch per 20 s is plenty
+      this.playsAt = performance.now();
+      try {
+        const d = await this.fetchJson('/api/plays');
+        n.textContent = t('plays.today', d.today);
+        n.classList.toggle('hidden', !(d.today > 0));
+      } catch (e) { n.classList.add('hidden'); }
+    },
+    countPlay() {
+      if (!this.enabled || LOCAL) return; // local test runs stay out of the live count
+      try { fetch(API_BASE + '/api/plays', { method: 'POST', keepalive: true }).catch(() => {}); } catch (e) { /* offline */ }
+    },
     resetSubmit() {
       const row = $('submit-row'), st = $('submit-status'), input = $('name-input'), btn = $('btn-submit');
-      row.classList.toggle('hidden', !this.enabled || !lastGame || lastGame.score <= 0);
-      st.textContent = '';
+      const eligible = this.enabled && lastGame && lastGame.score > 0;
+      row.classList.toggle('hidden', !eligible || !lastGame.run);
+      st.textContent = eligible && !lastGame.run ? t('submit.norun') : '';
       input.value = settings.name || '';
       btn.disabled = false;
       this.busy = false;
@@ -1157,7 +1373,7 @@
   // A general feedback box on the game-over screen for anyone who ended on level 6 or beyond (where the
   // game gets hard): a 1-5 star rating plus a free-text line, sent with the run's score and level; the dev
   // reads it with the admin token (README). Both a rating and some text are required to send. Entirely
-  // optional: NO THANKS closes it, and it only shows when the board API is reachable.
+  // optional, and only shown when the board API is reachable.
   const FEEDBACK_LEVEL = 6;
   const Feedback = {
     busy: false,
@@ -1194,9 +1410,17 @@
   $('fb-stars').querySelectorAll('.fb-star').forEach((s) => s.addEventListener('click', () => { Sfx.select(); Feedback.setRating(+s.dataset.rate); }));
   $('btn-fb-send').addEventListener('click', () => Feedback.send());
   $('fb-text').addEventListener('keydown', (e) => e.stopPropagation()); // typing must not call pitches or restart
+  // 7x7 pixel stars for the top three: filled (gold / silver / bronze) or hollow (Game Boy's bronze, where
+  // three shades are not enough for three medals). CSS picks which one shows.
+  const MEDAL_FILL = '<svg class="medal fill" viewBox="0 0 7 7" aria-hidden="true"><path d="M3 0h1v1h-1zM3 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM0 6h1v1h-1zM6 6h1v1h-1z"/></svg>';
+  const MEDAL_HOLLOW = '<svg class="medal hollow" viewBox="0 0 7 7" aria-hidden="true"><path d="M3 0h1v1h-1zM2 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM1 3h1v1h-1zM5 3h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM1 5h1v1h-1zM3 5h1v1h-1zM5 5h1v1h-1zM0 6h1v1h-1zM6 6h1v1h-1z"/></svg>';
+  // the rank before each name: a plain number in every language
+  function ordinal(n) { return t('board.rank', n); }
   $('btn-submit').addEventListener('click', () => Board.submit());
   $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); Board.submit(); } e.stopPropagation(); });
   document.querySelectorAll('#screen-board .tab').forEach((b) => b.addEventListener('click', () => { Sfx.select(); Board.show(b.dataset.period); }));
+  $('board-pager').querySelector('.pg-prev').addEventListener('click', () => Board.turnPage(-1));
+  $('board-pager').querySelector('.pg-next').addEventListener('click', () => Board.turnPage(1));
 
   // play buttons
   const press = (btn, call) => {
@@ -1298,6 +1522,7 @@
       .then((song) => { if (window.UUMusic) { window.UUMusic.Player.addSong(key, song); pool.push(key); } });
     for (const key of index.play || []) addTask(key.toUpperCase(), loadSong(key, PLAY_SONGS));
     for (const key of index.title || []) addTask(key.toUpperCase(), loadSong(key, TITLE_SONGS));
+    addTask('TRIVIA', loadTrivia()); // the save-a-miss bank, ready before the first game
     total = tasks.length; show();
     await Promise.all(tasks);
     fill.style.width = '100%'; text.textContent = t('loading.done');
