@@ -5,7 +5,6 @@
     {"zh": "滿球數指的是「三好球兩壞球」。", "en": "A full count means three strikes and two balls.", "a": false, "cat": "baseball", "tricky": true},
     {"zh": "投手犯規（balk）只有在壘上有跑者時才會被判。", "en": "A balk is only called when there is a runner on base.", "a": true, "cat": "baseball", "tricky": true},
     {"zh": "大聯盟每座球場的全壘打牆距離都一樣。", "en": "Every MLB ballpark has the same outfield fence distance.", "a": false, "cat": "baseball"},
-    {"zh": "一場九局比賽，每隊至少要被抓到 27 個出局數。", "en": "In a nine-inning game each team records at least 27 outs.", "a": false, "cat": "baseball", "tricky": true},
     {"zh": "打者被投手的球打到（觸身球）可以上一壘。", "en": "A batter hit by a pitch is awarded first base.", "a": true, "cat": "baseball"},
     {"zh": "三振出局一定是揮棒落空造成的。", "en": "A strikeout always comes from swinging and missing.", "a": false, "cat": "baseball", "tricky": true},
     {"zh": "滿壘時投手投出保送，會被迫推進一分。", "en": "A walk with the bases loaded forces in a run.", "a": true, "cat": "baseball"},
