@@ -375,6 +375,7 @@
       // so a run begun mid-game will not verify and cannot rank).
       const lvl = opts && opts.level ? Math.min(RULES.maxLevel, Math.max(1, opts.level | 0)) : 1;
       const idx = (lvl - 1) * RULES.pitchesPerLevel;
+      reprieveUsed = false; // every game gets its own one-shot save (Play Again resets it too)
       Object.assign(G, {
         phase: 'idle', t: 0, paused: false, pitchIndex: idx, score: 0, streak: 0, bestStreak: 0, misses: 0, correct: 0,
         pitch: null, level: lvl, userCall: null, result: null, ball: null,
