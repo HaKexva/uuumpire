@@ -604,7 +604,7 @@
   // --- save-a-miss: a timed true/false prompt on the 3rd miss past level 6 (once a game). A correct
   // answer refunds the miss and play goes on, but the run is then unranked (the server replay has no
   // notion of the reprieve, so a saved run cannot be verified -- it just does not go on the board).
-  const REPRIEVE_MS = 3000;     // time to answer the save-a-miss question
+  const REPRIEVE_MS = 6000;     // time to answer the save-a-miss question
   let saveUsed = false;         // a save was taken this game -> unranked
   let triviaBank = null;        // loaded from assets/trivia.json
   let reprieveActive = false;   // the prompt is up; STRIKE/BALL answer it instead of making a call

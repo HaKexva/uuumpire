@@ -291,7 +291,7 @@ button { font-family: inherit; }
 .reprieve.hidden { display: none; }
 .reprieve-plate { background: rgba(1, 8, 30, 0.93); border: 3px solid var(--g-gold); box-shadow: 4px 4px var(--g-ink); padding: 10px 12px; max-width: 96%; text-align: center; line-height: 1.35; }
 .reprieve-title { margin: 0 0 7px; color: var(--g-gold); font-size: 14px; letter-spacing: 1px; }
-.reprieve-q { margin: 0 0 9px; color: var(--g-white); font-size: 13px; }
+.reprieve-q { margin: 0 0 9px; color: var(--g-white); font-size: 18px; line-height: 1.4; }
 .reprieve-ans { margin: 0 0 9px; display: flex; gap: 12px; justify-content: center; font-size: 12px; }
 .reprieve-ans .rp-yes { color: var(--g-gold); }
 .reprieve-ans .rp-no { color: var(--g-white); }
