@@ -202,107 +202,142 @@
   // clap on the backbeat, octave-bouncing bass, offbeat chord stabs and syncopated horn hits. 16 bars.
   // Chords: Am Am Dm Dm F G Am Am | C C F F Dm E7 Am Am
   // ------------------------------------------------------------
+  // Level 10 hyper disco (188 BPM). Busier than the original inning: an arpeggio layer over the lead,
+  // four-on-the-floor kick, constant eighth-note hats, driving octave bass. 8 bars, loops.
+  // Chords: Am F G Am | Dm E Am E
   const DISCO = {
-    title: 'UUUMPIRE Level 10 (Disco Inning)',
-    bpm: 170,
+    title: 'UUUMPIRE Level 10 (Hyper Disco)',
+    bpm: 188,
     stepsPerBar: 8,
     tracks: {
       lead: {
         type: 'pulse', duty: 0.5, vol: 0.05, midiProgram: 80,
         bars: [
-          'a4 .  c5 .  e5 .  a5 .',
-          'g5 .  e5 .  a4 .  -  -',
-          'd5 .  f5 .  a5 .  d6 .',
-          'c6 .  a5 .  f5 .  -  -',
-          'a5 .  c6 .  a5 f5 c5 .',
-          'b5 .  d6 .  b5 g5 d5 .',
-          'c6 b5 a5 .  e5 .  a4 .',
-          'a4 .  -  -  -  -  -  -',
-          'g5 .  e5 g5 c6 .  g5 e5',
-          'e5 .  c5 .  g5 .  -  -',
-          'a5 .  f5 a5 c6 .  a5 f5',
-          'c6 .  a5 .  f5 .  -  -',
-          'd6 .  a5 .  f5 .  d5 .',
+          'a4 c5 e5 a5 e5 c5 a5 .',
+          'f4 a4 c5 f5 c5 a4 c5 .',
+          'g4 b4 d5 g5 d5 b4 d5 .',
+          'a4 c5 e5 a5 c6 a5 e5 c5',
+          'd5 f5 a5 d6 a5 f5 d5 .',
+          'e5 g#5 b5 e6 b5 g#5 e5 .',
+          'c6 b5 a5 g5 e5 c5 a4 .',
           'e5 .  g#5 . b5 .  e6 .',
-          'a5 .  e5 .  c5 .  a4 .',
-          'a4 .  -  -  -  -  -  -',
         ],
       },
-      harmony: {
-        type: 'pulse', duty: 0.25, vol: 0.03, midiProgram: 62, transpose: -12,
+      arp: {
+        type: 'pulse', duty: 0.25, vol: 0.028, midiProgram: 81,
         bars: [
-          '- c5 - e5 - c5 - e5',
-          '- c5 - e5 - c5 - e5',
-          '- d5 - f5 - d5 - f5',
-          '- d5 - f5 - d5 - f5',
-          '- a4 - c5 - a4 - c5',
-          '- b4 - d5 - b4 - d5',
-          '- c5 - e5 - c5 - e5',
-          '- c5 - e5 - c5 - e5',
-          '- e5 - g5 - e5 - g5',
-          '- e5 - g5 - e5 - g5',
-          '- a4 - c5 - a4 - c5',
-          '- a4 - c5 - a4 - c5',
-          '- d5 - f5 - d5 - f5',
-          '- g#4 - b4 - g#4 - b4',
-          '- c5 - e5 - c5 - e5',
-          '- c5 - e5 - c5 - e5',
+          'a4 c5 e5 c5 a4 c5 e5 c5',
+          'f4 a4 c5 a4 f4 a4 c5 a4',
+          'g4 b4 d5 b4 g4 b4 d5 b4',
+          'a4 c5 e5 c5 a4 c5 e5 c5',
+          'd4 f4 a4 f4 d4 f4 a4 f4',
+          'e4 g#4 b4 g#4 e4 g#4 b4 g#4',
+          'a4 c5 e5 c5 a4 c5 e5 c5',
+          'e4 g#4 b4 g#4 e4 g#4 b4 g#4',
         ],
       },
       bass: {
         type: 'triangle', vol: 0.1, midiProgram: 39,
         bars: [
           'a2 a3 a2 a3 a2 a3 a2 a3',
-          'a2 a3 a2 a3 a2 a3 a2 a3',
-          'd2 d3 d2 d3 d2 d3 d2 d3',
-          'd2 d3 d2 d3 d2 d3 d2 d3',
           'f2 f3 f2 f3 f2 f3 f2 f3',
           'g2 g3 g2 g3 g2 g3 g2 g3',
           'a2 a3 a2 a3 a2 a3 a2 a3',
-          'a2 a3 a2 a3 a2 a3 a2 a3',
-          'c3 c4 c3 c4 c3 c4 c3 c4',
-          'c3 c4 c3 c4 c3 c4 c3 c4',
-          'f2 f3 f2 f3 f2 f3 f2 f3',
-          'f2 f3 f2 f3 f2 f3 f2 f3',
           'd2 d3 d2 d3 d2 d3 d2 d3',
           'e2 e3 e2 e3 e2 e3 e2 e3',
           'a2 a3 a2 a3 a2 a3 a2 a3',
-          'a2 a3 a2 a3 a2 a3 a2 a3',
+          'e2 e3 e2 e3 e2 e3 e2 e3',
         ],
       },
-      kick: { // four-on-the-floor: a kick on every beat, the heart of disco
+      kick: { // four-on-the-floor, with a driving fill on the turnaround
         type: 'noise', vol: 0.05,
-        bars: Array(16).fill('K - K - K - K -'),
+        bars: [
+          'K - K - K - K -','K - K - K - K -','K - K - K - K -','K - K - K - K -',
+          'K - K - K - K -','K - K - K - K -','K - K - K - K -','K - K - K K K K',
+        ],
       },
-      hats: { // open hat on every offbeat ("tss" on the and)
-        type: 'noise', vol: 0.05,
-        bars: Array(16).fill('- h - h - h - h'),
+      hats: { // constant eighth-note sizzle
+        type: 'noise', vol: 0.04,
+        bars: Array(8).fill('h h h h h h h h'),
       },
-      clap: { // clap on the backbeat (2 and 4); a snare roll fills the turnaround bars
+      clap: { // backbeat, with a roll into the loop
         type: 'noise', vol: 0.045,
         bars: [
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - S S S',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - - S -',
-          '- - S - - S S S',
+          '- - S - - - S -','- - S - - - S -','- - S - - - S -','- - S - - - S -',
+          '- - S - - - S -','- - S - - - S -','- - S - - - S -','- - S - - S S S',
         ],
       },
     },
   };
 
-  const SONGS = { theme: SONG, entry: ENTRY, ballgame: BALLGAME, disco: DISCO };
+  // Level 11 hyper anthem (196 BPM). An epic driving minor "final inning" chiptune, the chiptune
+  // replacement for the old produced mp3. 8 bars, loops. Chords: Em C G D | Em C D B
+  const LV11 = {
+    title: 'UUUMPIRE Level 11 (Hyper Anthem)',
+    bpm: 196,
+    stepsPerBar: 8,
+    tracks: {
+      lead: {
+        type: 'pulse', duty: 0.5, vol: 0.055, midiProgram: 80,
+        bars: [
+          'e5 .  g5 b5 e6 .  b5 g5',
+          'c5 .  e5 g5 c6 .  g5 e5',
+          'g4 .  b4 d5 g5 .  d5 b4',
+          'd5 .  f#5 a5 d6 . a5 f#5',
+          'e6 .  b5 .  g5 .  e5 .',
+          'c6 .  g5 .  e5 .  c5 .',
+          'd5 f#5 a5 d6 a5 f#5 d5 .',
+          'b4 d#5 f#5 b5 f#5 d#5 b4 .',
+        ],
+      },
+      arp: {
+        type: 'pulse', duty: 0.25, vol: 0.03, midiProgram: 81,
+        bars: [
+          'e4 g4 b4 g4 e4 g4 b4 g4',
+          'c4 e4 g4 e4 c4 e4 g4 e4',
+          'g3 b3 d4 b3 g3 b3 d4 b3',
+          'd4 f#4 a4 f#4 d4 f#4 a4 f#4',
+          'e4 g4 b4 g4 e4 g4 b4 g4',
+          'c4 e4 g4 e4 c4 e4 g4 e4',
+          'd4 f#4 a4 f#4 d4 f#4 a4 f#4',
+          'b3 d#4 f#4 d#4 b3 d#4 f#4 d#4',
+        ],
+      },
+      bass: {
+        type: 'triangle', vol: 0.11, midiProgram: 39,
+        bars: [
+          'e2 e3 e2 e3 e2 e3 e2 e3',
+          'c2 c3 c2 c3 c2 c3 c2 c3',
+          'g2 g3 g2 g3 g2 g3 g2 g3',
+          'd2 d3 d2 d3 d2 d3 d2 d3',
+          'e2 e3 e2 e3 e2 e3 e2 e3',
+          'c2 c3 c2 c3 c2 c3 c2 c3',
+          'd2 d3 d2 d3 d2 d3 d2 d3',
+          'b2 b3 b2 b3 b2 b3 b2 b3',
+        ],
+      },
+      kick: {
+        type: 'noise', vol: 0.055,
+        bars: [
+          'K - K - K - K -','K - K - K - K -','K - K - K - K -','K - K - K - K -',
+          'K - K - K - K -','K - K - K - K -','K - K - K - K -','K - K - K K K K',
+        ],
+      },
+      hats: {
+        type: 'noise', vol: 0.04,
+        bars: Array(8).fill('h h h h h h h h'),
+      },
+      snare: { // backbeat, big fill into the loop
+        type: 'noise', vol: 0.05,
+        bars: [
+          '- - S - - - S -','- - S - - - S -','- - S - - - S -','- - S - - - S -',
+          '- - S - - - S -','- - S - - - S -','- - S - - - S -','- - S - S S S S',
+        ],
+      },
+    },
+  };
+
+  const SONGS = { theme: SONG, entry: ENTRY, ballgame: BALLGAME, disco: DISCO, lv11: LV11 };
 
   const NOTE_IDX = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
   function noteToMidi(tok) {
@@ -470,7 +505,7 @@
     },
   };
 
-  const api = { SONG, ENTRY, BALLGAME, DISCO, SONGS, Player, noteToMidi, trackEvents };
+  const api = { SONG, ENTRY, BALLGAME, DISCO, LV11, SONGS, Player, noteToMidi, trackEvents };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.UUMusic = api;
 })(typeof window !== 'undefined' ? window : globalThis);
