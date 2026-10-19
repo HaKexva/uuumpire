@@ -80,7 +80,7 @@
     { name: 'SHOOT',    w: 2, speed: [138, 150], bx: [6, 10],  side: 'arm',   by: [1, 3],    fx: 'early', fy: 'std',    spin: 12, minLv: 2 }, // runs early, no sink
     { name: 'TWOSEAM',  w: 2, speed: [134, 146], bx: [5, 9],   side: 'arm',   by: [3, 6],    fx: 'late',  fy: 'late',   spin: 12, minLv: 3 }, // runs late with a bit of sink
     { name: 'CUTTER',   w: 2, speed: [140, 152], bx: [4, 7],   side: 'glove', by: [1, 2],    fx: 'sharp', fy: 'std',    spin: 12, minLv: 3 },
-    { name: 'SINKER',   w: 2, speed: [134, 146], bx: [6, 10],  side: 'arm',   by: [11, 16],  fx: 'late',  fy: 'sharp',  spin: 9,  minLv: 3 }, // bowling-ball: runs in and dives late
+    { name: 'SINKER',   w: 2, speed: [134, 146], bx: [6.6, 11], side: 'arm',   by: [12.1, 17.6], fx: 'late', fy: 'sharp', spin: 9, minLv: 3 }, // bowling-ball: runs in and dives late (movement +10%)
     { name: 'SPLITTER', w: 2, speed: [130, 142], bx: [0, 2],   side: 'any',   by: [10, 14],  fx: 'std',   fy: 'sharp',  spin: 3,  minLv: 3 }, // straight, then a sudden drop
     { name: 'FORKBALL', w: 2, speed: [126, 138], bx: [0, 2],   side: 'any',   by: [12, 18],  fx: 'std',   fy: 'tumble', spin: 2,  minLv: 6 },
     { name: 'SWEEPER',  w: 3, speed: [130, 142], bx: [16, 24], side: 'glove', by: [0, 3],    fx: 'std',   fy: 'std',    spin: 7,  minLv: 6 },
