@@ -232,6 +232,50 @@ const count = (log, type) => log.filter((l) => l.type === type).length;
   console.log(`  ${games} random games, ${overs} ended by three misses`);
 }
 
+// save-a-miss (reprieve): a one-shot miss refund from level 6 on, opt-in, reset every game
+console.log('save-a-miss');
+{
+  const mk = (reprieve) => C.createGame({ rng: mulberry32(21), kits: 6, reprieve });
+  const step = (game, done) => { let g = 0; while (!done() && g++ < 2e5) game.update(DT); };
+  const toStop = (game) => step(game, () => ['call', 'over', 'reprieve'].includes(game.state.phase));
+  const toHold = (game) => step(game, () => ['reprieve', 'over'].includes(game.state.phase));
+  const miss = (game) => { const s = game.state; game.call(s.pitch.strike ? 'ball' : 'strike'); };
+  const missThrice = (game) => { for (let i = 0; i < 3; i++) { toStop(game); if (game.state.phase === 'call') miss(game); } toHold(game); };
+
+  // opt-in: the default game (replayRun's, with no reprieve) still ends at three misses on level 6
+  { const game = mk(false); game.start({ level: 6 }); missThrice(game); ok(game.state.phase === 'over' && game.state.misses === 3, 'reprieve off: three misses end the game at level 6'); }
+
+  // level gate: on but below level 6 there is no prompt
+  { const game = mk(true); game.start({ level: 5 }); missThrice(game); ok(game.state.phase === 'over' && game.state.misses === 3, 'reprieve on but below level 6: still ends at three misses'); }
+
+  // level 6, reprieve on: the third miss holds for the prompt instead of ending
+  { const game = mk(true); game.start({ level: 6 }); missThrice(game); ok(game.state.phase === 'reprieve' && game.state.misses === 3, 'level 6, reprieve on: the third miss holds for the prompt'); ok(game.resolveReprieve(false) === true && game.state.phase === 'over', 'declining the prompt ends the game'); }
+
+  // a save refunds one miss, play continues, and it is one-shot (no second prompt that game)
+  {
+    const game = mk(true); game.start({ level: 6 }); missThrice(game);
+    ok(game.state.phase === 'reprieve', 'prompt is up before the save');
+    ok(game.resolveReprieve(true) === true && game.state.misses === 2, 'a save refunds one miss (3 -> 2)');
+    toStop(game); ok(game.state.phase !== 'over', 'play continues after a save');
+    let guard = 0; while (game.state.phase !== 'over' && guard++ < 2e6) { toStop(game); if (game.state.phase === 'call') miss(game); else break; }
+    toHold(game);
+    ok(game.state.phase === 'over' && game.state.misses === 3, 'the save is one-shot: the next three-miss ends the game, no second prompt');
+  }
+
+  // resolveReprieve does nothing outside the prompt
+  { const game = mk(true); game.start({ level: 6 }); ok(game.resolveReprieve(true) === false, 'resolveReprieve is ignored outside the prompt'); }
+
+  // regression: reprieveUsed resets on start(), so Play Again (same game object) gets a fresh save
+  {
+    const game = mk(true);
+    const toPrompt = () => { game.start({ level: 6 }); missThrice(game); return game.state.phase === 'reprieve'; };
+    const first = toPrompt();
+    game.resolveReprieve(true);            // use the save in game one
+    const second = toPrompt();             // Play Again on the same instance
+    ok(first && second, 'the one-shot save resets each game (Play Again / start restores it)');
+  }
+}
+
 // replay: a logged game plays back to the same summary; a doctored one does not
 console.log('replay');
 {
