@@ -1,0 +1,49 @@
+# Deploys the public site from this PRIVATE source repo to the PUBLIC repo that serves GitHub Pages.
+# Only the minified build (dist/) is pushed, so the readable source + history stay in this private repo
+# while the public repo (HaKexva/uuumpire) keeps serving https://hakexva.github.io/uuumpire unchanged.
+#
+# One-time setup (see MIGRATION.md):
+#   - Add a repo secret DEPLOY_TOKEN: a fine-grained PAT with Contents: Read and write on HaKexva/uuumpire.
+#   - In the public repo, set Pages -> Build and deployment -> Source: "Deploy from a branch", main / (root).
+name: deploy-pages
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'server/**'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install build tooling
+        run: npm ci
+      - name: Core tests (gate the deploy)
+        run: npm test
+      - name: Build dist/
+        run: npm run build
+      - name: Publish dist/ to the public Pages repo
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.DEPLOY_TOKEN }}
+          external_repository: HaKexva/uuumpire
+          publish_branch: main
+          publish_dir: ./dist
+          force_orphan: true          # keep the public repo at one clean commit of built output only
+          user_name: 'uuumpire-deploy'
+          user_email: 'deploy@users.noreply.github.com'
+          commit_message: 'Deploy build from source'

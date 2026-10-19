@@ -1,0 +1,12 @@
+{
+  "name": "uuumpire",
+  "private": true,
+  "description": "Build tooling for the UUUMPIRE static game: minifies the client JS into dist/ for the public deploy repo.",
+  "scripts": {
+    "build": "node tools/build.js",
+    "test": "node tools/test-core.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
