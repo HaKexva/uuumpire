@@ -448,7 +448,16 @@
   const LANGS = Object.keys(I18N);
   function detectLang() {
     const l = (navigator.language || 'en').toLowerCase();
-    return l.startsWith('nan') ? 'nan' : l.startsWith('zh') ? 'zh' : l.startsWith('ja') ? 'ja' : 'en';
+    if (l.startsWith('nan')) return 'nan';
+    if (l.startsWith('zh')) return 'zh';
+    if (l.startsWith('ja')) return 'ja';
+    // no CJK browser language set: fall back to the device's timezone (location) for the TW/JP audience
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      if (tz === 'Asia/Taipei') return 'zh';
+      if (tz === 'Asia/Tokyo') return 'ja';
+    } catch (e) { /* no Intl: fall through to English */ }
+    return 'en';
   }
   if (!I18N[settings.lang]) settings.lang = 'en';
   function t(key, ...args) {
@@ -1415,7 +1424,9 @@
   // the rank before each name: a plain number in every language
   function ordinal(n) { return t('board.rank', n); }
   $('btn-submit').addEventListener('click', () => Board.submit());
-  $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); Board.submit(); } e.stopPropagation(); });
+  // Enter submits -- but not while an IME is composing (Zhuyin/kana users press Enter to pick a candidate;
+  // isComposing / keyCode 229 mark that Enter so it confirms the character instead of submitting the name).
+  $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); Board.submit(); } e.stopPropagation(); });
   document.querySelectorAll('#screen-board .tab').forEach((b) => b.addEventListener('click', () => { Sfx.select(); Board.show(b.dataset.period); }));
   $('board-pager').querySelector('.pg-prev').addEventListener('click', () => Board.turnPage(-1));
   $('board-pager').querySelector('.pg-next').addEventListener('click', () => Board.turnPage(1));
