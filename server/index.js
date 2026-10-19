@@ -174,7 +174,7 @@ const UNIFORM_STD = 0.01; // s: tighter call-to-call spread than any human hand 
 function plausible(log, rec) {
   const ts = [];
   for (const e of log) {
-    if (!Array.isArray(e) || e[0] == null || typeof e[1] !== 'number') continue; // a pitch left to the clock has no call
+    if (!Array.isArray(e) || e[0] === 'save' || e[0] == null || typeof e[1] !== 'number') continue; // a reprieve answer / a pitch left to the clock has no call time
     ts.push(e[1]);
   }
   // 100% accuracy can only mean a flawless full season: a shorter perfect game never reaches game-over
