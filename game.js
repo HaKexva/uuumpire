@@ -608,12 +608,18 @@
   let saveUsed = false;         // a save was taken this game -> unranked
   let triviaBank = null;        // loaded from assets/trivia.json
   let reprieveActive = false;   // the prompt is up; STRIKE/BALL answer it instead of making a call
-  let reprieveQ = null, reprieveTimer = null, reprieveEnd = 0, lastTriviaIdx = -1;
-  async function loadTrivia() {
-    if (triviaBank) return triviaBank;
-    try { const r = await fetch(assetUrl('assets/trivia.json')); triviaBank = (await r.json()).q || []; }
-    catch (e) { triviaBank = []; }
-    return triviaBank;
+  let reprieveQ = null, reprieveTimer = null, reprieveEnd = 0, lastTriviaIdx = -1, triviaLoad = null;
+  // Preloaded in the boot load bar so the bank is always ready before anyone reaches the prompt. Dedupes
+  // concurrent callers and, on a failed fetch, clears the in-flight promise so a later call can retry
+  // (an empty bank is never cached as "loaded").
+  function loadTrivia() {
+    if (Array.isArray(triviaBank) && triviaBank.length) return Promise.resolve(triviaBank);
+    if (triviaLoad) return triviaLoad;
+    triviaLoad = fetch(assetUrl('assets/trivia.json'))
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((j) => { triviaBank = j.q || []; return triviaBank; })
+      .catch(() => { triviaBank = []; triviaLoad = null; return triviaBank; });
+    return triviaLoad;
   }
 
   let starting = false;
@@ -1474,6 +1480,7 @@
       .then((song) => { if (window.UUMusic) { window.UUMusic.Player.addSong(key, song); pool.push(key); } });
     for (const key of index.play || []) addTask(key.toUpperCase(), loadSong(key, PLAY_SONGS));
     for (const key of index.title || []) addTask(key.toUpperCase(), loadSong(key, TITLE_SONGS));
+    addTask('TRIVIA', loadTrivia()); // the save-a-miss bank, ready before the first game
     total = tasks.length; show();
     await Promise.all(tasks);
     fill.style.width = '100%'; text.textContent = t('loading.done');
