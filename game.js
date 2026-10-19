@@ -633,7 +633,7 @@
     Music.tempo(1);
     Music.start('play');
     Music.preloadExt(LV11_BGM); // buffer the final-level anthem now so it is ready by level 11
-    game.start();
+    game.start(START_LVL ? { level: START_LVL } : undefined);
     updateHud();
   }
 
@@ -1130,6 +1130,7 @@
   const QS = new URLSearchParams(LOCAL ? location.search : '');
   const SLOW = parseFloat(QS.get('slow')) || 1; // debug: ?slow=4 slows game time
   const DEBUG = QS.has('debug');               // debug: ?debug exposes window.__uu to pose frames
+  const START_LVL = parseInt(QS.get('level'), 10) || 0; // debug: ?level=6 starts the game at level 6 (local only, unranked)
   if (DEBUG) window.__uu = { G, V, ZONE, game, core: C, pause: false, startWindup: (d) => game.startWindup(d), render, genPitch: (lv) => C.genPitch(lv, { kits: KITS.length }), ballPos: C.ballPos, showScreen, newGame, img: () => IMG, step: (dt) => { game.update(dt); updateView(dt); render(); }, sfx: Sfx, reprieve: () => onReprieve() };
   let last = performance.now();
   function loop(now) {

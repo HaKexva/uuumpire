@@ -370,10 +370,14 @@
       emit('next', { pitchIndex: G.pitchIndex, level: G.level, levelUp: !!levelUp, banner, congrats: banner && G.level === RULES.discoLevel + 1, pitch: G.pitch });
     }
 
-    function start() {
+    function start(opts) {
+      // opts.level jumps the start to that level (dev aid; the server always replays from pitch 0,
+      // so a run begun mid-game will not verify and cannot rank).
+      const lvl = opts && opts.level ? Math.min(RULES.maxLevel, Math.max(1, opts.level | 0)) : 1;
+      const idx = (lvl - 1) * RULES.pitchesPerLevel;
       Object.assign(G, {
-        phase: 'idle', t: 0, paused: false, pitchIndex: 0, score: 0, streak: 0, bestStreak: 0, misses: 0, correct: 0,
-        pitch: null, level: 1, userCall: null, result: null, ball: null,
+        phase: 'idle', t: 0, paused: false, pitchIndex: idx, score: 0, streak: 0, bestStreak: 0, misses: 0, correct: 0,
+        pitch: null, level: lvl, userCall: null, result: null, ball: null,
         mood: 0, reactSum: 0, reactN: 0, lastReaction: null,
       });
       G.mitt = { x: MITT_REST.x, y: MITT_REST.y };
