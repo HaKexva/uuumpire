@@ -1190,11 +1190,9 @@
         this.busy = false; $('btn-fb-send').disabled = false;
       }
     },
-    skip() { Sfx.select(); $('fb-box').classList.add('hidden'); },
   };
   $('fb-stars').querySelectorAll('.fb-star').forEach((s) => s.addEventListener('click', () => { Sfx.select(); Feedback.setRating(+s.dataset.rate); }));
   $('btn-fb-send').addEventListener('click', () => Feedback.send());
-  $('btn-fb-skip').addEventListener('click', () => Feedback.skip());
   $('fb-text').addEventListener('keydown', (e) => e.stopPropagation()); // typing must not call pitches or restart
   $('btn-submit').addEventListener('click', () => Board.submit());
   $('name-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); Board.submit(); } e.stopPropagation(); });
