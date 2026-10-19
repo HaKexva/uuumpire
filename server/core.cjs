@@ -474,7 +474,7 @@
         case 'reveal':
           if (G.t >= TIMING.reveal) {
             if (G.misses >= RULES.misses) {
-              if (reprieveOn && !reprieveUsed && G.level > RULES.reprieveMinLevel && G.pitchIndex + 1 < RULES.maxLevel * RULES.pitchesPerLevel) {
+              if (reprieveOn && !reprieveUsed && G.level >= RULES.reprieveMinLevel && G.pitchIndex + 1 < RULES.maxLevel * RULES.pitchesPerLevel) {
                 reprieveUsed = true; // one shot a game: hold for the save-a-miss prompt instead of ending
                 G.phase = 'reprieve'; G.t = 0;
                 emit('reprieve', { level: G.level });
