@@ -601,19 +601,25 @@
   };
   let lastGame = null;       // summary of the last game (game-over screen, leaderboard submit)
 
-  // --- save-a-miss: a timed true/false prompt on the 3rd miss past level 6 (once a game). A correct
-  // answer refunds the miss and play goes on, but the run is then unranked (the server replay has no
-  // notion of the reprieve, so a saved run cannot be verified -- it just does not go on the board).
+  // --- save-a-miss: a timed true/false prompt on the 3rd miss from level 6 on (once a game). A correct
+  // answer refunds the miss and play goes on. The resolution is logged as a ['save', 1|0] entry, so the
+  // server replay (replayRun, reprieve enabled when a save entry is present) reproduces it and the run
+  // still ranks.
   const REPRIEVE_MS = 6000;     // time to answer the save-a-miss question
-  let saveUsed = false;         // a save was taken this game -> unranked
   let triviaBank = null;        // loaded from assets/trivia.json
   let reprieveActive = false;   // the prompt is up; STRIKE/BALL answer it instead of making a call
-  let reprieveQ = null, reprieveTimer = null, reprieveEnd = 0, lastTriviaIdx = -1;
-  async function loadTrivia() {
-    if (triviaBank) return triviaBank;
-    try { const r = await fetch(assetUrl('assets/trivia.json')); triviaBank = (await r.json()).q || []; }
-    catch (e) { triviaBank = []; }
-    return triviaBank;
+  let reprieveQ = null, reprieveTimer = null, reprieveEnd = 0, lastTriviaIdx = -1, triviaLoad = null;
+  // Preloaded in the boot load bar so the bank is always ready before anyone reaches the prompt. Dedupes
+  // concurrent callers and, on a failed fetch, clears the in-flight promise so a later call can retry
+  // (an empty bank is never cached as "loaded").
+  function loadTrivia() {
+    if (Array.isArray(triviaBank) && triviaBank.length) return Promise.resolve(triviaBank);
+    if (triviaLoad) return triviaLoad;
+    triviaLoad = fetch(assetUrl('assets/trivia.json'))
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((j) => { triviaBank = j.q || []; return triviaBank; })
+      .catch(() => { triviaBank = []; triviaLoad = null; return triviaBank; });
+    return triviaLoad;
   }
 
   let starting = false;
@@ -624,7 +630,7 @@
     starting = false;
     runRng = run ? C.seededRng(run.seed) : Math.random;
     runLog = [];
-    saveUsed = false; cancelReprieve(); loadTrivia(); // the save-a-miss bank is ready by the time level 7 comes
+    cancelReprieve(); loadTrivia(); // bank is already preloaded in boot; this is a cheap no-op safety net
     Object.assign(V, { shake: 0, flash: 0, wave: 0, crowdT: 0, particles: [], trail: [], umpStyle: null });
     el.pause.classList.remove("show"); el.btnPause.classList.remove("pressed");
     hideText();
@@ -748,7 +754,7 @@
   }
   async function onReprieve() {
     const bank = await loadTrivia();
-    if (!bank.length) { game.resolveReprieve(false); return; } // no questions available: just end
+    if (!bank.length) { runLog.push(['save', 0]); game.resolveReprieve(false); return; } // no questions available: just end
     let i = Math.floor(Math.random() * bank.length);
     if (bank.length > 1 && i === lastTriviaIdx) i = (i + 1) % bank.length; // avoid an immediate repeat
     lastTriviaIdx = i; reprieveQ = bank[i]; reprieveActive = true;
@@ -773,7 +779,7 @@
     const correct = answerYes !== null && answerYes === !!reprieveQ.a;
     cancelReprieve();
     if (correct) {
-      saveUsed = true;             // a save was taken: this run is now unranked
+      runLog.push(['save', 1]);    // logged so the server replay reproduces the refund and the run still ranks
       game.resolveReprieve(true);  // refund the miss, play continues to the next pitch
       const box = el.miss.querySelectorAll('i')[G.misses]; // the miss box just freed, Zelda-style
       if (box) { box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop'); }
@@ -781,6 +787,7 @@
       showText(el.call, t('reprieve.safe'), 'small', 'party');
       updateHud();
     } else {
+      runLog.push(['save', 0]);    // the prompt was shown and failed/timed out: the replay ends here too
       showText(el.call, t('reprieve.out'), 'small');
       game.resolveReprieve(false); // miss stands -> game over
     }
@@ -850,7 +857,7 @@
     $('over-streak').textContent = s.streak;
     $('over-react').textContent = s.reaction === null ? '-' : s.reaction.toFixed(2) + 's';
     cancelReprieve();
-    lastGame = Object.assign(s, { run: run ? run.run : null, log: runLog, saved: saveUsed });
+    lastGame = Object.assign(s, { run: run ? run.run : null, log: runLog });
     Board.resetSubmit();
     Board.prepRun(); // a seed for the next game
     const prevBest = settings.records.length ? settings.records[0].score : 0;
@@ -1334,10 +1341,9 @@
     },
     resetSubmit() {
       const row = $('submit-row'), st = $('submit-status'), input = $('name-input'), btn = $('btn-submit');
-      const eligible = this.enabled && lastGame && lastGame.score > 0 && !lastGame.saved;
+      const eligible = this.enabled && lastGame && lastGame.score > 0;
       row.classList.toggle('hidden', !eligible || !lastGame.run);
-      // a saved run is unranked (the server replay can't verify a reprieve); otherwise note a missing seed
-      st.textContent = lastGame && lastGame.saved ? t('submit.saved') : (eligible && !lastGame.run ? t('submit.norun') : '');
+      st.textContent = eligible && !lastGame.run ? t('submit.norun') : '';
       input.value = settings.name || '';
       btn.disabled = false;
       this.busy = false;
@@ -1474,6 +1480,7 @@
       .then((song) => { if (window.UUMusic) { window.UUMusic.Player.addSong(key, song); pool.push(key); } });
     for (const key of index.play || []) addTask(key.toUpperCase(), loadSong(key, PLAY_SONGS));
     for (const key of index.title || []) addTask(key.toUpperCase(), loadSong(key, TITLE_SONGS));
+    addTask('TRIVIA', loadTrivia()); // the save-a-miss bank, ready before the first game
     total = tasks.length; show();
     await Promise.all(tasks);
     fill.style.width = '100%'; text.textContent = t('loading.done');

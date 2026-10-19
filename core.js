@@ -301,23 +301,32 @@
   // outside its window, a log longer or shorter than the game, ...). Frame length does not matter:
   // every phase change resets the clock, so the call time is the only timing that reaches the score.
   function replayRun(seed, log) {
-    if (!Array.isArray(log) || log.length > RULES.maxLevel * RULES.pitchesPerLevel) return null;
-    const game = createGame({ rng: seededRng(seed), kits: 1 });
+    if (!Array.isArray(log) || log.length > RULES.maxLevel * RULES.pitchesPerLevel + 1) return null;
+    // A save-a-miss run carries one ['save', 1|0] entry; reprieve is enabled only when the log has it, so
+    // logs without one replay exactly as before (three misses end the game, no reprieve phase to stall in).
+    const reprieve = log.some((e) => Array.isArray(e) && e[0] === 'save');
+    const game = createGame({ rng: seededRng(seed), kits: 1, reprieve });
     const G = game.state;
     const DT = 1 / 60, MAX_STEPS = 400000;
     let steps = 0;
     const stepUntil = (done) => { while (!done()) { if (steps++ > MAX_STEPS) return false; game.update(DT); } return true; };
-    const atCall = () => G.phase === 'call' || G.phase === 'over';
+    const atStop = () => G.phase === 'call' || G.phase === 'over' || G.phase === 'reprieve';
     game.start();
     for (const e of log) {
-      if (!Array.isArray(e) || !stepUntil(atCall) || G.phase === 'over') return null;
+      if (!Array.isArray(e) || !stepUntil(atStop) || G.phase === 'over') return null;
+      if (G.phase === 'reprieve') { // the prompt is up: this entry must answer it
+        if (e[0] !== 'save') return null;
+        game.resolveReprieve(!!e[1]);
+        continue;
+      }
       const call = e[0], t = e[1];
+      if (call === 'save') return null; // a save answer with no prompt pending
       if (call === null) { if (!stepUntil(() => G.phase !== 'call')) return null; continue; }
       if ((call !== 'strike' && call !== 'ball') || typeof t !== 'number' || !(t >= 0) || t >= G.callWindow) return null;
       G.t = t;
       if (!game.call(call)) return null;
     }
-    if (!stepUntil(atCall) || G.phase !== 'over') return null; // the log stops before the game did
+    if (!stepUntil(atStop) || G.phase !== 'over') return null; // the log stops before the game did
     return Object.assign(game.summary(), { seconds: steps * DT });
   }
 

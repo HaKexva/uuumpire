@@ -308,6 +308,40 @@ console.log('replay');
   const r2 = C.replayRun(seed, strikes);
   ok(r2 === null || r2.score !== want.score || r2.pitches !== want.pitches, 'changing the calls changes the outcome');
 }
+
+// replay of a save-a-miss run: a ['save', 1|0] entry is reproduced, so a saved game still ranks.
+// Played from the start (replayRun always begins at pitch 0): correct until level 6, then three misses
+// for the prompt, a save, then out.
+{
+  const seed = 777;
+  const log = [];
+  const game = C.createGame({ rng: C.seededRng(seed), kits: 6, reprieve: true, onEvent: (type, e) => { if (type === 'resolve') log.push(e.timeout ? [null] : [e.call, e.reaction]); } });
+  const G = game.state;
+  const stepTo = (p) => { let g = 0; while (!p() && g++ < 2e5) game.update(1 / 60); };
+  const atStop = () => ['call', 'over', 'reprieve'].includes(G.phase);
+  const call = (wrong) => { G.t = 0.3; game.call((G.pitch.strike ? !wrong : wrong) ? 'strike' : 'ball'); };
+  game.start();
+  stepTo(atStop);
+  while (G.level < C.RULES.reprieveMinLevel && G.phase === 'call') { call(false); stepTo(atStop); } // climb to level 6
+  ok(G.phase === 'call' && G.level === C.RULES.reprieveMinLevel, 'saved-run replay: reached level 6 clean');
+  call(true); stepTo(atStop);   // miss 1
+  call(true); stepTo(atStop);   // miss 2
+  call(true); stepTo(atStop);   // miss 3 -> the prompt
+  ok(G.phase === 'reprieve', 'saved-run replay: the game reaches the prompt');
+  const saveAt = log.length; log.push(['save', 1]); game.resolveReprieve(true); // keep the save in the log and refund
+  stepTo(atStop); call(false);  // a correct call after the save (scores)
+  stepTo(atStop); call(true);   // miss 3 again -> over (one-shot, no second prompt)
+  stepTo(atStop);
+  const want = game.summary();
+  ok(G.phase === 'over' && log.some((e) => e[0] === 'save'), 'saved game ends and the log carries the save entry');
+  const got = C.replayRun(seed, log);
+  ok(got && got.score === want.score && got.pitches === want.pitches && got.accuracy === want.accuracy && got.streak === want.streak, `a saved run replays to the same summary and ranks (${want.score} pts)`);
+  ok(C.replayRun(seed, [['save', 1]].concat(log)) === null, 'a save answer with no prompt pending is refused');
+  const declined = log.slice(0, saveAt).concat([['save', 0]]);
+  const rd = C.replayRun(seed, declined);
+  ok(rd && rd.pitches < want.pitches, 'declining the save ends the game there (fewer pitches)');
+}
+
 // the server ships with its own copy of core.js as core.cjs (pre-commit hook): it must be this one
 {
   const fs = require('fs'), path = require('path');
