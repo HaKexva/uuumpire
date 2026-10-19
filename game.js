@@ -1154,26 +1154,34 @@
       }
     },
   };
-  // Feedback from players who reached the 3D era: one free-text box on the game-over screen, sent with
-  // the run's score and level; the dev reads it with the admin token (README). Entirely optional:
-  // NO THANKS closes it, and it is only shown when the board API is reachable in the first place.
-  const FEEDBACK_LEVEL = 12;
+  // A general feedback box on the game-over screen for anyone who ended on level 6 or beyond (where the
+  // game gets hard): a 1-5 star rating plus a free-text line, sent with the run's score and level; the dev
+  // reads it with the admin token (README). Both a rating and some text are required to send. Entirely
+  // optional: NO THANKS closes it, and it only shows when the board API is reachable.
+  const FEEDBACK_LEVEL = 6;
   const Feedback = {
     busy: false,
+    rating: 0,
+    paint() {
+      const stars = $('fb-stars').querySelectorAll('.fb-star');
+      stars.forEach((s, i) => s.classList.toggle('on', i < this.rating));
+    },
+    setRating(n) { this.rating = n; this.paint(); if ($('fb-status').textContent === t('fb.need')) $('fb-status').textContent = ''; },
     reset() {
       const show = Board.enabled && lastGame && (lastGame.level >= FEEDBACK_LEVEL || (DEBUG && QS.has('fb')));
       $('fb-box').classList.toggle('hidden', !show);
+      this.rating = 0; this.paint();
       $('fb-text').value = ''; $('fb-status').textContent = ''; $('btn-fb-send').disabled = false; this.busy = false;
     },
     async send() {
       if (this.busy || !lastGame) return;
       const message = $('fb-text').value.trim().slice(0, 500);
-      if (!message) { $('fb-text').focus(); return; }
+      if (!this.rating || !message) { $('fb-status').textContent = t('fb.need'); if (!message) $('fb-text').focus(); return; }
       this.busy = true; $('btn-fb-send').disabled = true; $('fb-status').textContent = t('submit.sending');
       try {
         await Board.fetchJson('/api/feedback', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, name: settings.name || '', lang: settings.lang, score: lastGame.score, level: lastGame.level, pitches: lastGame.pitches, accuracy: lastGame.accuracy }),
+          body: JSON.stringify({ message, rating: this.rating, name: settings.name || '', lang: settings.lang, score: lastGame.score, level: lastGame.level, pitches: lastGame.pitches, accuracy: lastGame.accuracy }),
         });
         $('fb-status').textContent = t('fb.sent'); Sfx.good();
         setTimeout(() => { if (this.busy) $('fb-box').classList.add('hidden'); }, 1500);
@@ -1184,6 +1192,7 @@
     },
     skip() { Sfx.select(); $('fb-box').classList.add('hidden'); },
   };
+  $('fb-stars').querySelectorAll('.fb-star').forEach((s) => s.addEventListener('click', () => { Sfx.select(); Feedback.setRating(+s.dataset.rate); }));
   $('btn-fb-send').addEventListener('click', () => Feedback.send());
   $('btn-fb-skip').addEventListener('click', () => Feedback.skip());
   $('fb-text').addEventListener('keydown', (e) => e.stopPropagation()); // typing must not call pitches or restart

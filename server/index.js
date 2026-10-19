@@ -4,8 +4,8 @@
    GET  /api/scores?period=daily|all      -> { period, day, scores: [{ rank, name, score, pitches, accuracy, streak, reaction, day }] }
    POST /api/scores { name, score, pitches, accuracy, streak, reaction, lang }
                                           -> { ok, rankDaily, rankAll }
-   POST /api/feedback { message, score, level, pitches, accuracy, name, lang }
-                                          -> { ok }        a line from a player who reached level 12
+   POST /api/feedback { message, rating, score, level, pitches, accuracy, name, lang }
+                                          -> { ok }        a rating + line from a player who reached level 6+
    GET  /api/feedback?limit=100           -> { feedback: [...] }  newest first; header x-admin-token (ADMIN_TOKEN)
 
    "Today" is the Asia/Taipei calendar day (the players are mostly in TW/JP). CORS is open: the game is a
@@ -47,11 +47,13 @@ async function init() {
     level INTEGER,
     pitches INTEGER,
     accuracy INTEGER,
+    rating INTEGER,
     lang TEXT,
     message TEXT NOT NULL,
     ua TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`);
+  await pool.query('ALTER TABLE feedback ADD COLUMN IF NOT EXISTS rating INTEGER'); // for a table created before ratings
   console.log('postgres ready');
   await prune();
 }
@@ -122,7 +124,7 @@ function validate(b) {
   return { name, score: Math.round(score), pitches: Math.round(pitches), accuracy: Math.round(accuracy), streak: Math.round(streak), reaction, lang };
 }
 
-// a player's line about the 3D era, with the run it came from. message is the only thing they type.
+// a player's rating + line, with the run it came from. message and rating are what they enter.
 function validateFeedback(b) {
   if (!b || typeof b !== 'object') return null;
   const message = String(b.message || '').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim().slice(0, 500);
@@ -130,16 +132,16 @@ function validateFeedback(b) {
   const num = (v, lo, hi) => { const n = Number(v); return Number.isFinite(n) && n >= lo && n <= hi ? Math.round(n) : null; };
   const name = String(b.name || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 12) || null;
   const lang = ['en', 'zh', 'ja', 'nan'].includes(b.lang) ? b.lang : null;
-  return { message, name, lang, score: num(b.score, 0, 1000000), level: num(b.level, 1, 99), pitches: num(b.pitches, 0, 1000), accuracy: num(b.accuracy, 0, 100) };
+  return { message, name, lang, rating: num(b.rating, 1, 5), score: num(b.score, 0, 1000000), level: num(b.level, 1, 99), pitches: num(b.pitches, 0, 1000), accuracy: num(b.accuracy, 0, 100) };
 }
 async function addFeedback(rec, ua) {
   if (!pool) { memFeedback.unshift({ id: memFeedback.length + 1, ...rec, ua, created_at: new Date().toISOString() }); return; }
-  await pool.query('INSERT INTO feedback (name, score, level, pitches, accuracy, lang, message, ua) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-    [rec.name, rec.score, rec.level, rec.pitches, rec.accuracy, rec.lang, rec.message, ua]);
+  await pool.query('INSERT INTO feedback (name, score, level, pitches, accuracy, rating, lang, message, ua) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+    [rec.name, rec.score, rec.level, rec.pitches, rec.accuracy, rec.rating, rec.lang, rec.message, ua]);
 }
 async function listFeedback(limit) {
   if (!pool) return memFeedback.slice(0, limit);
-  return (await pool.query('SELECT id, name, score, level, pitches, accuracy, lang, message, ua, created_at FROM feedback ORDER BY created_at DESC LIMIT $1', [limit])).rows;
+  return (await pool.query('SELECT id, name, score, level, pitches, accuracy, rating, lang, message, ua, created_at FROM feedback ORDER BY created_at DESC LIMIT $1', [limit])).rows;
 }
 
 const hits = new Map(); // ip -> [timestamps]
