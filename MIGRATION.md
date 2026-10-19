@@ -5,7 +5,7 @@ Goal: keep the source **private** for free while the game keeps serving at the *
 
 ## How it works
 
-- **Private repo** (`HaKexva/uuumpire-source`, new) — all development happens here: readable source,
+- **Private repo** (`HaKexva/uuumpire-core`, new) — all development happens here: readable source,
   full history, comments, `server/`, `tools/`, this build setup.
 - **Public repo** (`HaKexva/uuumpire`, the current one) — holds **only the minified build output**
   and keeps serving GitHub Pages at the unchanged URL.
@@ -31,24 +31,24 @@ your repo private.
 
 ## One-time setup (your account — these need credentials/admin I can't do)
 
-1. **Create the private repo** `HaKexva/uuumpire-source` (empty, private).
+1. **Create the private repo** `HaKexva/uuumpire-core` (empty, private).
 2. **Push the current repo there** as the new origin:
    ```bash
-   git remote add source git@github.com:HaKexva/uuumpire-source.git
-   git push source main        # (and push this branch / open the PR there)
+   git remote add core git@github.com:HaKexva/uuumpire-core.git
+   git push core main        # (and push this branch / open the PR there)
    ```
 3. **Make a deploy token**: GitHub → Settings → Developer settings → Fine-grained PAT
    - Resource owner: `HaKexva`, repository access: only `HaKexva/uuumpire`
    - Permissions: **Contents: Read and write**
-4. **Add it as a secret** in `uuumpire-source` → Settings → Secrets and variables → Actions →
+4. **Add it as a secret** in `uuumpire-core` → Settings → Secrets and variables → Actions →
    `DEPLOY_TOKEN` = that PAT.
-5. **Move the Railway secret**: add `RAILWAY_TOKEN` as a secret in `uuumpire-source` too (so
+5. **Move the Railway secret**: add `RAILWAY_TOKEN` as a secret in `uuumpire-core` too (so
    `deploy-api.yml` keeps deploying the API from the private repo).
 6. **Public repo Pages**: `HaKexva/uuumpire` → Settings → Pages → Source = *Deploy from a branch*,
    `main` / `(root)` (unchanged). Make `uuumpire` **public**.
-7. **First deploy**: push to `main` in `uuumpire-source` (or run the workflow manually). Confirm
+7. **First deploy**: push to `main` in `uuumpire-core` (or run the workflow manually). Confirm
    `https://hakexva.github.io/uuumpire` serves the new build.
-8. Once verified, development continues in `uuumpire-source`; the public repo is deploy-only.
+8. Once verified, development continues in `uuumpire-core`; the public repo is deploy-only.
 
 ## Local build
 
