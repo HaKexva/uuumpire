@@ -490,7 +490,8 @@ button { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) { .records.board li .who .nm.scroll .nm-in { animation: none; } }
 .records.board li .who .meta { color: var(--g-gray); font-size: 13px; align-self: center; white-space: nowrap; flex-shrink: 0; }
 /* the player's own row: a highlight bar. Palettes whose bar is dark (Game Boy) set hi-fg / hi-val so the text stays readable */
-.records.board li.me { background: var(--g-hi-bg, var(--g-navy)); color: var(--g-hi-fg, inherit); margin: 0 -8px; padding: 3px 8px; }
+/* bleed 8px past the list on the right and 8px + the list's 18px left gutter on the left, so the bar sits symmetrically in the panel */
+.records.board li.me { background: var(--g-hi-bg, var(--g-navy)); color: var(--g-hi-fg, inherit); margin: 0 -8px 0 -26px; padding: 3px 8px 3px 26px; }
 .records.board li.me .who .rk { color: var(--g-hi-val, var(--rk)); }
 .records.board li.me .who .meta, .records.board li.me b { color: var(--g-hi-val, var(--g-gold)); }
 .records.board li.me .who .meta { color: var(--g-hi-val, var(--g-gray)); }
