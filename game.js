@@ -473,7 +473,6 @@
   // theme plus the loaded ballpark tunes), picked per game. start() with no name resumes the current song.
   const TITLE_SONGS = ['entry', 'ballgame'];
   const PLAY_SONGS = ['theme'];
-  const LV11_BGM = 'assets/lv11.mp3'; // produced track (not chiptune note data) that takes the PA on the final level
   const EXT_VOL = 0.6;                // a produced track is far hotter than the synth; tame it to sit with the SFX
   const assetUrl = (f) => f + (window.UU_V ? '?v=' + window.UU_V : '');
   const Music = {
@@ -638,7 +637,6 @@
     showScreen('play');
     Music.tempo(1);
     Music.start('play');
-    Music.preloadExt(LV11_BGM); // buffer the final-level anthem now so it is ready by level 11
     game.start(START_LVL ? { level: START_LVL } : undefined);
     updateHud();
   }
@@ -657,7 +655,7 @@
         // and the level-11 anthem are excluded -- they have their own tracks below.
         if (e.levelUp && e.level < C.RULES.discoLevel && (e.level - 1) % 3 === 0) Music.start('play');
         if (e.levelUp && e.level === C.RULES.discoLevel) Music.start('disco'); // level 10: the disco inning takes over the PA
-        if (e.levelUp && e.level === C.RULES.maxLevel) Music.startExt(LV11_BGM); // level 11: the produced anthem takes over
+        if (e.levelUp && e.level === C.RULES.maxLevel) Music.start('lv11'); // level 11: the hyper anthem takes over the PA
         if (e.congrats) { // cleared the disco inning
           showText(el.call, t('congrats'), 'small', 'party');
           showText(el.bonus, t('congrats.sub'), '', 'wobble');
