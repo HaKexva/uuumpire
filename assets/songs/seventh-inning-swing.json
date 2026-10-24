@@ -1,0 +1,99 @@
+{
+  "title": "Seventh-Inning Swing",
+  "bpm": 138,
+  "stepsPerBar": 8,
+  "key": "F",
+  "swing": true,
+  "source": "original",
+  "tracks": {
+    "lead": {
+      "type": "pulse",
+      "duty": 0.5,
+      "vol": 0.045,
+      "midiProgram": 56,
+      "bars": [
+        "- a4 c5 - a4 . f4 .",
+        "- f4 a4 - d5 . a4 .",
+        "- a#4 d5 - a#4 . g4 .",
+        "- g4 a#4 - e5 . c5 .",
+        "c5 . a4 - f4 a4 c5 .",
+        "d5 . a4 - f4 . d5 .",
+        "d5 c5 a#4 - g4 a#4 d5 .",
+        "c5 . a#4 g4 - f4 . -"
+      ]
+    },
+    "comp": {
+      "type": "pulse",
+      "duty": 0.25,
+      "vol": 0.022,
+      "midiProgram": 1,
+      "bars": [
+        "- - a4 - - e5 - -",
+        "- - f4 - - c5 - -",
+        "- - a#4 - - f5 - -",
+        "- - e4 - - a#4 - -",
+        "- - a4 - - e5 - -",
+        "- - f4 - - c5 - -",
+        "- - a#4 - - f5 - -",
+        "- - e4 - - a#4 - -"
+      ]
+    },
+    "bass": {
+      "type": "triangle",
+      "vol": 0.1,
+      "midiProgram": 33,
+      "bars": [
+        "f2 . g2 . a2 . c3 .",
+        "d3 . c3 . a#2 . a2 .",
+        "g2 . a2 . a#2 . b2 .",
+        "c3 . a#2 . a2 . g2 .",
+        "f2 . g2 . a2 . c3 .",
+        "d3 . c3 . a#2 . a2 .",
+        "g2 . a2 . a#2 . b2 .",
+        "c3 . a#2 . a2 . g2 ."
+      ]
+    },
+    "ride": {
+      "type": "noise",
+      "vol": 0.03,
+      "bars": [
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h"
+      ]
+    },
+    "snare": {
+      "type": "noise",
+      "vol": 0.034,
+      "bars": [
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - S S -"
+      ]
+    },
+    "kick": {
+      "type": "noise",
+      "vol": 0.04,
+      "bars": [
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - K -"
+      ]
+    }
+  }
+}

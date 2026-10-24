@@ -1,0 +1,1640 @@
+{
+ "note": "Trivia bank for the 'save a miss' yes/no prompt (unlocks after level 6). Each item is a statement; the player answers 是/STRIKE (true) or 否/BALL (false). `a` is the correct truth value: a=true -> 是/STRIKE is correct, a=false -> 否/BALL is correct. `tricky` marks plausible-but-false or surprising-but-true items. The bank leans on funny, lesser-known truths and well-worn myths, kept near a 50/50 是/否 split so always pressing one button fails. Facts are meant to be timeless; fix any that drift. zh is the primary audience (TW/JP); every item also carries en, ja and nan (台語漢字), picked by the UI language with zh as the fallback.",
+ "q": [
+  {
+   "zh": "一場正規棒球比賽是九局。",
+   "en": "A regulation baseball game is nine innings long.",
+   "ja": "野球の正式な試合は9イニングである。",
+   "nan": "一場正式的棒球比賽是九局。",
+   "a": true,
+   "cat": "baseball"
+  },
+  {
+   "zh": "半局在三個出局數後結束。",
+   "en": "A half-inning ends after three outs.",
+   "ja": "各イニングの表・裏は3アウトで終わる。",
+   "nan": "半局佇三個出局了後就結束。",
+   "a": true,
+   "cat": "baseball"
+  },
+  {
+   "zh": "一顆標準棒球上有一百零八道雙線縫線。",
+   "en": "A standard baseball has 108 double stitches.",
+   "ja": "標準的な野球ボールの縫い目は108ある。",
+   "nan": "一粒標準的棒球有一百空八針雙線的縫線。",
+   "a": true,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "棒球比賽沒有計時，理論上可以永遠打下去。",
+   "en": "A baseball game has no clock and could in theory go on forever.",
+   "ja": "野球には制限時間がなく、理論上は永遠に続けられる。",
+   "nan": "棒球比賽無限時間，理論上會使永遠拍落去。",
+   "a": true,
+   "cat": "baseball"
+  },
+  {
+   "zh": "界外球在落地前被接住就算出局。",
+   "en": "A foul ball caught before it touches the ground is an out.",
+   "ja": "ファウルボールを地面に落ちる前に捕ればアウトだ。",
+   "nan": "界外球佇落塗進前予人接著，就算出局。",
+   "a": true,
+   "cat": "baseball"
+  },
+  {
+   "zh": "滿球數指的是三壞球兩好球。",
+   "en": "A full count is three balls and two strikes.",
+   "ja": "フルカウントとは3ボール2ストライクのことだ。",
+   "nan": "滿球數就是三個歹球兩個好球。",
+   "a": true,
+   "cat": "baseball"
+  },
+  {
+   "zh": "記分表上用 K 代表三振。",
+   "en": "The scorecard symbol for a strikeout is the letter K.",
+   "ja": "スコアカードでは三振をKで表す。",
+   "nan": "記分表頂懸用 K 代表三振。",
+   "a": true,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "完全比賽是指對方沒有任何一名打者上壘。",
+   "en": "In a perfect game, no opposing batter reaches base at all.",
+   "ja": "完全試合とは、相手打者が一人も出塁しない試合だ。",
+   "nan": "完全比賽就是對方無半個打者上壘。",
+   "a": true,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "在美國職棒大聯盟，你可以盜上一壘。",
+   "en": "You can steal first base in Major League Baseball.",
+   "ja": "メジャーリーグでは一塁への盗塁ができる。",
+   "nan": "佇美國職棒大聯盟，你會使盜一壘。",
+   "a": false,
+   "cat": "baseball"
+  },
+  {
+   "zh": "打出去的球落地彈跳後越過外野全壘打牆，算全壘打。",
+   "en": "A batted ball that bounces over the outfield fence is a home run.",
+   "ja": "打球が地面で跳ねて外野フェンスを越えたらホームランだ。",
+   "nan": "拍出去的球落塗彈起來，閣越過外野全壘打牆，算全壘打。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "棒球比賽裡，主隊是先攻（先打擊）的一方。",
+   "en": "In baseball, the home team bats first.",
+   "ja": "野球では、ホームチームが先攻である。",
+   "nan": "棒球比賽，主隊是先攻（先拍）的彼隊。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "跑者可以為了擾亂守備而反方向跑壘。",
+   "en": "A runner may run the bases backwards to confuse the defense.",
+   "ja": "走者は守備を混乱させるために塁を逆走してよい。",
+   "nan": "跑者會使為著擾亂守備，倒反方向走壘。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "章魚有三顆心臟。",
+   "en": "Octopuses have three hearts.",
+   "ja": "タコには心臓が3つある。",
+   "nan": "章魚有三粒心臟。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "袋熊的糞便是立方體形狀。",
+   "en": "Wombat droppings are cube-shaped.",
+   "ja": "ウォンバットのフンは立方体の形をしている。",
+   "nan": "袋熊的屎是立方體的形。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "蜂蜜放上千年仍可能可以食用。",
+   "en": "Honey can still be edible after thousands of years.",
+   "ja": "ハチミツは数千年たっても食べられる可能性がある。",
+   "nan": "蜂蜜囥幾若千年，猶有可能會使食。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "蝦子的心臟長在頭部。",
+   "en": "A shrimp's heart is in its head.",
+   "ja": "エビの心臓は頭部にある。",
+   "nan": "蝦仔的心臟是生佇頭部。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "香蕉在植物學上其實是漿果。",
+   "en": "Bananas are botanically berries.",
+   "ja": "バナナは植物学的にはベリー（液果）である。",
+   "nan": "照植物學來講，弓蕉其實是漿果。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "草莓在植物學上其實是漿果。",
+   "en": "Strawberries are botanically berries.",
+   "ja": "イチゴは植物学的にはベリー（液果）である。",
+   "nan": "照植物學來講，草莓其實是漿果。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "鯊魚比樹木更早出現在地球上。",
+   "en": "Sharks have existed longer than trees.",
+   "ja": "サメは樹木よりも先に地球に現れた。",
+   "nan": "鯊魚比樹仔較早出現佇地球。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "金星自轉一圈的時間，比繞太陽一圈還要久。",
+   "en": "Venus takes longer to spin once than to orbit the Sun once.",
+   "ja": "金星は自転1回にかかる時間が、公転1回より長い。",
+   "nan": "金星家己轉一輾的時間，比踅日頭一輾閣較久。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "艾菲爾鐵塔在夏天會因熱脹而長高幾公分。",
+   "en": "The Eiffel Tower grows a few centimetres taller in summer.",
+   "ja": "エッフェル塔は夏になると熱膨張で数センチ高くなる。",
+   "nan": "艾菲爾鐵塔熱天會因為熱脹，加懸幾公分。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "太空人在太空中身高會長高幾公分。",
+   "en": "Astronauts can grow a few centimetres taller in space.",
+   "ja": "宇宙飛行士は宇宙で身長が数センチ伸びる。",
+   "nan": "太空人佇太空，身懸會加懸幾公分。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "土星密度夠低，理論上能浮在水面上。",
+   "en": "Saturn is light enough that it would float in water.",
+   "ja": "土星は密度が低く、理論上は水に浮く。",
+   "nan": "土星的密度真低，理論上會當浮佇水面。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "一道閃電的溫度比太陽表面還高。",
+   "en": "A bolt of lightning is hotter than the surface of the Sun.",
+   "ja": "稲妻は太陽の表面より高温である。",
+   "nan": "一爍爁的溫度比日頭的表面閣較懸。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "地球上的樹木比銀河系的恆星還多。",
+   "en": "There are more trees on Earth than stars in the Milky Way.",
+   "ja": "地球上の木の数は、天の川銀河の恒星より多い。",
+   "nan": "地球頂懸的樹仔比銀河系的恆星閣較濟。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "龍蝦是用腳來嚐味道的。",
+   "en": "Lobsters taste with their legs.",
+   "ja": "ロブスターは脚で味を感じる。",
+   "nan": "龍蝦是用跤來試滋味的。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "章魚的血液是藍色的。",
+   "en": "Octopuses have blue blood.",
+   "ja": "タコの血は青い。",
+   "nan": "章魚的血是藍色的。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "人出生時的骨頭數量比長大後還多。",
+   "en": "Humans are born with more bones than they have as adults.",
+   "ja": "人は生まれたとき、大人よりも骨の数が多い。",
+   "nan": "人出世的時，骨頭的數量比大漢了後較濟。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "有些蝸牛可以休眠長達三年。",
+   "en": "Some snails can stay dormant for up to three years.",
+   "ja": "最長3年も休眠できるカタツムリがいる。",
+   "nan": "有的露螺上久會當休眠三年。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "人類只用到大腦的百分之十。",
+   "en": "Humans only use 10% of their brains.",
+   "ja": "人間は脳の10%しか使っていない。",
+   "nan": "人干焦用著頭腦的百分之十。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "人體大部分的熱量是從頭部散失的。",
+   "en": "Most of your body heat is lost through your head.",
+   "ja": "体の熱の大部分は頭から逃げる。",
+   "nan": "人身軀大部分的熱是對頭殼散出去的。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "閃電不會打在同一個地方兩次。",
+   "en": "Lightning never strikes the same place twice.",
+   "ja": "雷は同じ場所に二度落ちない。",
+   "nan": "爍爁袂拍佇仝一個所在兩擺。",
+   "a": false,
+   "cat": "science"
+  },
+  {
+   "zh": "金魚的記憶只有三秒鐘。",
+   "en": "Goldfish have a memory of only three seconds.",
+   "ja": "金魚の記憶は3秒しかもたない。",
+   "nan": "金魚的記持干焦三秒鐘。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "蝙蝠是全盲的。",
+   "en": "Bats are completely blind.",
+   "ja": "コウモリは完全に目が見えない。",
+   "nan": "密婆是完全青暝的。",
+   "a": false,
+   "cat": "science"
+  },
+  {
+   "zh": "肉眼可以從太空看見萬里長城。",
+   "en": "The Great Wall of China is visible from space with the naked eye.",
+   "ja": "万里の長城は宇宙から肉眼で見える。",
+   "nan": "佇太空用肉眼就看會著萬里長城。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "舌頭有分別負責甜酸鹹苦的味覺區。",
+   "en": "The tongue has separate zones for sweet, sour, salty and bitter.",
+   "ja": "舌には甘味・酸味・塩味・苦味を感じる場所がそれぞれ分かれている。",
+   "nan": "舌有分別管甜、酸、鹹、苦的味覺區。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "變色龍主要是為了融入環境而變色。",
+   "en": "Chameleons change colour mainly to blend into their surroundings.",
+   "ja": "カメレオンが色を変えるのは、主に周囲に溶け込むためだ。",
+   "nan": "變色龍主要是為著佮環境仝色才變色。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "駱駝的駝峰是用來儲存水分的。",
+   "en": "Camels store water in their humps.",
+   "ja": "ラクダのこぶには水が蓄えられている。",
+   "nan": "駱駝的駝峰是用來囥水的。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "貓頭鷹可以把頭轉整整三百六十度。",
+   "en": "Owls can turn their heads a full 360 degrees.",
+   "ja": "フクロウは首をまるごと360度回せる。",
+   "nan": "貓頭鳥的頭會當斡規個三百六十度。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "人死後頭髮和指甲還會繼續生長。",
+   "en": "Hair and fingernails keep growing after a person dies.",
+   "ja": "人が死んだ後も、髪と爪は伸び続ける。",
+   "nan": "人死了後，頭毛佮指甲猶會繼續生長。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "刮毛會讓毛髮長回來時更粗更黑。",
+   "en": "Shaving makes hair grow back thicker and darker.",
+   "ja": "毛を剃ると、太く濃くなって生えてくる。",
+   "nan": "剃毛會予毛閣生出來的時陣較粗較烏。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "抗生素可以治好一般感冒。",
+   "en": "Antibiotics can cure the common cold.",
+   "ja": "抗生物質で普通の風邪が治る。",
+   "nan": "抗生素會當醫好一般的感冒。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "在昏暗的燈光下看書會永久傷害視力。",
+   "en": "Reading in dim light permanently damages your eyesight.",
+   "ja": "薄暗い明かりで本を読むと、視力が永久に損なわれる。",
+   "nan": "佇暗暗的燈光下看冊，會永久損害目睭。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "用微波爐加熱過的食物會帶有輻射。",
+   "en": "Microwaved food becomes slightly radioactive.",
+   "ja": "電子レンジで温めた食べ物は放射能を帯びる。",
+   "nan": "用微波爐熥過的食物會帶輻射。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "狗的眼中只有黑與白兩種顏色。",
+   "en": "Dogs see only in black and white.",
+   "ja": "犬には白と黒の2色しか見えない。",
+   "nan": "狗的目睭內干焦有烏佮白兩種色。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "吃糖會讓小孩變得過動。",
+   "en": "Sugar makes children hyperactive.",
+   "ja": "砂糖を食べると子どもは多動になる。",
+   "nan": "食糖會予囡仔變過動。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "人類和暴龍曾經生活在同一個時代。",
+   "en": "Humans and T. rex lived at the same time.",
+   "ja": "人類とティラノサウルスは同じ時代に生きていた。",
+   "nan": "人類佮暴龍捌生活佇仝一個時代。",
+   "a": false,
+   "cat": "science"
+  },
+  {
+   "zh": "蚯蚓被切成兩半會變成兩條活的蚯蚓。",
+   "en": "An earthworm cut in half becomes two living worms.",
+   "ja": "ミミズは半分に切ると、生きたミミズ2匹になる。",
+   "nan": "蚯蚓切做兩半，會變做兩尾活的蚯蚓。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "旅鼠會集體跳崖自殺。",
+   "en": "Lemmings deliberately jump off cliffs in mass suicide.",
+   "ja": "レミングは集団で崖から飛び降りて自殺する。",
+   "nan": "旅鼠會規陣跳崖自殺。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "鯊魚不會得癌症。",
+   "en": "Sharks cannot get cancer.",
+   "ja": "サメはがんにならない。",
+   "nan": "鯊魚袂著癌症。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "太陽本身的顏色其實是黃色的。",
+   "en": "The Sun's actual colour is yellow.",
+   "ja": "太陽の本当の色は黄色である。",
+   "nan": "日頭本身的色水其實是黃色的。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "滿月會讓人的行為明顯變得比較怪異。",
+   "en": "A full moon measurably makes people behave more strangely.",
+   "ja": "満月は人の行動を目に見えて奇妙にする。",
+   "nan": "月娘若圓，人的行為就會明顯變較奇怪。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "從高樓丟下一枚硬幣，可能砸死樓下的人。",
+   "en": "A coin dropped from a skyscraper could kill someone below.",
+   "ja": "高層ビルから落とした硬貨で、下にいる人が死ぬことがある。",
+   "nan": "對懸樓擲一個銀角仔落去，有可能共樓跤的人摃死。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "蘇格蘭的國獸是獨角獸。",
+   "en": "Scotland's national animal is the unicorn.",
+   "ja": "スコットランドの国獣はユニコーンだ。",
+   "nan": "蘇格蘭的國獸是獨角獸。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "牛津大學比阿茲特克帝國還要古老。",
+   "en": "Oxford University is older than the Aztec Empire.",
+   "ja": "オックスフォード大学はアステカ帝国よりも古い。",
+   "nan": "牛津大學的歷史比阿茲特克帝國較久。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "克麗奧佩脫拉所處的年代，離登陸月球比離大金字塔的興建更近。",
+   "en": "Cleopatra lived closer in time to the Moon landing than to the building of the Great Pyramid.",
+   "ja": "クレオパトラの時代は、大ピラミッド建設より月面着陸のほうが近い。",
+   "nan": "克麗奧佩脫拉的年代，離登陸月球比離起大金字塔閣較近。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "任天堂是在一八○○年代創立的。",
+   "en": "Nintendo was founded back in the 1800s.",
+   "ja": "任天堂は1800年代に創業した。",
+   "nan": "任天堂是佇一八○○年代創立的。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "品客洋芋片罐的發明者，骨灰被裝進了一個品客罐裡。",
+   "en": "The man who invented the Pringles can had his ashes buried in one.",
+   "ja": "プリングルズの筒の発明者は、遺灰をプリングルズの筒に納められた。",
+   "nan": "品客罐仔的發明者，伊的骨灰有囥入去一個品客罐仔內底。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "氣泡紙（泡泡紙）最初是被發明來當壁紙的。",
+   "en": "Bubble wrap was originally invented to be wallpaper.",
+   "ja": "プチプチ（気泡緩衝材）は、もともと壁紙として発明された。",
+   "nan": "氣泡紙本底是發明來做壁紙的。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "艾菲爾鐵塔當初是當成臨時建築蓋的。",
+   "en": "The Eiffel Tower was built as a temporary structure.",
+   "ja": "エッフェル塔は、もともと仮設の建物として建てられた。",
+   "nan": "艾菲爾鐵塔本底是起來做臨時建築的。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "澳洲的寬度比月球的直徑還大。",
+   "en": "Australia is wider than the Moon.",
+   "ja": "オーストラリアの幅は、月の直径よりも大きい。",
+   "nan": "澳洲的闊度比月球的直徑閣較大。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "史上有紀錄最短的戰爭，打不到一個小時就結束了。",
+   "en": "The shortest war in recorded history lasted less than an hour.",
+   "ja": "記録に残る史上最短の戦争は、1時間もたたずに終わった。",
+   "nan": "歷史上有記錄上短的戰爭，拍無一點鐘就煞矣。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "芬蘭大約每兩個人就有一間三溫暖（桑拿）。",
+   "en": "Finland has roughly one sauna for every two people.",
+   "ja": "フィンランドには、およそ2人に1つのサウナがある。",
+   "nan": "芬蘭差不多每兩個人就有一間三溫暖。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "「壽司」一詞原本指的是調味的醋飯，而不是魚。",
+   "en": "The word sushi originally refers to the vinegared rice, not the fish.",
+   "ja": "「寿司」という言葉は、もともと魚ではなく酢飯を指していた。",
+   "nan": "「壽司」這個詞本底是講調味的醋飯，毋是魚仔。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "維京人上戰場時戴有角的頭盔。",
+   "en": "Vikings wore horned helmets into battle.",
+   "ja": "ヴァイキングは角のついた兜をかぶって戦った。",
+   "nan": "維京人去相戰的時，戴有角的頭盔。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "拿破崙以他那個年代來說個子特別矮。",
+   "en": "Napoleon was unusually short for his time.",
+   "ja": "ナポレオンは、当時としては特に背が低かった。",
+   "nan": "拿破崙佇伊彼個年代，算是特別矮。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "萬里長城是一道單一、連續不斷的牆。",
+   "en": "The Great Wall of China is one single, continuous wall.",
+   "ja": "万里の長城は、切れ目なく一続きになった1本の壁である。",
+   "nan": "萬里長城是一堵單一、連續無斷的壁。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "愛因斯坦學生時代數學不及格。",
+   "en": "Einstein failed mathematics as a student.",
+   "ja": "アインシュタインは学生時代、数学で落第した。",
+   "nan": "愛因斯坦讀冊的時陣，數學無及格。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "若從山腳量到山頂，聖母峰是地球上最高的山。",
+   "en": "Measured from base to summit, Mount Everest is the tallest mountain on Earth.",
+   "ja": "ふもとから山頂までで測ると、エベレストが地球で最も高い山だ。",
+   "nan": "若對山跤量到山頂，聖母峰是地球上懸的山。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "富士山是一座死火山，再也不會噴發。",
+   "en": "Mount Fuji is an extinct volcano that can never erupt again.",
+   "ja": "富士山は死火山で、二度と噴火しない。",
+   "nan": "富士山是死火山，永遠袂閣噴火矣。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "人類已經登陸過月球，也登陸過火星。",
+   "en": "Humans have walked on the Moon and also on Mars.",
+   "ja": "人類は月にも火星にも降り立ったことがある。",
+   "nan": "人類捌登陸月球，嘛捌登陸火星。",
+   "a": false,
+   "cat": "world"
+  },
+  {
+   "zh": "台灣最高峰玉山比日本富士山還高。",
+   "en": "Taiwan's highest peak, Yushan, is taller than Japan's Mt. Fuji.",
+   "ja": "台湾最高峰の玉山は、日本の富士山より高い。",
+   "nan": "台灣上懸的玉山，比日本的富士山閣較懸。",
+   "a": true,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "台灣有超過兩百座海拔三千公尺以上的山峰。",
+   "en": "Taiwan has more than 200 mountain peaks over 3,000 metres high.",
+   "ja": "台湾には、標高3000メートル以上の山が200座を超えて存在する。",
+   "nan": "台灣海拔三千公尺以上的山頭，有超過兩百座。",
+   "a": true,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "速食麵（泡麵）的發明者是在台灣出生的。",
+   "en": "The inventor of instant noodles was born in Taiwan.",
+   "ja": "インスタントラーメンの発明者は台湾生まれだ。",
+   "nan": "泡麵的發明者是佇台灣出世的。",
+   "a": true,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "北回歸線通過台灣。",
+   "en": "The Tropic of Cancer passes through Taiwan.",
+   "ja": "北回帰線は台湾を通っている。",
+   "nan": "北回歸線有經過台灣。",
+   "a": true,
+   "cat": "taiwan"
+  },
+  {
+   "zh": "台北101內部吊著一顆巨大的鋼球，在地震和颱風時穩定大樓。",
+   "en": "Taipei 101 has a giant steel ball hanging inside to steady it against quakes and typhoons.",
+   "ja": "台北101の内部には巨大な鋼球が吊るされ、地震や台風のときにビルを安定させる。",
+   "nan": "台北101內底吊一粒誠大的鋼球，地動、風颱的時陣通予大樓較在。",
+   "a": true,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "日月潭是台灣最大的天然湖泊。",
+   "en": "Sun Moon Lake is the largest natural lake in Taiwan.",
+   "ja": "日月潭は台湾最大の天然湖である。",
+   "nan": "日月潭是台灣上大的天然湖。",
+   "a": true,
+   "cat": "taiwan"
+  },
+  {
+   "zh": "鳳梨酥是台灣傳統的點心。",
+   "en": "Pineapple cake is a traditional Taiwanese snack.",
+   "ja": "パイナップルケーキ（鳳梨酥）は台湾の伝統的なお菓子だ。",
+   "nan": "王梨酥是台灣傳統的點心。",
+   "a": true,
+   "cat": "taiwan"
+  },
+  {
+   "zh": "台灣的汽車是靠左側行駛的。",
+   "en": "Cars in Taiwan drive on the left side of the road.",
+   "ja": "台湾では、車は道路の左側を走る。",
+   "nan": "佇台灣，車是靠倒手爿行的。",
+   "a": false,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "台灣完全沒有任何可能活動的火山。",
+   "en": "Taiwan has no potentially active volcanoes at all.",
+   "ja": "台湾には、活動する可能性のある火山がまったくない。",
+   "nan": "台灣完全無半座可能活動的火山。",
+   "a": false,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "胡蘿蔔原本是紫色的，而不是橘色。",
+   "en": "Carrots were originally purple, not orange.",
+   "ja": "ニンジンはもともと、オレンジ色ではなく紫色だった。",
+   "nan": "紅菜頭本底是紫色的，毋是柑仔色。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "花生其實不是堅果。",
+   "en": "Peanuts are not actually nuts.",
+   "ja": "ピーナッツは、実はナッツではない。",
+   "nan": "塗豆其實毋是堅果。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "巧克力對狗來說可能有毒。",
+   "en": "Chocolate can be poisonous to dogs.",
+   "ja": "チョコレートは、犬にとって毒になることがある。",
+   "nan": "巧克力對狗仔來講，可能有毒。",
+   "a": true,
+   "cat": "life"
+  },
+  {
+   "zh": "番茄醬曾經被當成藥來販售。",
+   "en": "Ketchup was once sold as medicine.",
+   "ja": "ケチャップは、かつて薬として売られていた。",
+   "nan": "番茄醬捌當做藥仔咧賣。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "OMG 這個縮寫已經有超過一百年的歷史。",
+   "en": "The abbreviation OMG is over a hundred years old.",
+   "ja": "「OMG」という略語には、100年以上の歴史がある。",
+   "nan": "OMG 這個縮寫已經有超過一百冬的歷史矣。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "微波爐是因為一條巧克力棒融化而意外被發現的。",
+   "en": "The microwave oven was discovered by accident when a chocolate bar melted.",
+   "ja": "電子レンジは、チョコレートバーが溶けたことから偶然発見された。",
+   "nan": "微波爐是因為一條巧克力溶去，才意外發現的。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "魔鬼氈的靈感來自沾黏在狗毛上的植物刺果。",
+   "en": "Velcro was inspired by burrs sticking to a dog's fur.",
+   "ja": "マジックテープは、犬の毛にくっついた植物のトゲのある実から着想を得た。",
+   "nan": "魔鬼氈的靈感，是對黏佇狗毛頂懸的植物刺果來的。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "飛盤（Frisbee）的名字來自一家派餅公司。",
+   "en": "The Frisbee was named after a pie company.",
+   "ja": "フリスビーの名前は、パイの会社に由来する。",
+   "nan": "飛盤（Frisbee）的名，是對一間派餅公司來的。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "蘋果能浮在水上，是因為大約四分之一是空氣。",
+   "en": "Apples float in water because they are about a quarter air.",
+   "ja": "リンゴが水に浮くのは、約4分の1が空気だからだ。",
+   "nan": "蘋果會浮佇水面，是因為差不多四分之一是空氣。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "小寫 i 或 j 上面那個點，有個名字叫 tittle。",
+   "en": "The dot over a lowercase i or j is called a tittle.",
+   "ja": "小文字のiやjの上の点には、「tittle」という名前がある。",
+   "nan": "小寫 i 抑是 j 頂懸彼點，有一個名叫做 tittle。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "一群紅鶴的英文集合名詞叫做 flamboyance。",
+   "en": "A group of flamingos is called a flamboyance.",
+   "ja": "フラミンゴの群れを表す英語の集合名詞は「flamboyance」だ。",
+   "nan": "一陣紅鶴的英文集合名詞叫做 flamboyance。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "吃胡蘿蔔能讓你在黑暗中看得見東西。",
+   "en": "Eating carrots gives you the power to see in the dark.",
+   "ja": "ニンジンを食べると、暗闇でも物が見えるようになる。",
+   "nan": "食紅菜頭，會予你佇烏暗中看會著物件。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "吃火雞肉因為含色胺酸，是讓人想睡的主因。",
+   "en": "Eating turkey is the main reason people feel sleepy, because of tryptophan.",
+   "ja": "トリプトファンを含む七面鳥を食べることが、眠くなる主な原因だ。",
+   "nan": "食火雞肉因為有色胺酸，是予人想欲睏的主要原因。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "折手指關節弄出聲音會導致關節炎。",
+   "en": "Cracking your knuckles causes arthritis.",
+   "ja": "指の関節を鳴らすと、関節炎になる。",
+   "nan": "共手指頭仔拗予響，會造成關節炎。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "吃完東西要等一小時才能游泳，否則會抽筋。",
+   "en": "You must wait an hour after eating before swimming or you'll cramp.",
+   "ja": "食後1時間は待ってから泳がないと、足がつる。",
+   "nan": "食飽愛等一點鐘才會使泅水，無就會抽筋。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "吞下去的口香糖會在胃裡待上七年。",
+   "en": "Swallowed chewing gum stays in your stomach for seven years.",
+   "ja": "飲み込んだガムは胃の中に7年間とどまる。",
+   "nan": "吞落去的樹奶糖會佇胃內底蹛七冬。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "鴨子的叫聲不會有回音。",
+   "en": "A duck's quack does not produce an echo.",
+   "ja": "アヒルの鳴き声はこだましない。",
+   "nan": "鴨仔的叫聲袂有回音。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "可口可樂最初的顏色是綠色的。",
+   "en": "Coca-Cola was originally green in colour.",
+   "ja": "コカ・コーラはもともと緑色だった。",
+   "nan": "可口可樂上早的色水是青色的。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "公牛會衝過來是因為被紅色激怒。",
+   "en": "Bulls charge because the colour red enrages them.",
+   "ja": "雄牛が突進するのは、赤色に興奮するからだ。",
+   "nan": "牛公會衝過來，是因為看著紅色會受氣。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "鴕鳥受到驚嚇時會把頭埋進沙子裡。",
+   "en": "Ostriches bury their heads in the sand when they are scared.",
+   "ja": "ダチョウは驚くと頭を砂に埋める。",
+   "nan": "鴕鳥著驚的時，會共頭埋入去沙仔內。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "人每天一定要喝滿八杯水。",
+   "en": "You must drink exactly eight glasses of water every day.",
+   "ja": "人は毎日必ず水を8杯飲まなければならない。",
+   "nan": "人逐工一定愛啉夠八杯水。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "掉落的吐司一定會奶油面朝下著地。",
+   "en": "Dropped buttered toast always lands butter-side down.",
+   "ja": "落としたトーストは必ずバターの面を下にして着地する。",
+   "nan": "落落塗跤的吐司，一定是抹奶油彼面先著地。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "只要人類碰過雛鳥，鳥媽媽就會拋棄牠。",
+   "en": "A mother bird will abandon a chick that has been touched by a human.",
+   "ja": "人間がヒナに触ると、親鳥はそのヒナを見捨てる。",
+   "nan": "人若摸過鳥仔囝，鳥母就會放揀伊。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "菠菜因為鐵質超高，吃了會馬上變強壯。",
+   "en": "Spinach is so rich in iron that it makes you strong almost instantly.",
+   "ja": "ほうれん草は鉄分がとても多く、食べるとすぐに強くなる。",
+   "nan": "菠薐仔菜鐵質誠懸，食落去隨會變勇。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "摸蟾蜍會長疣。",
+   "en": "Touching a toad can give you warts.",
+   "ja": "ヒキガエルに触るとイボができる。",
+   "nan": "摸著螿蜍會生疣。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "投手犯規（balk）只有在壘上有跑者時才會被判。",
+   "en": "A balk is only called when there is a runner on base.",
+   "ja": "ボークは塁上に走者がいる時にしか宣告されない。",
+   "nan": "投手犯規（balk）干焦壘頂有跑者的時陣才會判。",
+   "a": true,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "大聯盟每座球場的全壘打牆距離都一樣。",
+   "en": "Every MLB ballpark has the same outfield fence distance.",
+   "ja": "メジャーリーグの全球場で、外野フェンスまでの距離は同じだ。",
+   "nan": "大聯盟逐座球場的全壘打牆距離攏仝款。",
+   "a": false,
+   "cat": "baseball"
+  },
+  {
+   "zh": "打者被投手的球打到（觸身球）可以上一壘。",
+   "en": "A batter hit by a pitch is awarded first base.",
+   "ja": "投球が当たった打者（死球）は一塁に進める。",
+   "nan": "打者予投手的球摃著（觸身球）會當上一壘。",
+   "a": true,
+   "cat": "baseball"
+  },
+  {
+   "zh": "三振出局一定是揮棒落空造成的。",
+   "en": "A strikeout always comes from swinging and missing.",
+   "ja": "三振は必ず空振りによるものだ。",
+   "nan": "三振出局一定是揮棒無摃著。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "滿壘時投手投出保送，會被迫推進一分。",
+   "en": "A walk with the bases loaded forces in a run.",
+   "ja": "満塁で四球を出すと、押し出しで1点が入る。",
+   "nan": "滿壘的時投出保送，對方就會得一分。",
+   "a": true,
+   "cat": "baseball"
+  },
+  {
+   "zh": "指定打擊（DH）制度一直以來兩個聯盟都有採用。",
+   "en": "The designated hitter has always been used in both leagues.",
+   "ja": "指名打者（DH）制は昔から両リーグで採用されている。",
+   "nan": "指定打擊（DH）制度對以早到今，兩個聯盟攏有用。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "投手丘和本壘板其實是一樣高的。",
+   "en": "The pitcher's mound is the same height as home plate.",
+   "ja": "ピッチャーマウンドとホームベースは実は同じ高さだ。",
+   "nan": "投手丘佮本壘板其實是平懸的。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "盜壘成功會算一個打點（RBI）。",
+   "en": "A stolen base counts as an RBI.",
+   "ja": "盗塁に成功すると打点（RBI）が1つ記録される。",
+   "nan": "盜壘成功會算一個打點（RBI）。",
+   "a": false,
+   "cat": "baseball"
+  },
+  {
+   "zh": "大聯盟的比賽用球是手工縫製的。",
+   "en": "Official MLB baseballs are stitched by hand.",
+   "ja": "メジャーリーグの公式球は手縫いで作られている。",
+   "nan": "大聯盟比賽用的球是手工紩的。",
+   "a": true,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "外野手接殺高飛球後，壘上跑者就不能再推進。",
+   "en": "After a fly ball is caught, runners can never advance.",
+   "ja": "外野手がフライを捕ったら、塁上の走者はもう進塁できない。",
+   "nan": "外野手接殺飛球了後，壘頂的跑者就攏袂當閣推進。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "本壘板其實是正方形的。",
+   "en": "Home plate is actually a square.",
+   "ja": "ホームベースは実は正方形だ。",
+   "nan": "本壘板其實是四角四正的。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "兩好球後觸擊短打打成界外，打者就出局。",
+   "en": "Bunting foul with two strikes is an out.",
+   "ja": "2ストライクからのバントがファウルになると、打者はアウトだ。",
+   "nan": "兩好球了後，短打若拍做界外，打者就出局。",
+   "a": true,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "兩好球後打出一般界外球，打者會被三振。",
+   "en": "Hitting a normal foul ball with two strikes is a strikeout.",
+   "ja": "2ストライクから普通のファウルを打つと、三振になる。",
+   "nan": "兩好球了後拍出普通的界外球，打者會予人三振。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "投手完投（complete game）一定代表贏球。",
+   "en": "Throwing a complete game always means a win.",
+   "ja": "投手が完投すれば、必ず勝ちになる。",
+   "nan": "投手若完投（complete game），就一定是贏球。",
+   "a": false,
+   "cat": "baseball"
+  },
+  {
+   "zh": "牽制跑者投向一壘也算一次投球數。",
+   "en": "A pickoff throw to first counts as a pitch.",
+   "ja": "一塁への牽制球も投球数に数えられる。",
+   "nan": "牽制跑者傳一壘，嘛算一球投球數。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "好球帶的寬度比本壘板還要寬很多。",
+   "en": "The strike zone is much wider than home plate.",
+   "ja": "ストライクゾーンの幅はホームベースよりずっと広い。",
+   "nan": "好球帶的闊度比本壘板闊足濟。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "一支安打至少要讓打者安全站上一壘。",
+   "en": "A base hit gets the batter safely to at least first base.",
+   "ja": "ヒットなら、打者は少なくとも一塁まで安全に進める。",
+   "nan": "一支安打上無嘛會予打者安全徛上一壘。",
+   "a": true,
+   "cat": "baseball"
+  },
+  {
+   "zh": "野手選擇（fielder's choice）會算打者一支安打。",
+   "en": "A fielder's choice is credited to the batter as a hit.",
+   "ja": "フィルダースチョイスは打者のヒットとして記録される。",
+   "nan": "野手選擇（fielder's choice）會算打者一支安打。",
+   "a": false,
+   "cat": "baseball",
+   "tricky": true
+  },
+  {
+   "zh": "蜘蛛是昆蟲。",
+   "en": "A spider is an insect.",
+   "ja": "クモは昆虫だ。",
+   "nan": "蜘蛛是昆蟲。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "飛鼠（鼯鼠）和蝙蝠一樣能真正地飛行。",
+   "en": "Flying squirrels can truly fly, just like bats.",
+   "ja": "ムササビはコウモリと同じように本当に空を飛べる。",
+   "nan": "飛鼠佮密婆仝款，會當真正飛。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "長頸鹿的頸椎數目比人類多很多塊。",
+   "en": "A giraffe has many more neck vertebrae than a human.",
+   "ja": "キリンの首の骨（頸椎）の数は人間よりずっと多い。",
+   "nan": "長頷鹿頷頸的骨頭數比人加足濟塊。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "月球其實是會自轉的。",
+   "en": "The Moon does rotate on its own axis.",
+   "ja": "月は実は自転している。",
+   "nan": "月娘其實嘛會自轉。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "血液在血管裡其實是藍色的。",
+   "en": "Blood is blue while inside your veins.",
+   "ja": "血管の中の血液は実は青い。",
+   "nan": "血佇血管內底其實是藍色的。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "鯊魚的骨架是軟骨，沒有真正的硬骨。",
+   "en": "A shark's skeleton is cartilage, not true bone.",
+   "ja": "サメの骨格は軟骨で、本当の硬骨はない。",
+   "nan": "鯊魚的骨架是脆骨，無真正的硬骨。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "工蜂螫人之後會死掉。",
+   "en": "A worker honeybee dies after stinging a person.",
+   "ja": "働きバチは人を刺すと死ぬ。",
+   "nan": "工蜂叮人了後就會死去。",
+   "a": true,
+   "cat": "science"
+  },
+  {
+   "zh": "老玻璃下方較厚，是因為玻璃會慢慢流動。",
+   "en": "Old glass is thicker at the bottom because glass flows.",
+   "ja": "古いガラスの下の方が厚いのは、ガラスがゆっくり流れるからだ。",
+   "nan": "舊玻璃下跤較厚，是因為玻璃會沓沓仔流。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "人體內的細菌細胞數量其實遠少於自身細胞。",
+   "en": "Your body has far fewer bacterial cells than human cells.",
+   "ja": "体内の細菌の細胞数は、実は自分の細胞よりはるかに少ない。",
+   "nan": "人身軀內的細菌細胞，其實比家己的細胞少足濟。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "北極熊的皮膚其實是黑色的。",
+   "en": "A polar bear's skin is actually black.",
+   "ja": "ホッキョクグマの皮膚は実は黒い。",
+   "nan": "北極熊的皮其實是烏色的。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "聲音在空氣中傳播比在水中還要快。",
+   "en": "Sound travels faster in air than in water.",
+   "ja": "音は水中より空気中のほうが速く伝わる。",
+   "nan": "聲音佇空氣中傳，比佇水內底較緊。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "一茶匙的中子星物質可重達數十億噸。",
+   "en": "A teaspoon of neutron-star matter can weigh billions of tons.",
+   "ja": "中性子星の物質は小さじ1杯で数十億トンにもなりうる。",
+   "nan": "一茶匙的中子星物質，會當有幾十億噸重。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "企鵝只生活在南極。",
+   "en": "Penguins live only in Antarctica.",
+   "ja": "ペンギンは南極にしか住んでいない。",
+   "nan": "企鵝干焦蹛佇南極。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "雞是暴龍現存最接近的親戚之一。",
+   "en": "Chickens are among the closest living relatives of T. rex.",
+   "ja": "ニワトリはティラノサウルスに最も近い現生の親戚の一つだ。",
+   "nan": "雞是暴龍現存上近的親情之一。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "鑽石是自然界已知最硬的物質。",
+   "en": "Diamond is the hardest known natural material.",
+   "ja": "ダイヤモンドは自然界で知られている最も硬い物質だ。",
+   "nan": "鑽石是自然界已知上硬的物質。",
+   "a": true,
+   "cat": "science"
+  },
+  {
+   "zh": "大象是少數不會跳的哺乳類動物。",
+   "en": "Elephants are one of the few mammals that cannot jump.",
+   "ja": "ゾウは跳べない数少ない哺乳類の一つだ。",
+   "nan": "象是少數袂曉跳的哺乳類動物。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "冥王星已經不再被歸類為行星。",
+   "en": "Pluto is no longer classified as a planet.",
+   "ja": "冥王星はもはや惑星に分類されていない。",
+   "nan": "冥王星已經無閣予人分做行星矣。",
+   "a": true,
+   "cat": "science"
+  },
+  {
+   "zh": "一年剛剛好是 365 天。",
+   "en": "A year is exactly 365 days long.",
+   "ja": "1年はちょうど365日だ。",
+   "nan": "一年拄好是 365 工。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "聖母峰是地球表面離地心最遠的點。",
+   "en": "Everest is the point on Earth's surface farthest from its center.",
+   "ja": "エベレストは地表で地球の中心から最も遠い地点である。",
+   "nan": "聖母峰是地球表面離地心上遠的所在。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "水母沒有大腦。",
+   "en": "Jellyfish have no brain.",
+   "ja": "クラゲには脳がない。",
+   "nan": "水母無大腦。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "成熟的向日葵會一直追著太陽轉。",
+   "en": "Mature sunflowers keep turning to follow the sun all day.",
+   "ja": "成熟したヒマワリは一日中太陽を追って向きを変え続ける。",
+   "nan": "成熟的向日葵會一直綴日頭咧踅。",
+   "a": false,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "打雷時先看到閃電，是因為光比聲音快。",
+   "en": "You see lightning before thunder because light outpaces sound.",
+   "ja": "雷鳴より先に稲妻が見えるのは、光が音より速いからだ。",
+   "nan": "拍雷的時先看著爍爁，是因為光比聲音較緊。",
+   "a": true,
+   "cat": "science"
+  },
+  {
+   "zh": "在太空的真空中，聲音無法傳播。",
+   "en": "Sound cannot travel through the vacuum of space.",
+   "ja": "宇宙の真空中では、音は伝わらない。",
+   "nan": "佇太空的真空內底，聲音無法度傳。",
+   "a": true,
+   "cat": "science"
+  },
+  {
+   "zh": "蝴蝶是用腳來「嚐」味道的。",
+   "en": "Butterflies taste with their feet.",
+   "ja": "チョウは足で味を感じる。",
+   "nan": "尾蝶是用跤來「試」滋味的。",
+   "a": true,
+   "cat": "science",
+   "tricky": true
+  },
+  {
+   "zh": "撒哈拉沙漠曾經下過雪。",
+   "en": "It has snowed in the Sahara Desert.",
+   "ja": "サハラ砂漠で雪が降ったことがある。",
+   "nan": "撒哈拉沙漠捌落過雪。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "世界上並不存在黑色的天鵝。",
+   "en": "Black swans do not exist.",
+   "ja": "黒いハクチョウは世界に存在しない。",
+   "nan": "世界上無烏色的天鵝。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "法國和巴西的國土是相連接壤的。",
+   "en": "France shares a land border with Brazil.",
+   "ja": "フランスとブラジルは陸続きで国境を接している。",
+   "nan": "法國佮巴西的土地是相連接界的。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "俄羅斯其實只橫跨 3 個時區。",
+   "en": "Russia spans only three time zones.",
+   "ja": "ロシアは実は3つのタイムゾーンにしかまたがっていない。",
+   "nan": "俄羅斯其實干焦跨 3 個時區。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "摩納哥是世界上面積最小的國家。",
+   "en": "Monaco is the smallest country in the world by area.",
+   "ja": "モナコは世界で最も面積の小さい国である。",
+   "nan": "摩納哥是世界上面積上細的國家。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "加拿大的國土面積比整個歐洲還大。",
+   "en": "Canada is larger than the whole of Europe.",
+   "ja": "カナダの国土面積はヨーロッパ全体より大きい。",
+   "nan": "加拿大的國土面積比規個歐洲閣較大。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "蓋金字塔的時候，長毛象都還存在。",
+   "en": "Woolly mammoths were still alive when the pyramids were built.",
+   "ja": "ピラミッドが建てられた頃、ケナガマンモスはまだ生きていた。",
+   "nan": "起金字塔的時，長毛象猶閣佇咧。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "冰島幾乎沒有蚊子。",
+   "en": "Iceland has almost no mosquitoes.",
+   "ja": "アイスランドには蚊がほとんどいない。",
+   "nan": "冰島差不多攏無蠓仔。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "南極洲是地球上最大的沙漠。",
+   "en": "Antarctica is the largest desert on Earth.",
+   "ja": "南極大陸は地球上で最大の砂漠である。",
+   "nan": "南極洲是地球上上大的沙漠。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "陽光從太陽到地球幾乎是瞬間，不到一秒。",
+   "en": "Sunlight reaches Earth almost instantly, in under a second.",
+   "ja": "太陽の光は地球までほぼ一瞬、1秒もかからずに届く。",
+   "nan": "日頭光對日頭來到地球差不多一目躡，無到一秒。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "土耳其完全位於亞洲，沒有在歐洲的領土。",
+   "en": "Turkey lies entirely in Asia, with no territory in Europe.",
+   "ja": "トルコは完全にアジアにあり、ヨーロッパに領土はない。",
+   "nan": "土耳其規個攏佇亞洲，佇歐洲無領土。",
+   "a": false,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "非洲大陸同時橫跨南北半球。",
+   "en": "Africa lies in both the Northern and Southern Hemispheres.",
+   "ja": "アフリカ大陸は北半球と南半球の両方にまたがっている。",
+   "nan": "非洲大陸仝時跨南北兩個半球。",
+   "a": true,
+   "cat": "world",
+   "tricky": true
+  },
+  {
+   "zh": "台灣最高的山是玉山。",
+   "en": "Taiwan's highest mountain is Yushan (Jade Mountain).",
+   "ja": "台湾で最も高い山は玉山である。",
+   "nan": "台灣上懸的山是玉山。",
+   "a": true,
+   "cat": "taiwan"
+  },
+  {
+   "zh": "台灣四面環海，是一座島嶼。",
+   "en": "Taiwan is an island surrounded by sea.",
+   "ja": "台湾は四方を海に囲まれた島である。",
+   "nan": "台灣四箍輾轉攏是海，是一個島嶼。",
+   "a": true,
+   "cat": "taiwan"
+  },
+  {
+   "zh": "台灣的面積比日本的九州還大。",
+   "en": "Taiwan is larger in area than Japan's Kyushu.",
+   "ja": "台湾の面積は日本の九州より大きい。",
+   "nan": "台灣的面積比日本的九州較大。",
+   "a": false,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "台灣高鐵是靠右行駛的。",
+   "en": "Taiwan's high-speed rail runs on the right-hand track.",
+   "ja": "台湾高速鉄道は右側通行である。",
+   "nan": "台灣高鐵是駛正爿的。",
+   "a": false,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "台灣的便利商店密度在世界上其實偏低。",
+   "en": "Taiwan's convenience-store density is actually quite low by world standards.",
+   "ja": "台湾のコンビニ密度は、実は世界的に見て低い方だ。",
+   "nan": "台灣的便利商店密度佇世界上其實算較低。",
+   "a": false,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "台灣「福爾摩沙」這個名字是荷蘭人取的。",
+   "en": "The name \"Formosa\" for Taiwan was coined by the Dutch.",
+   "ja": "台湾の「フォルモサ」という名前はオランダ人が付けたものだ。",
+   "nan": "台灣「福爾摩沙」這個名是荷蘭人號的。",
+   "a": false,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "機場代碼 TPE 指的是松山機場。",
+   "en": "The airport code TPE refers to Songshan Airport.",
+   "ja": "空港コード TPE は松山空港を指す。",
+   "nan": "機場代碼 TPE 是指松山機場。",
+   "a": false,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "台灣的最南端是富貴角。",
+   "en": "Taiwan's southernmost point is Cape Fugui.",
+   "ja": "台湾の最南端は富貴角である。",
+   "nan": "台灣上南爿的所在是富貴角。",
+   "a": false,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "台灣的黑面琵鷺是一種候鳥。",
+   "en": "Taiwan's black-faced spoonbill is a migratory bird.",
+   "ja": "台湾のクロツラヘラサギは渡り鳥である。",
+   "nan": "台灣的烏面抐桮是一種候鳥。",
+   "a": true,
+   "cat": "taiwan",
+   "tricky": true
+  },
+  {
+   "zh": "棒球是台灣最受歡迎的運動之一。",
+   "en": "Baseball is one of Taiwan's most popular sports.",
+   "ja": "野球は台湾で最も人気のあるスポーツの一つだ。",
+   "nan": "棒球是台灣上時行的運動之一。",
+   "a": true,
+   "cat": "taiwan"
+  },
+  {
+   "zh": "「鮪魚」的英文是 salmon。",
+   "en": "The English word for 鮪魚 is \"salmon\".",
+   "ja": "「マグロ」の英語は salmon である。",
+   "nan": "「鮪魚」的英語是 salmon。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "彩虹分成七種顏色，是牛頓訂下來的。",
+   "en": "The rainbow's seven colors were set by Isaac Newton.",
+   "ja": "虹を七色と定めたのはニュートンである。",
+   "nan": "虹分做七種色，是牛頓定的。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "「OK」這個說法源自 19 世紀的一個拼字玩笑。",
+   "en": "\"OK\" comes from a 19th-century misspelling joke.",
+   "ja": "「OK」という言葉は19世紀のつづりの冗談から生まれた。",
+   "nan": "「OK」這個講法是對 19 世紀一個拼字的滾笑來的。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "鉛筆的筆芯其實不含鉛，主要成分是石墨。",
+   "en": "Pencil \"lead\" contains no lead; it is mostly graphite.",
+   "ja": "鉛筆の芯には実は鉛が含まれず、主成分は黒鉛である。",
+   "nan": "鉛筆的筆心其實無含鉛，主要成分是石墨。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "蜘蛛絲在相同粗細下比鋼還要堅韌。",
+   "en": "Spider silk is tougher than steel of the same thickness.",
+   "ja": "クモの糸は同じ太さなら鋼鉄より強靭である。",
+   "nan": "仝款粗的蜘蛛絲比鋼閣較韌。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "打哈欠其實完全不會傳染，那只是迷思。",
+   "en": "Yawning is not actually contagious; that's just a myth.",
+   "ja": "あくびは実は全くうつらず、それは迷信にすぎない。",
+   "nan": "哈唏其實完全袂傳染，彼干焦是迷思。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "金字塔是由奴隸建造的。",
+   "en": "The Egyptian pyramids were built by slaves.",
+   "ja": "ピラミッドは奴隷によって建てられた。",
+   "nan": "金字塔是奴隸起的。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "大貓熊其實是熊科動物。",
+   "en": "The giant panda is actually a species of bear.",
+   "ja": "ジャイアントパンダは実はクマ科の動物である。",
+   "nan": "大貓熊其實是熊科的動物。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "番紅花（藏紅花）是世界上最昂貴的香料之一。",
+   "en": "Saffron is one of the most expensive spices in the world.",
+   "ja": "サフランは世界で最も高価なスパイスの一つである。",
+   "nan": "番紅花是世界上上貴的香料之一。",
+   "a": true,
+   "cat": "life"
+  },
+  {
+   "zh": "一張紙要對折超過七次是很困難的。",
+   "en": "It is very hard to fold a sheet of paper more than seven times.",
+   "ja": "1枚の紙を7回より多く半分に折るのはとても難しい。",
+   "nan": "一張紙欲對摺超過七擺真困難。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "鯨魚其實是一種大型的魚類。",
+   "en": "Whales are actually a kind of large fish.",
+   "ja": "クジラは実は大型の魚類である。",
+   "nan": "海翁其實是一種大隻的魚仔。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "玉米和小麥都屬於「草」（禾本科植物）。",
+   "en": "Corn and wheat are both grasses (the grass family).",
+   "ja": "トウモロコシと小麦はどちらもイネ科の「草」である。",
+   "nan": "番麥佮小麥攏是「草」（禾本科植物）。",
+   "a": true,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "打噴嚏時其實可以輕鬆睜著眼睛。",
+   "en": "You can easily keep your eyes open while sneezing.",
+   "ja": "くしゃみをするとき、実は簡単に目を開けたままでいられる。",
+   "nan": "拍咳啾的時，其實會當真輕鬆擘金目睭。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "時鐘的順時針方向其實是隨機決定的，沒有特別原因。",
+   "en": "Clockwise was chosen at random, for no particular reason.",
+   "ja": "時計回りの向きは実は適当に決まったもので、特に理由はない。",
+   "nan": "時鐘順時針的方向其實是烏白決定的，無特別的原因。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "一秒是用地球自轉來精確定義的。",
+   "en": "The second is precisely defined by the Earth's rotation.",
+   "ja": "1秒は地球の自転によって正確に定義されている。",
+   "nan": "一秒是用地球自轉來精確定義的。",
+   "a": false,
+   "cat": "life",
+   "tricky": true
+  },
+  {
+   "zh": "阿里山是台灣的一座「山」（單一山峰）。",
+   "en": "Alishan (Ali Mountain) is a single mountain in Taiwan.",
+   "ja": "阿里山は台湾にある一つの「山」（単独の峰）である。",
+   "nan": "阿里山是台灣的一粒山，干焦一個山峰。",
+   "a": false,
+   "cat": "taiwan"
+  }
+ ]
+}

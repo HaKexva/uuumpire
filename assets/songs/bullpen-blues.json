@@ -1,0 +1,99 @@
+{
+  "title": "Bullpen Blues",
+  "bpm": 128,
+  "stepsPerBar": 8,
+  "key": "C",
+  "swing": true,
+  "source": "original",
+  "tracks": {
+    "lead": {
+      "type": "pulse",
+      "duty": 0.5,
+      "vol": 0.045,
+      "midiProgram": 56,
+      "bars": [
+        "- g4 a#4 c5 - a#4 g4 -",
+        "- a4 c5 d5 - c5 a4 -",
+        "g4 . a#4 g4 f4 d#4 c4 -",
+        "- d#4 f4 f#4 g4 - a#4 -",
+        "a4 . c5 a4 f4 - a4 -",
+        "c5 a#4 a4 f4 - d5 c5 -",
+        "g4 a#4 c5 d#5 - c5 g4 -",
+        "d5 . b4 . g4 . f4 ."
+      ]
+    },
+    "comp": {
+      "type": "pulse",
+      "duty": 0.25,
+      "vol": 0.022,
+      "midiProgram": 1,
+      "bars": [
+        "- - e4 - - a#4 - -",
+        "- - a4 - - d#5 - -",
+        "- - e4 - - a#4 - -",
+        "- - e4 - - a#4 - -",
+        "- - a4 - - d#5 - -",
+        "- - a4 - - d#5 - -",
+        "- - e4 - - a#4 - -",
+        "- - b4 - - f5 - -"
+      ]
+    },
+    "bass": {
+      "type": "triangle",
+      "vol": 0.1,
+      "midiProgram": 33,
+      "bars": [
+        "c2 . e2 . g2 . a2 .",
+        "f2 . a2 . c3 . d3 .",
+        "c2 . e2 . g2 . a2 .",
+        "c2 . e2 . g2 . a2 .",
+        "f2 . a2 . c3 . d3 .",
+        "f2 . a2 . c3 . d3 .",
+        "c2 . e2 . g2 . a2 .",
+        "g2 . b2 . d3 . f3 ."
+      ]
+    },
+    "ride": {
+      "type": "noise",
+      "vol": 0.03,
+      "bars": [
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h"
+      ]
+    },
+    "snare": {
+      "type": "noise",
+      "vol": 0.034,
+      "bars": [
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - S S -"
+      ]
+    },
+    "kick": {
+      "type": "noise",
+      "vol": 0.04,
+      "bars": [
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - K -"
+      ]
+    }
+  }
+}
