@@ -1,0 +1,114 @@
+{
+  "title": "Power Surge",
+  "bpm": 176,
+  "stepsPerBar": 8,
+  "key": "E",
+  "source": "original",
+  "tracks": {
+    "lead": {
+      "type": "pulse",
+      "duty": 0.5,
+      "vol": 0.05,
+      "midiProgram": 80,
+      "bars": [
+        "e5 e5 b4 e5 g#5 .  b5 .",
+        "a4 a4 e5 a4 c#5 .  e5 .",
+        "b4 b4 f#5 b4 d#5 .  f#5 .",
+        "e5 .  g#5 b5 e6 b5 g#5 .",
+        "e5 e5 b4 e5 g#5 .  b5 .",
+        "a4 a4 e5 a4 c#5 .  e5 .",
+        "b4 b4 f#5 b4 d#5 .  f#5 .",
+        "e5 .  g#5 b5 e6 b5 g#5 ."
+      ]
+    },
+    "lead2": {
+      "type": "pulse",
+      "duty": 0.25,
+      "vol": 0.03,
+      "midiProgram": 80,
+      "bars": [
+        "e5 e5 b4 e5 g#5 .  b5 .",
+        "a4 a4 e5 a4 c#5 .  e5 .",
+        "b4 b4 f#5 b4 d#5 .  f#5 .",
+        "e5 .  g#5 b5 e6 b5 g#5 .",
+        "e5 e5 b4 e5 g#5 .  b5 .",
+        "a4 a4 e5 a4 c#5 .  e5 .",
+        "b4 b4 f#5 b4 d#5 .  f#5 .",
+        "e5 .  g#5 b5 e6 b5 g#5 ."
+      ]
+    },
+    "arp": {
+      "type": "pulse",
+      "duty": 0.25,
+      "vol": 0.028,
+      "midiProgram": 81,
+      "bars": [
+        "e4 g#4 b4 g#4 e4 g#4 b4 g#4",
+        "a4 c#5 e5 c#5 a4 c#5 e5 c#5",
+        "b3 d#4 f#4 d#4 b3 d#4 f#4 d#4",
+        "e4 g#4 b4 g#4 e4 g#4 b4 g#4",
+        "e4 g#4 b4 g#4 e4 g#4 b4 g#4",
+        "a4 c#5 e5 c#5 a4 c#5 e5 c#5",
+        "b3 d#4 f#4 d#4 b3 d#4 f#4 d#4",
+        "e4 g#4 b4 g#4 e4 g#4 b4 g#4"
+      ]
+    },
+    "bass": {
+      "type": "triangle",
+      "vol": 0.11,
+      "midiProgram": 39,
+      "bars": [
+        "e2 e2 e3 e2 e2 e2 e3 e2",
+        "a2 a2 a3 a2 a2 a2 a3 a2",
+        "b2 b2 b3 b2 b2 b2 b3 b2",
+        "e2 e2 e3 e2 e2 e2 e3 e2",
+        "e2 e2 e3 e2 e2 e2 e3 e2",
+        "a2 a2 a3 a2 a2 a2 a3 a2",
+        "b2 b2 b3 b2 b2 b2 b3 b2",
+        "e2 e2 e3 e2 e2 e2 e3 e2"
+      ]
+    },
+    "kick": {
+      "type": "noise",
+      "vol": 0.055,
+      "bars": [
+        "K - K K K - K -",
+        "K - K K K - K -",
+        "K - K K K - K -",
+        "K - K K K - K -",
+        "K - K K K - K -",
+        "K - K K K - K -",
+        "K - K K K - K -",
+        "K - K K K K K K"
+      ]
+    },
+    "hats": {
+      "type": "noise",
+      "vol": 0.04,
+      "bars": [
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h"
+      ]
+    },
+    "snare": {
+      "type": "noise",
+      "vol": 0.05,
+      "bars": [
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - S S S S"
+      ]
+    }
+  }
+}

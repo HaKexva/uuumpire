@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" class="fonts-loading">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#01215b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="UUUMPIRE - an 8-bit strike/ball judging game. You are the home plate umpire.">
+  <!-- link previews (Threads, Facebook, X, LINE, Discord); the card is a level-5 play frame -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="UUUMPIRE">
+  <meta property="og:title" content="UUUMPIRE">
+  <meta property="og:description" content="You are the home plate umpire. Strike or ball? Make the call. An 8-bit game, free in the browser.">
+  <meta property="og:url" content="https://hakexva.github.io/uuumpire/">
+  <meta property="og:image" content="https://hakexva.github.io/uuumpire/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="UUUMPIRE: a pitch in flight at a night ballpark, seen from behind home plate">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>UUUMPIRE</title>
+  <link rel="icon" href="favicon.ico" sizes="32x32 48x48">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
+  <link rel="preload" href="fonts/Cubic_11.woff2" as="font" type="font/woff2" crossorigin>
+  <style>
+    /* inline so the gate works before style.css arrives: nothing shows in a fallback font or unstyled */
+    html { background: #01215b; }
+    html.fonts-loading #app { visibility: hidden; }
+  </style>
+</head>
+<body>
+<div id="app" class="game-root">
+
+  <!-- LOADING -->
+  <section id="screen-loading" class="screen">
+    <h1 class="game-logo">UUUMPIRE</h1>
+    <div class="loadbar"><div id="load-fill" class="loadbar-fill"></div><canvas id="load-ball" class="load-ball" width="12" height="12"></canvas></div>
+    <p id="load-text" class="hint load-text" data-i18n="loading">LOADING...</p>
+  </section>
+
+  <!-- CREDITS CRAWL (Season 1 -> Season 2) -->
+  <section id="screen-credits" class="screen hidden">
+    <div class="crawl-view"><div class="crawl" id="crawl"></div></div>
+    <p class="hint crawl-skip" id="crawl-hint" data-i18n="cr.fast">TAP / ANY KEY TO SPEED UP</p>
+  </section>
+
+  <!-- ENDING CREDITS (Season 2 cleared): the HD roll over a sunrise, under the ending theme -->
+  <section id="screen-ending" class="screen hidden">
+    <canvas id="ending-sky" class="ending-sky"></canvas>
+    <div class="ending-view"><div class="ending-roll" id="ending-roll"></div></div>
+    <p class="hint crawl-skip" data-i18n="cr.skip">TAP / ANY KEY TO SKIP</p>
+  </section>
+
+  <!-- STADIUM ROULETTE (RANDOM palette): the draw before level 1 -->
+  <section id="screen-stadium" class="screen hidden">
+    <h2 class="section-title" data-i18n="stadium.select">STADIUM SELECT</h2>
+    <canvas id="stadium-reel" class="stadium-reel" width="216" height="66"></canvas>
+    <p id="stadium-name" class="stadium-name"></p>
+    <p class="hint" data-i18n="cr.skip">TAP / ANY KEY TO SKIP</p>
+  </section>
+
+  <!-- STADIUM + UMPIRE SELECT (after PLAY BALL): fighting-game select, the stadium row first, then the umpire row -->
+  <section id="screen-ump" class="screen hidden">
+    <div class="sel-head">
+      <h2 id="sel-title" class="section-title">SELECT YOUR STADIUM</h2>
+      <span id="sel-timer" class="sel-timer">20</span>
+    </div>
+    <div class="sel-carousel sel-stadium-row"><button class="sel-arrow" type="button" aria-label="previous"></button><div id="sel-stadiums" class="sel-row"></div><button class="sel-arrow next" type="button" aria-label="next"></button></div>
+    <p id="sel-stadium" class="sel-stadium"></p>
+    <canvas id="sel-preview" class="sel-preview" width="54" height="54"></canvas>
+    <p id="sel-name" class="sel-name"></p>
+    <div class="sel-carousel"><button class="sel-arrow" type="button" aria-label="previous"></button><div id="sel-grid" class="sel-row"></div><button class="sel-arrow next" type="button" aria-label="next"></button></div>
+    <p class="hint" data-i18n="sel.hint">ARROWS + ENTER / TAP TWICE TO PICK</p>
+    <button id="sel-start" class="game-btn game-btn--gold btn-back" type="button" data-i18n="sel.start">START</button>
+  </section>
+
+  <!-- TITLE -->
+  <section id="screen-title" class="screen hidden">
+    <h1 class="game-logo">UUUMPIRE</h1>
+    <p class="tagline game-shadow" data-i18n="tagline">STRIKE? OR BALL? YOU CALL IT.</p>
+    <ul class="menu" id="title-menu">
+      <li class="menu-item" data-action="start"><span class="game-caret"></span><span data-i18n="menu.start">PLAY BALL</span></li>
+      <li class="menu-item" data-action="howto"><span class="game-caret"></span><span data-i18n="menu.howto">HOW TO PLAY</span></li>
+      <li class="menu-item" data-action="records"><span class="game-caret"></span><span data-i18n="menu.records">RECORDS</span></li>
+      <li class="menu-item" data-action="board"><span class="game-caret"></span><span data-i18n="menu.board">LEADERBOARD</span></li>
+      <li class="menu-item" data-action="difficulty"><span class="game-caret"></span><span><span data-i18n="menu.difficulty">DIFFICULTY</span>: <b id="difficulty-label">ARCADE</b></span></li>
+      <li class="menu-item" data-action="audio"><span class="game-caret"></span><span><span data-i18n="menu.audio">SOUND &amp; MUSIC</span>: <b id="audio-label">ON</b></span></li>
+      <li class="menu-item" data-action="lang"><span class="game-caret"></span><span><span data-i18n="menu.lang">LANGUAGE</span>: <b id="lang-label">ENGLISH</b></span></li>
+    </ul>
+    <div class="game-panel best-panel">
+      <div class="panel-title" data-i18n="best">BEST CALL</div>
+      <div id="title-best" class="best-score">0</div>
+    </div>
+    <p id="title-plays" class="hint plays hidden"></p>
+    <p class="hint" data-i18n="hint.controls">PC: ARROWS + ENTER / MOBILE: TAP</p>
+    <p id="music-hint" class="hint music-hint hidden" data-i18n="hint.music">&#9834; TAP OR ANY KEY FOR MUSIC</p>
+  </section>
+
+  <!-- PLAY -->
+  <section id="screen-play" class="screen hidden">
+    <div class="hud">
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.score">SCORE</span><span id="hud-score" class="hud-value">0</span></div>
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.streak">STREAK</span><span id="hud-streak" class="hud-value">0</span></div>
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.level">LV</span><span id="hud-level" class="hud-value">1</span></div>
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.miss">MISS</span><span id="hud-miss" class="hud-value miss"><i></i><i></i><i></i></span></div>
+      <div class="hud-cell"><span class="hud-label" data-i18n="hud.crowd">CROWD</span><span id="hud-crowd" class="hud-value meter"><i></i><i></i><i></i><i></i><i></i></span></div>
+    </div>
+    <div class="stage" id="stage">
+      <canvas id="game" width="168" height="192"></canvas>
+      <div id="call-text" class="call-text"></div>
+      <div id="react-text" class="react-text"></div>
+      <div id="style-text" class="style-text"></div>
+      <div id="judge-text" class="judge-text"></div>
+      <div id="bonus-text" class="bonus-text"></div>
+      <div id="abs-text" class="abs-text"></div>
+      <div id="pause-text" class="pause-text"><span class="plate" data-i18n="paused">PAUSED</span></div>
+      <div id="reprieve" class="reprieve hidden">
+        <div class="reprieve-plate">
+          <p class="reprieve-title" data-i18n="reprieve.title">SAVE A MISS!</p>
+          <p id="reprieve-q" class="reprieve-q"></p>
+          <p class="reprieve-ans"><span class="rp-yes" data-i18n="reprieve.yes">STRIKE = 是</span><span class="rp-no" data-i18n="reprieve.no">BALL = 否</span></p>
+          <div class="reprieve-bar"><div id="reprieve-fill" class="reprieve-fill"></div></div>
+        </div>
+      </div>
+      <button id="btn-replay" class="game-btn game-btn--sm replay-btn hidden" type="button" data-i18n="btn.replay">REPLAY</button>
+      <button id="btn-quit" class="game-btn game-btn--sm quit-btn" type="button" data-i18n="btn.quit">EXIT TO TITLE</button>
+      <div id="casual-hint" class="casual-hint hidden" data-i18n="casual.mode">CASUAL MODE</div>
+    </div>
+    <div class="info-row">
+      <span id="pitch-info" class="pitch-info">&nbsp;</span>
+      <span class="info-right"><span id="casual-tag" class="casual-tag hidden" data-i18n="casual.mode">CASUAL MODE</span><span id="pitch-count" class="pitch-count">PITCH 1</span></span>
+    </div>
+    <div class="timer"><div id="timer-fill" class="timer-fill"></div></div>
+    <div class="controls">
+      <button id="btn-strike" class="game-btn game-btn--big game-btn--gold" type="button" data-i18n="btn.strike">STRIKE</button>
+      <button id="btn-pause" class="game-btn game-btn--pause" type="button" aria-label="Pause"><span class="icon-pause"></span></button>
+      <button id="btn-ball" class="game-btn game-btn--big" type="button" data-i18n="btn.ball">BALL</button>
+    </div>
+    <div class="key-hint" data-i18n="hint.keys">← / S = STRIKE &nbsp;&nbsp; → / B = BALL &nbsp;&nbsp; SPACE = PAUSE &nbsp;&nbsp; R = REPLAY</div>
+  </section>
+
+  <!-- GAME OVER -->
+  <section id="screen-over" class="screen hidden">
+    <h2 id="over-title" class="game-logo game-logo--sm" data-i18n="over.title">YOU'RE OUT!</h2>
+    <p id="over-sub" class="over-sub game-shadow" data-i18n="over.sub">THE MANAGER CALLED THE LEAGUE.</p>
+    <div class="game-panel result-panel">
+      <div class="result-row"><span data-i18n="over.score">SCORE</span><b id="over-score">0</b></div>
+      <div class="result-row"><span data-i18n="over.pitches">PITCHES</span><b id="over-pitches">0</b></div>
+      <div class="result-row"><span data-i18n="over.acc">ACCURACY</span><b id="over-acc">0%</b></div>
+      <div class="result-row"><span data-i18n="over.streak">BEST STREAK</span><b id="over-streak">0</b></div>
+      <div class="result-row"><span data-i18n="over.react">AVG REACTION</span><b id="over-react">-</b></div>
+      <div id="over-newbest" class="new-best hidden" data-i18n="over.newbest">NEW RECORD!</div>
+      <div id="submit-row" class="submit-row">
+        <input id="name-input" class="game-input" type="text" maxlength="12" autocomplete="off" data-i18n-ph="name.ph" placeholder="YOUR NAME">
+        <button id="btn-submit" class="game-btn game-btn--sm" type="button" data-i18n="btn.submit">SUBMIT</button>
+      </div>
+      <p id="submit-status" class="hint submit-status"></p>
+    </div>
+    <div id="fb-box" class="game-panel fb-box hidden">
+      <div class="panel-title" data-i18n="fb.title">HOW WAS THE GAME?</div>
+      <p class="hint fb-hint" data-i18n="fb.hint">A LINE FOR THE DEV; YOUR SCORE AND LEVEL GO WITH IT.</p>
+      <div id="fb-stars" class="fb-stars" role="radiogroup" aria-label="rating">
+        <button type="button" class="fb-star" data-rate="1" aria-label="1">★</button>
+        <button type="button" class="fb-star" data-rate="2" aria-label="2">★</button>
+        <button type="button" class="fb-star" data-rate="3" aria-label="3">★</button>
+        <button type="button" class="fb-star" data-rate="4" aria-label="4">★</button>
+        <button type="button" class="fb-star" data-rate="5" aria-label="5">★</button>
+      </div>
+      <input id="fb-name" class="game-input fb-name hidden" type="text" maxlength="12" autocomplete="off" data-i18n-ph="fb.name" placeholder="YOUR NAME (OPTIONAL)">
+      <textarea id="fb-text" class="game-input fb-text" rows="3" maxlength="500" data-i18n-ph="fb.ph" placeholder="YOUR THOUGHTS..."></textarea>
+      <div class="btn-row fb-row">
+        <button id="btn-fb-send" class="game-btn game-btn--sm game-btn--gold" type="button" data-i18n="fb.send">SEND</button>
+      </div>
+      <p id="fb-status" class="hint submit-status"></p>
+    </div>
+    <div class="btn-row">
+      <button id="btn-retry" class="game-btn game-btn--gold" type="button" data-i18n="btn.again">PLAY AGAIN</button>
+      <button id="btn-share" class="game-btn" type="button" data-i18n="btn.share">SHARE</button>
+      <button id="btn-title" class="game-btn" type="button" data-i18n="btn.title">TITLE</button>
+    </div>
+  </section>
+
+  <!-- HOW TO -->
+  <section id="screen-howto" class="screen hidden">
+    <h2 class="section-title" data-i18n="howto.title">HOW TO PLAY</h2>
+    <div class="game-panel text-panel">
+      <p data-i18n-html="howto.1.html">You are the home plate umpire. When the pitch hits the mitt, call <b class="gold">STRIKE</b> or <b>BALL</b> before the timer runs out. 3 wrong calls and you're out.</p>
+      <p data-i18n-html="howto.save.html"><b>Save a miss:</b> the wrong call that would end your game brings up a true/false quiz: <b class="gold">STRIKE</b> = yes, <b>BALL</b> = no. Answer right and the miss is taken back. You get <b>1</b> to start and <b>+1 at level 6</b>; Season 2 gives <b>1</b> at level 12 and <b>+1 at level 16</b>.</p>
+      <p data-i18n-html="howto.2.html">Any part of the ball touching the zone is a <b class="gold">STRIKE</b>. The zone's <b>height follows the hitter</b> (midpoint of shoulders and belt down to the knees), so a taller hitter has a taller, higher zone. The width is always the plate.</p>
+      <p data-i18n-html="howto.3.html">A full <b>swing and miss</b> is always a strike; a held check swing is not. The catcher may <b>frame</b> the mitt into the zone: judge where the ball crossed.</p>
+      <p data-i18n-html="howto.4.html">Pitchers throw lefty or righty, overhand or <b>submarine</b>. The dotted <b>zone guide</b> shows in level 1 only.</p>
+      <p data-i18n-html="howto.5.html">Streaks multiply your score. Edge pitches, quick calls and calls held to the last moment earn bonus.</p>
+      <p data-i18n-html="howto.6.html">Miss a call and <b>ABS</b> shows how far off it was. Press <b>R</b> for a slow-motion replay.</p>
+      <p data-i18n-html="howto.7.html">The <b>CROWD</b> meter is atmosphere only: boos never change a call.</p>
+      <p data-i18n-html="howto.8.html"><b>Season 2 · play at first:</b> <b class="gold">SAFE</b> if the runner's foot touches the base before the ball reaches the glove, otherwise <b>OUT</b>. In levels 12–13 the touch and the catch flash as a cue.</p>
+      <p data-i18n-html="howto.9.html"><b>Season 2 · foul pole (level 16+):</b> a ball that hits the pole or passes inside it is a <b class="gold">HOME RUN</b>; outside it is <b>FOUL</b>.</p>
+    </div>
+    <button class="game-btn btn-back" data-action="back" type="button" data-i18n="btn.back">BACK</button>
+  </section>
+
+  <!-- RECORDS -->
+  <section id="screen-records" class="screen hidden">
+    <h2 class="section-title" data-i18n="records.title">RECORDS</h2>
+    <div class="game-panel text-panel">
+      <ol id="records-list" class="records"></ol>
+    </div>
+    <button class="game-btn btn-back" data-action="back" type="button" data-i18n="btn.back">BACK</button>
+  </section>
+
+  <!-- LEADERBOARD -->
+  <section id="screen-board" class="screen hidden">
+    <h2 class="section-title" data-i18n="board.title">LEADERBOARD</h2>
+    <div class="tabs">
+      <button class="game-btn game-btn--sm tab active" type="button" data-period="daily" data-i18n="board.today">TODAY</button>
+      <button class="game-btn game-btn--sm tab" type="button" data-period="all" data-i18n="board.all">ALL TIME</button>
+    </div>
+    <div class="game-panel text-panel board-panel">
+      <ol id="board-list" class="records board"></ol>
+      <p id="board-status" class="hint board-status"></p>
+    </div>
+    <div id="board-pager" class="board-pager hidden">
+      <button class="game-btn game-btn--sm pg-prev" type="button" aria-label="Previous page">‹</button>
+      <span id="pg-label" class="pg-label"></span>
+      <button class="game-btn game-btn--sm pg-next" type="button" aria-label="Next page">›</button>
+    </div>
+    <button class="game-btn btn-back" data-action="back" type="button" data-i18n="btn.back">BACK</button>
+  </section>
+
+  <!-- "WHAT'S NEW" announce modal -->
+  <div id="update-modal" class="update-backdrop hidden">
+    <div class="update-card game-panel">
+      <button id="update-x" class="update-x" type="button" aria-label="close">✕</button>
+      <h2 class="update-title" data-i18n="update.title">NEW UPDATE!</h2>
+      <ul class="update-list">
+        <li data-i18n="update.i1">New: pick your umpire before every game</li>
+        <li data-i18n="update.i2">More stadiums: SUNSET and SEPIA</li>
+        <li data-i18n="update.i3">More quizzes, more chances to save a miss</li>
+      </ul>
+      <button id="update-ok" class="game-btn game-btn--gold" type="button" data-i18n="update.ok">GOT IT</button>
+    </div>
+  </div>
+
+</div>
+<script>
+// Asset loader. GitHub Pages caches this page for 10 minutes, so the page itself never changes for an
+// asset update: it fetches version.json (never cached) and loads everything with that stamp. The stamp
+// is bumped by tools/stamp.js on every commit (git pre-commit hook).
+(async () => {
+  let v = "";
+  try { v = (await (await fetch("version.json", { cache: "no-store" })).json()).v; } catch (e) { v = String(Date.now()); }
+  window.UU_V = v;
+  const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "style.css?v=" + v; document.head.appendChild(css);
+  const load = (src) => new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src + "?v=" + v; s.onload = ok; s.onerror = fail; document.body.appendChild(s); });
+  // the game, in load order (tools/build.js joins these into one game.js for the deploy and rewrites this list)
+  const GAME = ["game.js"];
+  try { for (const f of ["i18n.js", "sprites.js", "music.js", "core.js", ...GAME]) await load(f); }
+  catch (e) { document.documentElement.classList.remove("fonts-loading"); document.getElementById("load-text").textContent = "LOAD FAILED. RELOAD?"; }
+})();
+</script>
+</body>
+</html>
