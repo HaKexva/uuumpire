@@ -1,0 +1,87 @@
+{
+  "title": "UUUMPIRE S2 (Ascent)",
+  "bpm": 172,
+  "stepsPerBar": 8,
+  "key": "Dm",
+  "source": "original",
+  "tracks": {
+    "lead": {
+      "type": "pulse", "duty": 0.5, "vol": 0.055,
+      "bars": [
+        "d5 f5 a5 d6 a5 f5 d5 a4",
+        "a#4 d5 f5 a#5 f5 d5 a#4 f4",
+        "c5 f5 a5 c6 a5 f5 c5 a4",
+        "c5 e5 g5 c6 g5 e5 c5 g4",
+        "d5 f5 a5 d6 f6 d6 a5 f5",
+        "a#5 d6 f6 d6 a#5 f5 d5 a#4",
+        "c6 . g5 . e5 . c5 .",
+        "a4 c#5 e5 a5 e5 c#5 a4 ."
+      ]
+    },
+    "arp": {
+      "type": "pulse", "duty": 0.25, "vol": 0.03,
+      "bars": [
+        "d4 f4 a4 f4 d4 f4 a4 f4",
+        "a#3 d4 f4 d4 a#3 d4 f4 d4",
+        "f4 a4 c5 a4 f4 a4 c5 a4",
+        "c4 e4 g4 e4 c4 e4 g4 e4",
+        "d4 f4 a4 f4 d4 f4 a4 f4",
+        "a#3 d4 f4 d4 a#3 d4 f4 d4",
+        "c4 e4 g4 e4 c4 e4 g4 e4",
+        "a3 c#4 e4 c#4 a3 c#4 e4 c#4"
+      ]
+    },
+    "bass": {
+      "type": "triangle", "vol": 0.11,
+      "bars": [
+        "d2 d3 d2 d3 d2 d3 d2 d3",
+        "a#2 a#3 a#2 a#3 a#2 a#3 a#2 a#3",
+        "f2 f3 f2 f3 f2 f3 f2 f3",
+        "c2 c3 c2 c3 c2 c3 c2 c3",
+        "d2 d3 d2 d3 d2 d3 d2 d3",
+        "a#2 a#3 a#2 a#3 a#2 a#3 a#2 a#3",
+        "c2 c3 c2 c3 c2 c3 c2 c3",
+        "a2 a3 a2 a3 a2 a3 a2 a3"
+      ]
+    },
+    "kick": {
+      "type": "noise", "vol": 0.055,
+      "bars": [
+        "K - K - K - K -",
+        "K - K - K - K -",
+        "K - K - K - K -",
+        "K - K - K - K -",
+        "K - K - K - K -",
+        "K - K - K - K -",
+        "K - K - K - K -",
+        "K - K - K K K K"
+      ]
+    },
+    "hats": {
+      "type": "noise", "vol": 0.04,
+      "bars": [
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h"
+      ]
+    },
+    "snare": {
+      "type": "noise", "vol": 0.05,
+      "bars": [
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - S S S S"
+      ]
+    }
+  }
+}

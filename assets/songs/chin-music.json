@@ -1,0 +1,96 @@
+{
+  "title": "Chin Music",
+  "bpm": 186,
+  "stepsPerBar": 8,
+  "key": "F#m",
+  "source": "original",
+  "tracks": {
+    "lead": {
+      "type": "saw",
+      "uni": 3,
+      "det": 16,
+      "vol": 0.05,
+      "bars": [
+        "f#5 - - c#6 - a5 - -",
+        "e5 - - b5 - g#5 - -",
+        "d5 - - a5 - f#5 - -",
+        "c#5 - - g#5 - f5 - -",
+        "f#5 - c#6 - a5 - f#5 -",
+        "d5 - a5 - f#5 - d5 -",
+        "c#5 - g#5 - f5 - c#5 -",
+        "c#5 - - f5 - g#5 - c#6"
+      ]
+    },
+    "arp": {
+      "type": "pulse",
+      "duty": 0.25,
+      "vol": 0.026,
+      "bars": [
+        "f#3 a3 c#4 a3 f#3 a3 c#4 a3",
+        "e3 g#3 b3 g#3 e3 g#3 b3 g#3",
+        "d3 f#3 a3 f#3 d3 f#3 a3 f#3",
+        "c#4 f4 g#4 f4 c#4 f4 g#4 f4",
+        "f#3 a3 c#4 a3 f#3 a3 c#4 a3",
+        "d3 f#3 a3 f#3 d3 f#3 a3 f#3",
+        "c#4 f4 g#4 f4 c#4 f4 g#4 f4",
+        "c#4 f4 g#4 f4 c#4 f4 g#4 f4"
+      ]
+    },
+    "bass": {
+      "type": "triangle",
+      "vol": 0.11,
+      "bars": [
+        "f#2 f#3 f#2 f#3 f#2 f#3 f#2 f#3",
+        "e2 e3 e2 e3 e2 e3 e2 e3",
+        "d2 d3 d2 d3 d2 d3 d2 d3",
+        "c#2 c#3 c#2 c#3 c#2 c#3 c#2 c#3",
+        "f#2 f#3 f#2 f#3 f#2 f#3 f#2 f#3",
+        "d2 d3 d2 d3 d2 d3 d2 d3",
+        "c#2 c#3 c#2 c#3 c#2 c#3 c#2 c#3",
+        "c#2 g#2 c#3 g#2 f#2 c#2 c#3 g#2"
+      ]
+    },
+    "kick": {
+      "type": "noise",
+      "vol": 0.055,
+      "bars": [
+        "K - K - - K - -",
+        "K - K - - K - -",
+        "K - K - - K - -",
+        "K - K - - K - -",
+        "K - K - - K - -",
+        "K - K - - K - -",
+        "K - K - - K - -",
+        "K - K K K K K K"
+      ]
+    },
+    "snare": {
+      "type": "noise",
+      "vol": 0.05,
+      "bars": [
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - S S S S"
+      ]
+    },
+    "hats": {
+      "type": "noise",
+      "vol": 0.038,
+      "bars": [
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h"
+      ]
+    }
+  }
+}

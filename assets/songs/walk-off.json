@@ -1,0 +1,98 @@
+{
+  "title": "Walk-Off",
+  "bpm": 150,
+  "stepsPerBar": 8,
+  "key": "F#m",
+  "source": "original",
+  "tracks": {
+    "lead": {
+      "type": "pulse",
+      "duty": 0.5,
+      "vol": 0.05,
+      "midiProgram": 80,
+      "bars": [
+        "f#4 .  .  a4 .  c#5 .  .",
+        "d4 .  .  f#4 .  a4 .  .",
+        "a4 .  .  c#5 .  e5 .  .",
+        "e4 .  .  g#4 .  b4 .  .",
+        "f#5 .  e5 c#5 .  a4 .  f#4",
+        "d5 .  c#5 a4 .  f#4 .  d4",
+        "e5 .  d#5 b4 .  g#4 .  e4",
+        "f#4 .  .  -  c#5 .  f#5 ."
+      ]
+    },
+    "arp": {
+      "type": "pulse",
+      "duty": 0.25,
+      "vol": 0.026,
+      "midiProgram": 81,
+      "bars": [
+        "f#4 c#5 f#4 c#5 f#4 c#5 f#4 c#5",
+        "d4 a4 d4 a4 d4 a4 d4 a4",
+        "a3 e4 a3 e4 a3 e4 a3 e4",
+        "e4 b4 e4 b4 e4 b4 e4 b4",
+        "f#4 c#5 f#4 c#5 f#4 c#5 f#4 c#5",
+        "d4 a4 d4 a4 d4 a4 d4 a4",
+        "e4 b4 e4 b4 e4 b4 e4 b4",
+        "f#4 c#5 f#4 c#5 f#4 c#5 f#4 c#5"
+      ]
+    },
+    "bass": {
+      "type": "triangle",
+      "vol": 0.1,
+      "midiProgram": 38,
+      "bars": [
+        "f#2 -  f#2 -  c#3 -  f#2 -",
+        "d2 -  d2 -  a2 -  d2 -",
+        "a2 -  a2 -  e3 -  a2 -",
+        "e2 -  e2 -  b2 -  e2 -",
+        "f#2 -  f#2 -  c#3 -  f#2 -",
+        "d2 -  d2 -  a2 -  d2 -",
+        "e2 -  e2 -  b2 -  e2 -",
+        "f#2 f#2 c#3 f#2 f#2 f#2 c#3 f#2"
+      ]
+    },
+    "kick": {
+      "type": "noise",
+      "vol": 0.052,
+      "bars": [
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - - - K - - -",
+        "K - K - K - K -",
+        "K - K - K - K -",
+        "K - K - K - K -",
+        "K - K - K K K K"
+      ]
+    },
+    "hats": {
+      "type": "noise",
+      "vol": 0.038,
+      "bars": [
+        "- h - h - h - h",
+        "- h - h - h - h",
+        "- h - h - h - h",
+        "- h - h - h - h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h"
+      ]
+    },
+    "snare": {
+      "type": "noise",
+      "vol": 0.05,
+      "bars": [
+        "- - - - - - S -",
+        "- - - - - - S -",
+        "- - - - - - S -",
+        "- - - - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - S S S S"
+      ]
+    }
+  }
+}

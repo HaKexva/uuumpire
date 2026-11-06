@@ -1,0 +1,125 @@
+{
+  "title": "UUUMPIRE S2 (Ending)",
+  "bpm": 120,
+  "stepsPerBar": 8,
+  "key": "D",
+  "source": "original",
+  "tracks": {
+    "lead": {
+      "type": "pulse",
+      "duty": 0.5,
+      "vol": 0.055,
+      "midiProgram": 56,
+      "bars": [
+        "f#5 . . . a5 . d6 .",
+        "c#6 . . . . . a5 .",
+        "b5 . . . d6 . f#6 .",
+        "e6 . . . c#6 . a5 .",
+        "d6 . b5 . g5 . b5 .",
+        "a5 . . . f#5 . d5 .",
+        "g5 . b5 . d6 . g6 .",
+        "e6 . . . . . . .",
+        "f#6 . . . e6 . d6 .",
+        "d6 . . . b5 . g5 .",
+        "a5 . . . f#5 . a5 .",
+        "c#6 . . . e6 . . .",
+        "d6 . b5 . g5 . b5 .",
+        "c#6 . e6 . a6 . . .",
+        "f#6 . . . . . . .",
+        "d6 . . . a5 . f#5 ."
+      ]
+    },
+    "harmony": {
+      "type": "pulse",
+      "duty": 0.25,
+      "vol": 0.026,
+      "midiProgram": 61,
+      "bars": [
+        "a4 . . . f#4 . . .",
+        "e4 . . . c#5 . . .",
+        "f#4 . . . b4 . . .",
+        "c#5 . . . a4 . . .",
+        "b4 . . . g4 . . .",
+        "f#4 . . . a4 . . .",
+        "d5 . . . b4 . . .",
+        "c#5 . . . e5 . . .",
+        "d5 . . . b4 . . .",
+        "b4 . . . d5 . . .",
+        "f#4 . . . a4 . . .",
+        "a4 . . . c#5 . . .",
+        "b4 . . . g4 . . .",
+        "e5 . . . c#5 . . .",
+        "d5 . . . . . . .",
+        "a4 . . . f#4 . . ."
+      ]
+    },
+    "arp": {
+      "type": "pulse",
+      "duty": 0.125,
+      "vol": 0.018,
+      "midiProgram": 81,
+      "bars": [
+        "d4 f#4 a4 f#4 d4 f#4 a4 f#4",
+        "a3 c#4 e4 c#4 a3 c#4 e4 c#4",
+        "b3 d4 f#4 d4 b3 d4 f#4 d4",
+        "f#3 a3 c#4 a3 f#3 a3 c#4 a3",
+        "g3 b3 d4 b3 g3 b3 d4 b3",
+        "d4 f#4 a4 f#4 d4 f#4 a4 f#4",
+        "g3 b3 d4 b3 g3 b3 d4 b3",
+        "a3 c#4 e4 c#4 a3 c#4 e4 c#4",
+        "b3 d4 f#4 d4 b3 d4 f#4 d4",
+        "g3 b3 d4 b3 g3 b3 d4 b3",
+        "d4 f#4 a4 f#4 d4 f#4 a4 f#4",
+        "a3 c#4 e4 c#4 a3 c#4 e4 c#4",
+        "g3 b3 d4 b3 g3 b3 d4 b3",
+        "a3 c#4 e4 c#4 a3 c#4 e4 c#4",
+        "d4 f#4 a4 f#4 d4 f#4 a4 f#4",
+        "d4 f#4 a4 f#4 d4 f#4 a4 f#4"
+      ]
+    },
+    "bass": {
+      "type": "triangle",
+      "vol": 0.11,
+      "bars": [
+        "d2 . d3 . d2 . d3 .",
+        "a1 . a2 . a1 . a2 .",
+        "b1 . b2 . b1 . b2 .",
+        "f#2 . f#3 . f#2 . f#3 .",
+        "g1 . g2 . g1 . g2 .",
+        "d2 . d3 . d2 . d3 .",
+        "g1 . g2 . g1 . g2 .",
+        "a1 . a2 . a1 . a2 .",
+        "b1 . b2 . b1 . b2 .",
+        "g1 . g2 . g1 . g2 .",
+        "d2 . d3 . d2 . d3 .",
+        "a1 . a2 . a1 . a2 .",
+        "g1 . g2 . g1 . g2 .",
+        "a1 . a2 . a1 . a2 .",
+        "d2 . d3 . d2 . d3 .",
+        "d2 . d3 . d2 . d3 ."
+      ]
+    },
+    "drums": {
+      "type": "noise",
+      "vol": 0.05,
+      "bars": [
+        "K - - - S - h -",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - h - S - S S",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - h - S - h -",
+        "K - S - S S S S"
+      ]
+    }
+  }
+}
