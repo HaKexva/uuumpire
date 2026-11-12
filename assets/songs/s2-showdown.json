@@ -1,0 +1,96 @@
+{
+  "title": "UUUMPIRE S2 (Showdown)",
+  "bpm": 190,
+  "stepsPerBar": 8,
+  "key": "Dm",
+  "source": "original",
+  "tracks": {
+    "lead": {
+      "type": "saw",
+      "uni": 3,
+      "det": 16,
+      "vol": 0.05,
+      "bars": [
+        "d5 . f5 d5 a5 . f5 d5",
+        "c6 . a5 f5 d5 . c5 d5",
+        "a#5 . g5 a#5 d6 . a#5 g5",
+        "a5 . f5 a5 c6 . a5 f5",
+        "d5 f5 a5 d6 c6 a5 f5 d5",
+        "a#5 d6 f6 d6 a#5 f5 d5 a#4",
+        "c6 a5 f5 c5 a4 c5 f5 a5",
+        "d5 . a5 f5 d6 . a5 d5"
+      ]
+    },
+    "arp": {
+      "type": "pulse",
+      "duty": 0.25,
+      "vol": 0.026,
+      "bars": [
+        "d4 a4 d5 a4 d4 a4 d5 a4",
+        "c4 g4 c5 g4 c4 g4 c5 g4",
+        "a#3 f4 a#4 f4 a#3 f4 a#4 f4",
+        "a3 e4 a4 e4 a3 e4 a4 e4",
+        "d4 a4 d5 a4 d4 a4 d5 a4",
+        "a#3 f4 a#4 f4 a#3 f4 a#4 f4",
+        "f3 c4 f4 c4 f3 c4 f4 c4",
+        "a3 e4 a4 e4 a3 e4 a4 e4"
+      ]
+    },
+    "bass": {
+      "type": "triangle",
+      "vol": 0.11,
+      "bars": [
+        "d2 d3 d2 d3 d2 d3 d2 d3",
+        "c2 c3 c2 c3 c2 c3 c2 c3",
+        "a#1 a#2 a#1 a#2 a#1 a#2 a#1 a#2",
+        "a1 a2 a1 a2 a1 a2 a1 a2",
+        "d2 d3 d2 d3 d2 d3 d2 d3",
+        "a#1 a#2 a#1 a#2 a#1 a#2 a#1 a#2",
+        "f2 f3 f2 f3 f2 f3 f2 f3",
+        "a1 a2 a1 a2 a1 a2 a1 a2"
+      ]
+    },
+    "kick": {
+      "type": "noise",
+      "vol": 0.055,
+      "bars": [
+        "K - - K - K - -",
+        "K - - K - K - -",
+        "K - - K - K - -",
+        "K - - K - K - -",
+        "K - - K - K - -",
+        "K - - K - K - -",
+        "K - - K - K - -",
+        "K - K - K K K K"
+      ]
+    },
+    "snare": {
+      "type": "noise",
+      "vol": 0.05,
+      "bars": [
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - S - S S"
+      ]
+    },
+    "hats": {
+      "type": "noise",
+      "vol": 0.038,
+      "bars": [
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h"
+      ]
+    }
+  }
+}
