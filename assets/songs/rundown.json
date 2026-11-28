@@ -1,0 +1,96 @@
+{
+  "title": "Rundown",
+  "bpm": 170,
+  "stepsPerBar": 8,
+  "key": "Cm",
+  "source": "original",
+  "tracks": {
+    "lead": {
+      "type": "saw",
+      "uni": 3,
+      "det": 16,
+      "vol": 0.05,
+      "bars": [
+        "- g5 c6 - g5 d#6 - c6",
+        "- f5 a#5 - f5 d6 - a#5",
+        "- e5 a5 - e5 c#6 - a5",
+        "- d#5 g#5 - d#5 c6 - g#5",
+        "g5 - g#5 a#5 - g5 d#5 -",
+        "d5 - g5 b5 - d6 g5 -",
+        "d#5 - g#5 c6 - d#6 g#5 -",
+        "d5 - g5 - c6 - d5 -"
+      ]
+    },
+    "arp": {
+      "type": "pulse",
+      "duty": 0.25,
+      "vol": 0.026,
+      "bars": [
+        "c4 d#4 g4 d#4 c4 d#4 g4 d#4",
+        "a#3 d4 f4 d4 a#3 d4 f4 d4",
+        "a3 c#4 e4 c#4 a3 c#4 e4 c#4",
+        "g#3 c4 d#4 c4 g#3 c4 d#4 c4",
+        "c4 d#4 g4 d#4 c4 d#4 g4 d#4",
+        "g3 b3 d4 b3 g3 b3 d4 b3",
+        "g#3 c4 d#4 c4 g#3 c4 d#4 c4",
+        "g3 b3 d4 b3 g3 b3 d4 b3"
+      ]
+    },
+    "bass": {
+      "type": "triangle",
+      "vol": 0.11,
+      "bars": [
+        "c2 c3 c2 c3 c2 c3 c2 c3",
+        "a#1 a#2 a#1 a#2 a#1 a#2 a#1 a#2",
+        "a1 a2 a1 a2 a1 a2 a1 a2",
+        "g#1 g#2 g#1 g#2 g#1 g#2 g#1 g#2",
+        "c2 c3 c2 c3 c2 c3 c2 c3",
+        "g1 g2 g1 g2 g1 g2 g1 g2",
+        "g#1 g#2 g#1 g#2 g#1 g#2 g#1 g#2",
+        "g1 d2 g2 g1 c2 g1 g2 d2"
+      ]
+    },
+    "kick": {
+      "type": "noise",
+      "vol": 0.055,
+      "bars": [
+        "K - K - - K - -",
+        "K - K - - K - -",
+        "K - K - - K - -",
+        "K - K - - K K K",
+        "K - K - - K - -",
+        "K - K - - K - -",
+        "K - K - - K - -",
+        "K - K K K K K K"
+      ]
+    },
+    "snare": {
+      "type": "noise",
+      "vol": 0.05,
+      "bars": [
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - - - S -",
+        "- - S - S S S S"
+      ]
+    },
+    "hats": {
+      "type": "noise",
+      "vol": 0.038,
+      "bars": [
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h",
+        "h h h h h h h h"
+      ]
+    }
+  }
+}
